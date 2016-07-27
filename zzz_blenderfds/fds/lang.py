@@ -12,7 +12,7 @@ from . import tables, mesh
 
 from .. import config
 
-DEBUG = False
+DEBUG = True # FIXME
 
 # TODO: evacuation namelists
 
@@ -21,8 +21,7 @@ DEBUG = False
 # Object related namelist cls name
 
 def update_OP_namelist_cls(self, context):
-    # Del all tmp_objects, if self has one
-    if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
+    # When Object namelist cls is updated:
     # Check allowed geometries, different namelists may have different allowed geometries
     bf_namelist = self.bf_namelist
     bf_prop_XB = bf_namelist.bf_prop_XB
@@ -50,6 +49,7 @@ class OP_namelist_cls(BFProp):
 # Material related namelist cls name
 
 def update_MP_namelist_cls(self, context):
+    # When Material namelist cls is updated:
     # Set default appearance
     self.set_default_appearance(context)
 
@@ -66,7 +66,7 @@ class MP_namelist_cls(BFProp):
         "default": "MN_SURF",
     }
 
-# Object tmp
+# Object tmp # FIXME move to self[""] var? is it saved?
 
 @subscribe
 class OP_is_tmp(BFProp):
@@ -123,7 +123,11 @@ class OP_namelist_old_1(BFStringProp):
 
 def update_bf_xb_voxel_size(self, context):
     """Update function for bf_xb_voxel_size"""
+    # Del all tmp objects # FIXME del only mine
     geometry.tmp_objects.del_all(context)
+    # Delete cached xbs geometry # FIXME check
+    self["ob_to_xbs_cache"] = False
+    DEBUG and print("BFDS: update_bf_xb_voxel_size: deleted xbs cached geometry:", self.name)
 
 #@subscribe  # TODO not ready for prime time
 #class OP_XB_precise_bbox(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
@@ -187,8 +191,11 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
 
 def update_bf_xb(self, context):
     """Update function for bf_xb"""
-    # Del all tmp_objects, if self has one
+    # Del all tmp_objects, if self has one # FIXME only mine
     if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
+    # Delete cached xbs geometry # FIXME check
+    self["ob_to_xbs_cache"] = False
+    DEBUG and print("BFDS: update_bf_xb: deleted xbs cached geometry:", self.name)
     # Set other geometries to compatible settings
     if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"):
         if self.bf_xyz == "VERTICES": self.bf_xyz = "NONE"
@@ -312,8 +319,11 @@ class OP_XB_faces(OP_XB):
 
 def update_bf_xyz(self, context):
     """Update function for bf_xyz"""
-    # Del all tmp_objects, if self has one
+    # Del all tmp_objects, if self has one # FIXME del only mine
     if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
+    # Delete cached xyzs geometry FIXME check
+    self["ob_to_xyzs_cache"] = False
+    DEBUG and print("BFDS: update_bf_xyzs: deleted xyzs cached geometry:", self.name)
     # Set other geometries to compatible settings
     if self.bf_xyz == "VERTICES":
         if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"): self.bf_xb = "NONE"
@@ -409,8 +419,11 @@ class OP_XYZ(BFXYZProp):
 
 def update_bf_pb(self, context):
     """Update function for bf_pb"""
-    # Del all tmp_objects
+    # Del all tmp_objects # FIXME del only mine
     if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
+    # Delete cached pbs geometry FIXME check
+    self["ob_to_pbs_cache"] = False
+    DEBUG and print("BFDS: update_bf_pb: deleted pbs cached geometry:", self.name)
     # Set other geometries to compatible settings
     if self.bf_pb == "PLANES":
         if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"): self.bf_xb = "NONE"
@@ -432,14 +445,26 @@ class OP_PB(BFPBProp):
 
     allowed_items = "NONE", "PLANES"
 
-    def _format_pb(self, value):
-        return "PB{0[0]}={0[1]:.3f}".format(value)
+    def _format_pb(self, value): # FIXME check
+        if   value[0] == 0: return "PBX={0[1]:.3f}".format(value) # PBX is 0
+        elif value[0] == 1: return "PBY={0[1]:.3f}".format(value) # PBY is 1
+        elif value[0] == 2: return "PBZ={0[1]:.3f}".format(value) # PBZ is 2
 
-    def _format_pb_idi(self, value, name, i):
-        return "ID='{1}_{2}'\n      PB{0[0]}={0[1]:.3f}".format(value, name, i)
+    def _format_pb_idi(self, value, name, i): # FIXME check
+        if   value[0] == 0:
+            return "ID='{1}_{2}'\n      PBX={0[1]:.3f}".format(value, name, i) # PBX is 0
+        elif value[0] == 1:
+            return "ID='{1}_{2}'\n      PBY={0[1]:.3f}".format(value, name, i) # PBY is 1
+        elif value[0] == 2:
+            return "ID='{1}_{2}'\n      PBZ={0[1]:.3f}".format(value, name, i) # PBZ is 2
 
-    def _format_pb_idxyz(self, value, name, i):
-        return "ID='{1}_{0[0]}{0[1]:+.3f}'\n      PB{0[0]}={0[1]:.3f}".format(value, name)
+    def _format_pb_idxyz(self, value, name, i): # FIXME check
+        if   value[0] == 0:
+            return "ID='{1}_X{0[1]:+.3f}'\n      PBX={0[1]:.3f}".format(value, name) # PBX is 0
+        elif value[0] == 1:
+            return "ID='{1}_Y{0[1]:+.3f}'\n      PBY={0[1]:.3f}".format(value, name) # PBY is 1
+        elif value[0] == 2:
+            return "ID='{1}_Z{0[1]:+.3f}'\n      PBZ={0[1]:.3f}".format(value, name) # PBZ is 2
 
     def to_fds(self, context):
         # Check
@@ -455,10 +480,9 @@ class OP_PB(BFPBProp):
         scale_length = context.scene.unit_settings.scale_length
         pbs = [[pb[0], pb[1] * scale_length] for pb in pbs]
         # Prepare
-        if len(pbs) == 1:
-            return self._format_pb(pbs[0])
+        if len(pbs) == 1: return self._format_pb(pbs[0])
         else:
-            _format_pb = {
+            _format_pb = { # FIXME risk of name clash _format_pb self._format_pb. Elsewhere?
                 "IDI" :   self._format_pb_idi,
                 "IDX" :   self._format_pb_idxyz,
                 "IDY" :   self._format_pb_idxyz,
@@ -475,8 +499,11 @@ class OP_PB(BFPBProp):
         try:
             # Correct for scale_lenght
             value = value / context.scene.unit_settings.scale_length
-            # Set value
-            pbs = ((self.fds_label[2], value),) # eg: (("X", 3.4),)
+            # Set value FIXME check
+            fds_label = self.fds_label
+            if   fds_label == "PBX": pbs = ((0, value),) # PBX is 0, eg: ((0, 3.4),)
+            elif fds_label == "PBY": pbs = ((1, value),) # PBY is 1, eg: ((1, 3.4),)
+            elif fds_label == "PBZ": pbs = ((2, value),) # PBZ is 2, eg: ((2, 3.4),)
             geometry.from_fds.pbs_to_ob(
                 pbs=pbs,
                 context=context,
