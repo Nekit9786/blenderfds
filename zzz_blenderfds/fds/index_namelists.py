@@ -29,7 +29,7 @@ def add_namelist_index(fds_file):
         if not m: break
         label = m.group("label")
         end = m.end("namelist")
-        print(label,end)
+        #print(label,end)
         if label in namelist_index: namelist_index[label] += 1
         else: namelist_index[label] = 1
         fds_index = " [{} {}]".format(label,namelist_index[label])
