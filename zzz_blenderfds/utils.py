@@ -56,7 +56,7 @@ def write_to_file(filepath, text_file):
     """Write text_file to filepath"""
     if text_file is None: text_file = str()
     try:
-        with open(filepath, "w") as out_file: out_file.write(text_file)
+        with open(filepath,"w",encoding="utf8",errors="ignore") as out_file: out_file.write(text_file)
         return True
     except IOError:
         return False
