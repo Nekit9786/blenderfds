@@ -40,6 +40,7 @@ class SCENE_PT_BF_HEAD(SCENE_PT_BF, Panel):
         self.bf_namelist(element).draw(context, layout)
         # Other operators
         row = layout.row()
+        row.operator("scene.bf_restore_all_tmp_objects")
         row.operator("scene.bf_show_fds_code", text="Show FDS Code")
         row.operator("scene.bf_props_to_scene", text="Copy To")
 
@@ -96,8 +97,8 @@ class OBJECT_PT_BF_MESH(Panel):
         row.prop(element, "hide_render", text="")
         element.bf_namelist.draw(context, layout)
         row = layout.row()
-        if element.bf_has_tmp: row.operator("scene.bf_del_all_tmp_objects", text="Hide FDS Geometry")
-        else: row.operator("object.bf_show_fds_geometries", text="Show FDS Geometry")
+        if element.bf_has_tmp: row.operator("object.bf_hide_fds_geometry")
+        else: row.operator("object.bf_show_fds_geometry")
         row.operator("object.bf_show_fds_code", text="Show FDS Code")
         row.operator("object.bf_props_to_sel_obs", text="Copy To")
 
@@ -123,7 +124,7 @@ class OBJECT_PT_BF_EMPTY(Panel):
         layout.template_ID(context.scene.objects, "active") # ID
         layout.prop(element, "bf_fyi", text="", icon="INFO") # FYI
         row = layout.row()
-        if element.bf_has_tmp: row.operator("scene.bf_del_all_tmp_objects", text="Hide FDS Geometry")
+        if element.bf_has_tmp: row.operator("object.bf_hide_fds_geometry")
         else: row.label(text="")
         row.operator("object.bf_show_fds_code", text="Show FDS Code")
         row.operator("object.bf_props_to_sel_obs", text="Copy To")
@@ -147,7 +148,7 @@ class OBJECT_PT_BF_TMP(Panel):
         w = context.window_manager.windows[0]
         w.cursor_modal_restore()
         # Panel
-        layout.operator("scene.bf_del_all_tmp_objects")
+        layout.operator("object.bf_hide_fds_geometry_from_tmp")
 
 ### Material panel
 

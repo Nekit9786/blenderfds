@@ -361,10 +361,10 @@ class MATERIAL_OT_bf_set_predefined(Operator): # TODO this operator is not used,
 
 ### Show exported geometry
 
-class OBJECT_OT_bf_show_fds_geometries(Operator):
-    bl_label = "Show FDS Geometries"
-    bl_idname = "object.bf_show_fds_geometries"
-    bl_description = "Show geometries as exported to FDS"
+class OBJECT_OT_bf_show_fds_geometry(Operator):
+    bl_label = "Show FDS Geometry"
+    bl_idname = "object.bf_show_fds_geometry"
+    bl_description = "Show geometry as exported to FDS"
 
     def execute(self, context):
         # Init
@@ -385,7 +385,7 @@ class OBJECT_OT_bf_show_fds_geometries(Operator):
         if msg: msgs.append(msg)
         if xbs:
             ob_tmp = geometry.from_fds.xbs_to_ob(xbs, context, bf_xb=ob.bf_xb, name="Shown {} XBs".format(ob.name))
-            geometry.tmp_objects.set(context, ob, ob_tmp)
+            geometry.tmp_objects.tmp_set(context, ob, ob_tmp)
         # Manage XYZ: get coordinates, show them in a tmp object, prepare msg
         xyzs = None
         msg = None
@@ -397,7 +397,7 @@ class OBJECT_OT_bf_show_fds_geometries(Operator):
         if msg: msgs.append(msg)
         if xyzs:
             ob_tmp = geometry.from_fds.xyzs_to_ob(xyzs, context, bf_xyz=ob.bf_xyz, name="Shown {} XYZs".format(ob.name))
-            geometry.tmp_objects.set(context, ob, ob_tmp)
+            geometry.tmp_objects.tmp_set(context, ob, ob_tmp)
         # Manage PB*: get coordinates, show them in a tmp object, prepare msg
         pbs  = None
         msg = None        
@@ -409,24 +409,47 @@ class OBJECT_OT_bf_show_fds_geometries(Operator):
         if msg: msgs.append(msg)
         if pbs:
             ob_tmp = geometry.from_fds.pbs_to_ob(pbs, context, bf_pb=ob.bf_pb, name="Shown {} PBs".format(ob.name))
-            geometry.tmp_objects.set(context, ob, ob_tmp)
+            geometry.tmp_objects.tmp_set(context, ob, ob_tmp)
         # Set report
         if msgs: report = {"INFO"}, "; ".join(msgs)
-        elif xbs or xyzs or pbs: report = {"INFO"}, "FDS geometries shown"
+        elif xbs or xyzs or pbs: report = {"INFO"}, "FDS geometry shown"
         else: report = {"WARNING"}, "No geometry to show"
         # Return
         w.cursor_modal_restore()
         self.report(*report)
         return{'FINISHED'}
 
-class SCENE_OT_bf_del_all_tmp_objects(Operator):
-    bl_label = "Hide Temporary Objects"
-    bl_idname = "scene.bf_del_all_tmp_objects"
-    bl_description = "Delete all temporary objects"
+class OBJECT_OT_bf_hide_fds_geometry(Operator):
+    bl_label = "Hide FDS Geometry"
+    bl_idname = "object.bf_hide_fds_geometry"
+    bl_description = "Hide geometry as exported to FDS"
 
     def execute(self, context):
-        geometry.tmp_objects.del_all(context)
-        self.report({"INFO"}, "All temporary objects deleted")
+        geometry.tmp_objects.del_my_tmp(context, context.object)
+        self.report({"INFO"}, "FDS geometry hidden")
+        return {'FINISHED'}
+
+class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator):
+    bl_label = "Hide FDS Geometry"
+    bl_idname = "object.bf_hide_fds_geometry_from_tmp"
+    bl_description = "Hide geometry as exported to FDS"
+
+    def execute(self, context):
+        geometry.tmp_objects.del_my_tmp(context, context.object.parent)
+        self.report({"INFO"}, "FDS geometry hidden")
+        return {'FINISHED'}
+
+
+### Restore all tmp objects
+
+class SCENE_OT_bf_restore_all_tmp_objects(Operator):
+    bl_label = "Del Cached Geometry"
+    bl_idname = "scene.bf_restore_all_tmp_objects"
+    bl_description = "Delete all cached geometry and temporary objects"
+
+    def execute(self, context):
+        geometry.tmp_objects.restore_all(context)
+        self.report({"INFO"}, "All cached geometry and temporary objects deleted")
         return {'FINISHED'}
 
 ### Open text editor with right text displayed

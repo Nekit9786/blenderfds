@@ -12,7 +12,7 @@ from . import tables, mesh
 
 from .. import config
 
-DEBUG = True # FIXME
+DEBUG = False
 
 # TODO: evacuation namelists
 
@@ -123,23 +123,9 @@ class OP_namelist_old_1(BFStringProp):
 
 def update_bf_xb_voxel_size(self, context):
     """Update function for bf_xb_voxel_size"""
-    # Del all tmp objects # FIXME del only mine
-    geometry.tmp_objects.del_all(context)
-    # Delete cached xbs geometry # FIXME check
+    # Del my tmp object and cached xbs geometry
+    geometry.tmp_objects.del_my_tmp(context, self)
     self["ob_to_xbs_cache"] = False
-    DEBUG and print("BFDS: update_bf_xb_voxel_size: deleted xbs cached geometry:", self.name)
-
-#@subscribe  # TODO not ready for prime time
-#class OP_XB_precise_bbox(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
-#    label = "Precise positioning"
-#    description = "Center voxels/pixels to original bounding box"
-#    bpy_type = Object
-#    bpy_idname = "bf_xb_precise_bbox"
-#    bpy_prop = BoolProperty
-#    bpy_other = {
-#        "update": update_bf_xb_voxel_size,
-#        "default": False,
-#    }
 
 @subscribe
 class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
@@ -170,6 +156,11 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
     }
     # unit = "LENGTH", # correction for scale_length needed before exporting!
 
+def update_bf_default_voxel_size(self, context):
+    """Update function for bf_xb_custom_voxel"""
+    # Del all tmp objects and all cached geometry
+    geometry.tmp_objects.restore_all(context)
+
 @subscribe
 class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
     label = "Default Resolution"
@@ -182,7 +173,7 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
         "precision": 3,
         "min": .001,
         "max": 20.,
-        "update": update_bf_xb_voxel_size,
+        "update": update_bf_default_voxel_size,
         "default": .10,
     }
     # unit = "LENGTH", # correction for scale_length needed before exporting!
@@ -191,11 +182,9 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
 
 def update_bf_xb(self, context):
     """Update function for bf_xb"""
-    # Del all tmp_objects, if self has one # FIXME only mine
-    if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
-    # Delete cached xbs geometry # FIXME check
+    # Delete my tmp object and cached xbs geometry
+    geometry.tmp_objects.del_my_tmp(context, self)
     self["ob_to_xbs_cache"] = False
-    DEBUG and print("BFDS: update_bf_xb: deleted xbs cached geometry:", self.name)
     # Set other geometries to compatible settings
     if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"):
         if self.bf_xyz == "VERTICES": self.bf_xyz = "NONE"
@@ -203,7 +192,6 @@ def update_bf_xb(self, context):
 
 @subscribe
 class OP_XB(BFXBProp):
-#    bf_props = OP_XB_precise_bbox, OP_XB_custom_voxel, OP_XB_voxel_size # TODO not ready for prime time
     bf_props = OP_XB_custom_voxel, OP_XB_voxel_size
     bpy_other = {
         "update": update_bf_xb,
@@ -224,7 +212,6 @@ class OP_XB(BFXBProp):
         if not self.element.bf_xb in ("VOXELS", "PIXELS"): return
         # Draw VOXELS, PIXELS properties
         row = layout.row()
-        # row.prop(self.element, "bf_xb_precise_bbox") # TODO not ready for prime time
         layout_export, layout_custom = row.column(), row.column()
         layout_export.prop(self.element, "bf_xb_custom_voxel", text="")
         row = layout_custom.row(align=True)
@@ -319,11 +306,9 @@ class OP_XB_faces(OP_XB):
 
 def update_bf_xyz(self, context):
     """Update function for bf_xyz"""
-    # Del all tmp_objects, if self has one # FIXME del only mine
-    if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
-    # Delete cached xyzs geometry FIXME check
+    # Delete my tmp object and cached xyzs geometry # FIXME check
+    geometry.tmp_objects.del_my_tmp(context, self)
     self["ob_to_xyzs_cache"] = False
-    DEBUG and print("BFDS: update_bf_xyzs: deleted xyzs cached geometry:", self.name)
     # Set other geometries to compatible settings
     if self.bf_xyz == "VERTICES":
         if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"): self.bf_xb = "NONE"
@@ -419,11 +404,9 @@ class OP_XYZ(BFXYZProp):
 
 def update_bf_pb(self, context):
     """Update function for bf_pb"""
-    # Del all tmp_objects # FIXME del only mine
-    if self.bf_has_tmp: geometry.tmp_objects.del_all(context)
-    # Delete cached pbs geometry FIXME check
+    # Delete my tmp object and cached pbs geometry # FIXME check
+    geometry.tmp_objects.del_my_tmp(context, self)
     self["ob_to_pbs_cache"] = False
-    DEBUG and print("BFDS: update_bf_pb: deleted pbs cached geometry:", self.name)
     # Set other geometries to compatible settings
     if self.bf_pb == "PLANES":
         if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"): self.bf_xb = "NONE"
@@ -445,12 +428,12 @@ class OP_PB(BFPBProp):
 
     allowed_items = "NONE", "PLANES"
 
-    def _format_pb(self, value): # FIXME check
+    def _format_pb(self, value):
         if   value[0] == 0: return "PBX={0[1]:.3f}".format(value) # PBX is 0
         elif value[0] == 1: return "PBY={0[1]:.3f}".format(value) # PBY is 1
         elif value[0] == 2: return "PBZ={0[1]:.3f}".format(value) # PBZ is 2
 
-    def _format_pb_idi(self, value, name, i): # FIXME check
+    def _format_pb_idi(self, value, name, i):
         if   value[0] == 0:
             return "ID='{1}_{2}'\n      PBX={0[1]:.3f}".format(value, name, i) # PBX is 0
         elif value[0] == 1:
@@ -458,7 +441,7 @@ class OP_PB(BFPBProp):
         elif value[0] == 2:
             return "ID='{1}_{2}'\n      PBZ={0[1]:.3f}".format(value, name, i) # PBZ is 2
 
-    def _format_pb_idxyz(self, value, name, i): # FIXME check
+    def _format_pb_idxyz(self, value, name, i):
         if   value[0] == 0:
             return "ID='{1}_X{0[1]:+.3f}'\n      PBX={0[1]:.3f}".format(value, name) # PBX is 0
         elif value[0] == 1:
@@ -499,7 +482,7 @@ class OP_PB(BFPBProp):
         try:
             # Correct for scale_lenght
             value = value / context.scene.unit_settings.scale_length
-            # Set value FIXME check
+            # Set value
             fds_label = self.fds_label
             if   fds_label == "PBX": pbs = ((0, value),) # PBX is 0, eg: ((0, 3.4),)
             elif fds_label == "PBY": pbs = ((1, value),) # PBY is 1, eg: ((1, 3.4),)

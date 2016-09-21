@@ -29,7 +29,6 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     # else: precise_bbox = False
     if ob.bf_xb_custom_voxel: voxel_size = ob.bf_xb_voxel_size
     else: voxel_size = context.scene.bf_default_voxel_size
-
     ## Voxelize object
     # Get original object and, if requested, its bbox in global coordinates (remesh works in local coordinates)
     me_bvox = get_global_mesh(context, ob)
@@ -85,7 +84,7 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     if DEBUG:
         bpy.data.objects.remove(ob_bvox)        
         context.scene.objects.link(ob_avox) # create unlinked for speed
-        tmp_objects.set(context, ob, ob_avox) # it is left as a tmp object
+        tmp_objects.tmp_set(context, ob, ob_avox) # it is left as a tmp object
     else:
         bpy.data.objects.remove(ob_bvox)
         bpy.data.objects.remove(ob_avox)
