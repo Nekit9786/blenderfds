@@ -5,7 +5,7 @@ from time import time
 from .geom_utils import *
 from .voxelize import voxelize
 
-DEBUG = True # FIXME
+DEBUG = False
 
 ### to None
 
@@ -100,10 +100,10 @@ choose_to_xbs = {
     "EDGES"  : ob_to_xbs_edges,
 }
 
-def ob_to_xbs(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'": # FIXME check
+def ob_to_xbs(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
     """Transform Blender object geometry according to ob.bf_xb to FDS notation. Never send None."""
     # not ob.get("ob_to_xbs_cache") -> precalc not available or modified input conditions
-    DEBUG and print("BFDS: geometry.ob_to_xbs:", ob.name) # FIXME check
+    DEBUG and print("BFDS: geometry.ob_to_xbs:", ob.name)
     if not ob.get("ob_to_xbs_cache"): # ob.is_updated does not work here, checked in the handler
         ob["ob_to_xbs_cache"] = choose_to_xbs[ob.bf_xb](context, ob) # Calculate
     return ob["ob_to_xbs_cache"]
@@ -129,7 +129,7 @@ def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'":
 
 def ob_to_xyzs_center(context, ob) -> "((x0,y0,z0,), ...), 'Message'":
     """Transform ob center in XYZs notation. Never send None."""
-    DEBUG and print("BFDS: geometry.ob_to_xyzs_center:", ob.name) # FIXME too many printings
+    DEBUG and print("BFDS: geometry.ob_to_xyzs_center:", ob.name)
     return [(ob.location[0], ob.location[1], ob.location[2],),], ""
 
 # Caller function (ob.bf_xyz)
@@ -140,10 +140,10 @@ choose_to_xyzs = {
     "VERTICES" : ob_to_xyzs_vertices,
 }
 
-def ob_to_xyzs(context, ob): # FIXME check
+def ob_to_xyzs(context, ob):
     """Transform Blender object geometry according to ob.bf_xyz to FDS notation. Never send None."""
     # not ob.get("ob_to_xyzs_cache") -> precalc not available or modified input conditions
-    DEBUG and print("BFDS: geometry.ob_to_xyzs:", ob.name) # FIXME check
+    DEBUG and print("BFDS: geometry.ob_to_xyzs:", ob.name)
     if not ob.get("ob_to_xyzs_cache"): # ob.is_updated does not work here, checked in the handler
         ob["ob_to_xyzs_cache"] = choose_to_xyzs[ob.bf_xyz](context, ob) # Calculate
     return ob["ob_to_xyzs_cache"]
@@ -159,7 +159,7 @@ def ob_to_pbs_planes(context, ob) -> "(('X',x3,), ('X',x7,), ('Y',y9,), ...), 'M
     xbs, msg = ob_to_xbs_faces(context, ob)
     # For each face build a plane...
     for xb in xbs:
-        if   abs(xb[1] - xb[0]) < epsilon: result.append((0,xb[0],),) # PBX is 0 FIXME check
+        if   abs(xb[1] - xb[0]) < epsilon: result.append((0,xb[0],),) # PBX is 0
         elif abs(xb[3] - xb[2]) < epsilon: result.append((1,xb[2],),) # PBY is 1
         elif abs(xb[5] - xb[4]) < epsilon: result.append((2,xb[4],),) # PBZ is 2
         else: raise ValueError("BFDS: Building planes impossible, problem in ob_to_xbs_faces.")
@@ -175,10 +175,10 @@ choose_to_pbs = {
     "PLANES" : ob_to_pbs_planes,
 }
 
-def ob_to_pbs(context, ob): # FIXME check
+def ob_to_pbs(context, ob):
     """Transform Blender object geometry according to ob.bf_pb to FDS notation. Never send None."""
     # not ob.get("ob_to_pbs_cache") -> precalc not available or modified input conditions
-    DEBUG and print("BFDS: geometry.ob_to_pbs:", ob.name) # FIXME check
+    DEBUG and print("BFDS: geometry.ob_to_pbs:", ob.name)
     if not ob.get("ob_to_pbs_cache"): # ob.is_updated does not work here, checked in the handler
         ob["ob_to_pbs_cache"] = choose_to_pbs[ob.bf_pb](context, ob) # Calculate
     return ob["ob_to_pbs_cache"]

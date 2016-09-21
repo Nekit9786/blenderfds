@@ -23,7 +23,7 @@ def xbs_edges_to_mesh(xbs, me=None) -> "Mesh":
         verts.extend(((x0,y0,z0), (x1,y1,z1)))
         edges.append((0+j,1+j))
     me.from_pydata(verts, edges, faces)
-    me.update(calc_edges=True) # FIXME elsewhere is commented
+    # me.update(calc_edges=True) # FIXME elsewhere is commented FIXME check
     return me
 
 def xbs_faces_to_mesh(xbs, me=None) -> "Mesh":
@@ -41,7 +41,7 @@ def xbs_faces_to_mesh(xbs, me=None) -> "Mesh":
             continue
         faces.append((0+j,1+j,2+j,3+j))
     me.from_pydata(verts, edges, faces)
-    me.update(calc_edges=True) # FIXME elsewhere is commented
+    # me.update(calc_edges=True) # FIXME elsewhere is commented FIXME check
     return me
 
 def xbs_bbox_to_mesh(xbs, me=None) -> "Mesh":
@@ -54,7 +54,7 @@ def xbs_bbox_to_mesh(xbs, me=None) -> "Mesh":
         verts.extend(((x0,y0,z0), (x1,y0,z0), (x1,y1,z0), (x0,y1,z0), (x0,y0,z1), (x1,y0,z1), (x1,y1,z1), (x0,y1,z1)))
         faces.extend(((0+j,3+j,2+j,1+j), (0+j,1+j,5+j,4+j), (0+j,4+j,7+j,3+j), (6+j,5+j,1+j,2+j), (6+j,2+j,3+j,7+j), (6+j,7+j,4+j,5+j)))
     me.from_pydata(verts, edges, faces)
-    #me.update(calc_edges=True) # FIXME why comment? why not elsewhere?
+    #me.update(calc_edges=True) # FIXME why comment? why not elsewhere? # FIXME check
     return me
 
 # Caller function
@@ -81,9 +81,7 @@ def xbs_to_ob(xbs, context, ob=None, bf_xb="NONE", name="xbs_to_ob", update_cent
     me = choose_from_xbs[bf_xb](xbs)
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    #print("QUI",ob.name, ob.bf_xb) #FIXME
-    #ob.bf_xb = bf_xb # FIXME
-    #print("QUI2") #FIXME
+    #ob.bf_xb = bf_xb # FIXME useful? check
     if update_center: set_balanced_center_position(context, ob)
     return ob
 
@@ -94,7 +92,7 @@ def xyzs_vertices_to_mesh(xyzs, me=None) -> "Mesh":
     if not me: me = bpy.data.meshes.new("xyzs_vertices")
     verts, edges, faces = xyzs, list(), list()
     me.from_pydata(verts, edges, faces)
-    me.update(calc_edges=True) # FIXME elsewhere is commented
+    #me.update(calc_edges=True) # FIXME elsewhere is commented # FIXME check
     return me
 
 # Caller function
@@ -115,18 +113,18 @@ def xyzs_to_ob(xyzs, context, ob=None, bf_xyz="NONE", name="xyzs_to_ob", update_
     me = choose_from_xyzs[bf_xyz](xyzs)
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    #ob.bf_xyz = bf_xyz # FIXME useful?
+    #ob.bf_xyz = bf_xyz # FIXME useful? check
     if update_center: set_balanced_center_position(context, ob)
     return ob
 
 ### from PB
 
-def pbs_planes_to_mesh(pbs, me=None) -> "Mesh": # FIXME check
+def pbs_planes_to_mesh(pbs, me=None) -> "Mesh":
     """Translate PB* planes ((0,x3,), (0,x7,), (1,y9,), ...) to Blender mesh."""
     # Prepare xbs
     xbs = list()
     for i, pb in enumerate(pbs):
-        if   pb[0] == 0: xbs.append((pb[1], pb[1], -1., +1., -1., +1.)) # PBX is 0 FIXME check
+        if   pb[0] == 0: xbs.append((pb[1], pb[1], -1., +1., -1., +1.)) # PBX is 0
         elif pb[0] == 1: xbs.append((-1., +1., pb[1], pb[1], -1., +1.)) # PBY is 1
         elif pb[0] == 2: xbs.append((-1., +1., -1., +1., pb[1], pb[1])) # PBZ is 2
         else:
@@ -152,6 +150,6 @@ def pbs_to_ob(pbs, context, ob=None, bf_pb="NONE", name="pbs_to_ob", update_cent
     me = choose_from_pbs[bf_pb](pbs)
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    ob.bf_pb = bf_pb
+    #ob.bf_pb = bf_pb # FIXME useful? check
     if update_center: set_balanced_center_position(context, ob)
     return ob

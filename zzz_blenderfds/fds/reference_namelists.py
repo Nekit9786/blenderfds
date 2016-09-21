@@ -1,4 +1,4 @@
-"""BlenderFDS, reference to FDS namelists"""
+"""BlenderFDS, reference to FDS namelists ID"""
 
 # TODO currently not used
 # TODO generalize regex

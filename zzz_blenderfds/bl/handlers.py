@@ -5,7 +5,7 @@ import bpy
 from .. import fds
 from .. import config
 
-DEBUG = True # FIXME
+DEBUG = False
 
 ### Register/Unregister
 
@@ -14,20 +14,20 @@ def register():
     DEBUG and print("BFDS: handlers.py register")
     bpy.app.handlers.load_post.append(_load_post)
     bpy.app.handlers.save_pre.append(_save_pre)
-    bpy.app.handlers.scene_update_post.append(_scene_update_post) # FIXME check
+    bpy.app.handlers.scene_update_post.append(_scene_update_post)
 
 def unregister():
     """Unregister handlers"""
     DEBUG and print("BFDS: handlers.py unregister")
     bpy.app.handlers.load_post.remove(_load_post)
     bpy.app.handlers.save_pre.remove(_save_pre)
-    bpy.app.handlers.scene_update_post.remove(_scene_update_post) # FIXME change name FIXME check
+    bpy.app.handlers.scene_update_post.remove(_scene_update_post) # FIXME change name
 
 ### Load and save post
 
 @bpy.app.handlers.persistent
-def _load_post(self): # FIXME self or context?
-    """This function is run after each time a Blender file is loaded"""
+def _load_post(self): # Beware: self is None
+    """This function is run each time after a Blender file is loaded"""
     # Init
     context = bpy.context
     # Check file format version
@@ -40,8 +40,8 @@ def _load_post(self): # FIXME self or context?
     fds.head.set_free_text_file(context, context.scene)
     
 @bpy.app.handlers.persistent
-def _save_pre(self):
-    """This function is run before each time a Blender file is saved"""
+def _save_pre(self): # Beware: self is None
+    """This function is run each time before a Blender file is saved"""
     # Set file format version
     set_file_version(bpy.context)
 
@@ -91,7 +91,7 @@ def set_file_version(context):
     """Set current file version."""
     for sc in bpy.data.scenes: sc.bf_file_version = config.supported_file_version
 
-### Detect objects change # FIXME check
+### Detect objects change
 
 @bpy.app.handlers.persistent 
 def _scene_update_post(context): 
@@ -100,7 +100,7 @@ def _scene_update_post(context):
     if bpy.data.objects.is_updated:
         for ob in bpy.data.objects:
             # is_updated -> object, is_updated_data -> its mesh
-            if ob.is_updated: # FIXME or ob.is_updated_data: less actions, no check on mesh update...
+            if ob.is_updated: # or ob.is_updated_data: less actions, no check on mesh update...
                 ob["ob_to_xbs_cache"] = False
                 ob["ob_to_xyzs_cache"] = False
                 ob["ob_to_pbs_cache"] = False
