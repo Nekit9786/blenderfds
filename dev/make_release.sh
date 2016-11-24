@@ -4,7 +4,7 @@
 
 # Setup
 
-tag="v4.1.0"
+tag="v4.1.1"
 short_tag=${tag:1}
 release_name="BlenderFDS-$tag"
 
@@ -53,7 +53,8 @@ echo_title "Making <$release_name> release..."
 # Tag pre-release
 
 #git tag -a $tag -m "Release $tag"
-#git push --tags
+#git push --tags # FIXME
+#git push --follow-tags
 
 # Download from GitHub
 
