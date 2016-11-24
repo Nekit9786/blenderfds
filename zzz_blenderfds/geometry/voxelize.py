@@ -22,28 +22,22 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     # ob_bvox: original object in global coordinates, before voxelization
     # ob_avox: voxelized object in global coordinates, after voxelization
 
-    ## Init: check, precise_bbox, voxel_size
+    ## Init: check, voxel_size
     t0 = time()
     if not ob.data.vertices: raise BFException(ob, "Empty object!")
-    # if ob.bf_xb_precise_bbox: precise_bbox = True  # TODO not ready for prime time
-    # else: precise_bbox = False
     if ob.bf_xb_custom_voxel: voxel_size = ob.bf_xb_voxel_size
     else: voxel_size = context.scene.bf_default_voxel_size
     ## Voxelize object
     # Get original object and, if requested, its bbox in global coordinates (remesh works in local coordinates)
     me_bvox = get_global_mesh(context, ob)
     ob_bvox = get_new_object(context, context.scene, "bvox", me_bvox, linked=False)
-    # if precise_bbox:  # TODO not ready for prime time
-    #    if not is_manifold(context, me_bvox): raise BFException(ob, "Object non-manifold, cannot set precise position.")
-    #    bbox_bvox = get_bbox(ob_bvox)
     # If flat, solidify and get flatten function for later generated xbs
     if flat: flat_origin, choose_flatten = _solidify_flat_ob(context, ob_bvox, voxel_size/3.)
-    # Apply remesh modifier, update voxel_size (can be a little different from desired)
-    octree_depth, scale, voxel_size = _calc_remesh_modifier(context, ob, voxel_size)
+    # Apply remesh modifier to ob_bvox
+    octree_depth, scale = _calc_remesh_modifier(context, ob_bvox, voxel_size) # ob_bvox not ob!
     _apply_remesh_modifier(context, ob_bvox, octree_depth, scale)
     # Get voxelized object and, if requested, its bbox
     ob_avox = get_new_object(context, context.scene, "avox", get_global_mesh(context, ob_bvox), linked=False)
-    # if precise_bbox: bbox_avox = get_bbox(ob_avox)  # TODO not ready for prime time
 
     ## Find, build and grow boxes
     # Get and check tessfaces
@@ -75,8 +69,6 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     # Transform grown boxes in xbs
     t6 = time()
     xbs = choose[0][4](boxes, voxel_size, origin) # eg. _x_boxes_to_xbs(boxes, ...)
-    # If requested, center xbs to original bbox
-    # if precise_bbox: move_xbs(xbs, calc_movement_from_bbox1_to_bbox0(bbox_bvox, bbox_avox))  # TODO not ready for prime time
     # If flat, flatten xbs at flat_origin
     if flat: xbs = choose_flatten(xbs, flat_origin)
 
@@ -112,23 +104,20 @@ def _solidify_flat_ob(context, ob, thickness):
 # |-----|-----|-----|-----| voxels, dimension / scale
 #    |=====.=====.=====|    dimension
 
-def _calc_remesh_modifier(context, ob, voxel_size):
+def _calc_remesh_modifier(context, ob_bvox, voxel_size):
     """Calc Remesh modifier parameters for voxel_size."""
     # Get max dimension and init flag
-    dimension = max(ob.dimensions)
+    dimension = max(ob_bvox.dimensions)
     dimension_too_large = True
-    # Fix voxel_size for Blender remesh algorithm
-    # If dimension / voxel_size is "too integer" voxelization is not very good.
-    while abs(dimension / voxel_size - round(dimension / voxel_size)) < 1E-3: voxel_size -= 1E-3
     # Find righ octree_depth and relative scale
     for octree_depth in range(1,11):
         scale = dimension / voxel_size / 2 ** octree_depth
         if 0.100 < scale < 0.900: # Was 0.010...0.990
             dimension_too_large = False
             break
-    if dimension_too_large: raise BFException(ob, "Too large for desired resolution, split object!")
+    if dimension_too_large: raise BFException(ob_bvox, "Too large for desired resolution, split object!")
     # Return
-    return octree_depth, scale, voxel_size
+    return octree_depth, scale
 
 def _apply_remesh_modifier(context, ob, octree_depth, scale):
     """Apply remesh modifier for voxelization."""
@@ -180,7 +169,7 @@ def _x_tessfaces_to_boxes(x_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0
     """Transform _x_tessfaces into minimal boxes."""
     print("BFDS: _x_tessfaces_to_boxes:", len(x_tessfaces))
     # Create floors
-    origin = tuple(x_tessfaces[0].center) # First tessface center becomes origin
+    origin = tuple(x_tessfaces[0].center) # First tessface center is origin
     floors = dict() # {(3,4):(3,4,15,25,), (3,5):(3,4,15,25), ...}
     for tessface in x_tessfaces:
         center = tuple(tessface.center)
@@ -314,7 +303,7 @@ def _x_boxes_to_xbs(boxes, voxel_size, origin) -> "[(x0, x1, y0, y1, z0, z1), ..
     # Init
     print("BFDS: _x_boxes_to_xbs:", len(boxes))
     xbs = list()
-    voxel_size_half = voxel_size / 2. + epsilon # This epsilon is used for overlapping boxes
+    voxel_size_half = voxel_size / 2. + epsilon # This epsilon is used to obtain overlapping boxes
     # Build xbs
     while boxes:
         ix0, ix1, iy0, iy1, iz0, iz1 = boxes.pop()
@@ -336,7 +325,7 @@ def _y_boxes_to_xbs(boxes, voxel_size, origin) -> "[(x0, x1, y0, y1, z0, z1), ..
     print("BFDS: _y_boxes_to_xbs:", len(boxes))
     # Init
     xbs = list()
-    voxel_size_half = voxel_size / 2. + epsilon # This epsilon is used for overlapping boxes
+    voxel_size_half = voxel_size / 2. + epsilon # This epsilon is used to obtain overlapping boxes
     # Build xbs
     while boxes:
         ix0, ix1, iy0, iy1, iz0, iz1 = boxes.pop()
@@ -358,7 +347,7 @@ def _z_boxes_to_xbs(boxes, voxel_size, origin) -> "[(x0, x1, y0, y1, z0, z1), ..
     # Init
     print("BFDS: _z_boxes_to_xbs:", len(boxes))
     xbs = list()
-    voxel_size_half = voxel_size / 2. + epsilon # This epsilon is used for overlapping boxes
+    voxel_size_half = voxel_size / 2. + epsilon # This epsilon is used to obtain overlapping boxes
     # Build xbs
     while boxes:
         ix0, ix1, iy0, iy1, iz0, iz1 = boxes.pop()
