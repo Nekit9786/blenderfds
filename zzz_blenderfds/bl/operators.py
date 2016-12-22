@@ -435,9 +435,14 @@ class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator):
     bl_description = "Hide geometry as exported to FDS"
 
     def execute(self, context):
-        geometry.tmp_objects.del_my_tmp(context, context.object.parent)
-        self.report({"INFO"}, "FDS geometry hidden")
-        return {'FINISHED'}
+        parent = context.object.parent
+        if parent:
+            geometry.tmp_objects.del_my_tmp(context, parent)
+            self.report({"INFO"}, "FDS geometry hidden")
+            return {'FINISHED'}
+        else:
+            self.report({"WARNING"}, "No parent object found!")
+            return{'CANCELLED'}
 
 
 ### Restore all tmp objects
