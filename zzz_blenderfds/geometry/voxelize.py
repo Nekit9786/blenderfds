@@ -11,6 +11,45 @@ DEBUG = False
 
 # TODO port to numpy for speed
 
+# FIXME not used, not finished
+def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
+
+    ## Init: check, voxel_size
+    t0 = time()
+    if not ob.data.vertices: raise BFException(ob, "Empty object!")
+    if ob.bf_xb_custom_voxel: voxel_size = ob.bf_xb_voxel_size
+    else: voxel_size = context.scene.bf_default_voxel_size
+
+    # Get a copy of original object in global coordinates
+    me_bvox = get_global_mesh(context, ob)
+    ob_bvox = get_new_object(context, context.scene, "bvox", me_bvox, linked=False)
+
+    # Get bbox in global coordinates
+    bbox = get_bbox(ob_bvox)
+
+    # Launch infinite rays parallel to x axis in object bbox
+    # Trasform intercepted faces in square faces perp to x axis
+    # Then grow them in z and y directions, finally transform to xbs
+    # Same for y
+    # Same for z
+
+# Geometry Utilities (mathutils.geometry) or raycast
+#mathutils.geometry.intersect_ray_tri(v1, v2, v3, ray, orig, clip=True)
+#Returns the intersection between a ray and a triangle, if possible, returns None otherwise.
+
+#Parameters:	
+#v1 (mathutils.Vector) – Point1
+#v2 (mathutils.Vector) – Point2
+#v3 (mathutils.Vector) – Point3
+#ray (mathutils.Vector) – Direction of the projection
+#orig (mathutils.Vector) – Origin
+#clip (boolean) – When False, don’t restrict the intersection to the area of the triangle, use the infinite plane defined by the triangle.
+#Returns:	
+#The point of intersection or None if no intersection is found
+#Return type:	
+#mathutils.Vector or None
+
+
 # "global" coordinates are absolute coordinate referring to Blender main origin of axes,
 # that are directly transformed to FDS coordinates (that refer to the only origin of axes) 
 
@@ -27,8 +66,9 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     if not ob.data.vertices: raise BFException(ob, "Empty object!")
     if ob.bf_xb_custom_voxel: voxel_size = ob.bf_xb_voxel_size
     else: voxel_size = context.scene.bf_default_voxel_size
+
     ## Voxelize object
-    # Get original object and, if requested, its bbox in global coordinates (remesh works in local coordinates)
+    # Get a copy of original object in global coordinates (remesh works in local coordinates)
     me_bvox = get_global_mesh(context, ob)
     ob_bvox = get_new_object(context, context.scene, "bvox", me_bvox, linked=False)
     # If flat, solidify and get flatten function for later generated xbs
@@ -36,7 +76,7 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     # Apply remesh modifier to ob_bvox
     octree_depth, scale = _calc_remesh_modifier(context, ob_bvox, voxel_size) # ob_bvox not ob!
     _apply_remesh_modifier(context, ob_bvox, octree_depth, scale)
-    # Get voxelized object and, if requested, its bbox
+    # Get voxelized object
     ob_avox = get_new_object(context, context.scene, "avox", get_global_mesh(context, ob_bvox), linked=False)
 
     ## Find, build and grow boxes
@@ -110,9 +150,9 @@ def _calc_remesh_modifier(context, ob_bvox, voxel_size):
     dimension = max(ob_bvox.dimensions)
     dimension_too_large = True
     # Find righ octree_depth and relative scale
-    for octree_depth in range(1,11):
+    for octree_depth in range(1,12):
         scale = dimension / voxel_size / 2 ** octree_depth
-        if 0.100 < scale < 0.900: # Was 0.010...0.990
+        if 0.010 < scale < 0.990: # Was 0.010...0.990
             dimension_too_large = False
             break
     if dimension_too_large: raise BFException(ob_bvox, "Too large for desired resolution, split object!")
@@ -127,7 +167,7 @@ def _apply_remesh_modifier(context, ob, octree_depth, scale):
 def _apply_solidify_modifier(context, ob, thickness):
     """Apply solidify modifier with centered thickness."""
     mo = ob.modifiers.new('solid_tmp','SOLIDIFY') # apply modifier
-    mo.thickness, mo.offset = thickness, thickness / 2. # Set centered thickness
+    mo.thickness, mo.offset = thickness, thickness / 2. # Set centered thickness # FIXME shouldn't it be 0.?
 
 # Sort tessfaces by normal: collection of tessfaces normal to x, to y, to z
 # tessfaces created by the Remesh modifier in BLOCKS mode are perpendicular to a local axis
