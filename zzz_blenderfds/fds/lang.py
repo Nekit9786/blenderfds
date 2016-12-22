@@ -687,6 +687,31 @@ class SP_MISC_FYI(BFFYIProp):
         row.operator("scene.bf_load_misc", icon="LOAD_FACTORY", text="")
 
 @subscribe
+class SP_MISC_OVERWRITE(BFProp):
+    label = "OVERWRITE"
+    description = "Do not check for the existence of CHID.out and overwrite files"
+    fds_label = "OVERWRITE"
+    bpy_type = Scene
+    bpy_idname = "bf_misc_overwrite"
+    bpy_prop = BoolProperty
+    bpy_other = {
+		"default": False,
+	}
+
+@subscribe
+class SP_MISC_THICKEN_OBSTRUCTIONS(BFProp):
+    label = "THICKEN_OBSTRUCTIONS"
+    description = "Do not allow thin sheet obstructions"
+    fds_label = "THICKEN_OBSTRUCTIONS"
+    bpy_type = Scene
+    bpy_idname = "bf_misc_thicken_obstructions"
+    bpy_prop = BoolProperty
+    bpy_other = {
+		"default": False,
+	}
+
+
+@subscribe
 class SP_MISC_free(BFFreeProp):
     bpy_type = Scene
     bpy_idname = "bf_misc_free"
@@ -699,7 +724,7 @@ class SN_MISC(BFNamelist):
     fds_label = "MISC"
     bf_prop_export = SP_MISC_export
     bpy_type = Scene
-    bf_props = SP_MISC_FYI, SP_MISC_free
+    bf_props = SP_MISC_FYI, SP_MISC_OVERWRITE, SP_MISC_THICKEN_OBSTRUCTIONS, SP_MISC_free
     
 
 # REAC
@@ -893,6 +918,19 @@ class SP_DUMP_NFRAMES(BFProp):
         ))  # bf_dump_nframes != 0, its min is 1
 
 @subscribe
+class SP_DUMP_DT_RESTART(BFProp):
+    label = "DT_RESTART"
+    description = "Time interval between restart files are saved"
+    fds_label = "DT_RESTART"
+    bpy_type = Scene
+    bpy_idname = "bf_dump_dt_restart"
+    bpy_prop = IntProperty
+    bpy_other = {
+        "min": 1,
+        "default": 600,
+    }
+
+@subscribe
 class SP_DUMP_free(BFFreeProp):
     bpy_type = Scene
     bpy_idname = "bf_dump_free"
@@ -904,7 +942,7 @@ class SN_DUMP(BFNamelist):
     enum_id = 3005
     fds_label = "DUMP"
     bf_prop_export = SP_DUMP_export
-    bf_props = SP_DUMP_render_file, SP_DUMP_STATUS_FILES, SP_DUMP_NFRAMES, SP_DUMP_free
+    bf_props = SP_DUMP_render_file, SP_DUMP_STATUS_FILES, SP_DUMP_NFRAMES, SP_DUMP_DT_RESTART, SP_DUMP_free
     bpy_type = Scene
 
 
@@ -1049,7 +1087,7 @@ class MP_TAU_Q(BFProp):
 
     def check(self, context):
         self.infos.append((
-            self.element.bf_tau_q <= 0 and "HRR(t) has a t² ramp" or "HRR(t) has a tanh(t/τ) ramp",
+            self.element.bf_tau_q < 0 and "HRR(t) has a t² ramp" or self.element.bf_tau_q > 0 and "HRR(t) has a tanh(t/τ) ramp" or "HRR(t) has no ramp",
             "material.set_tau_q"
         )) # info, operator
 
@@ -1497,6 +1535,20 @@ class ON_ZONE(BFNamelist):
         "draw_type": "WIRE",
     }
 
+# HVAC
+
+@subscribe
+class ON_HVAC(BFNamelist):
+    label = "HVAC"
+    description = "HVAC System Definition"
+    enum_id = 1017
+    fds_label = "HVAC"
+    bpy_type = Object
+    bf_prop_export = OP_export
+    bf_props = OP_ID, OP_FYI, OP_XYZ, OP_free
+    bf_other = {
+        "draw_type": "WIRE",
+    }
 
 # free
 
