@@ -3,6 +3,9 @@
 import bpy
 from time import time
 
+import bmesh # FIXME
+from math import floor, ceil # FIXME
+
 from ..types import BFException
 from .geom_utils import * 
 from . import tmp_objects
@@ -12,7 +15,11 @@ DEBUG = False
 # TODO port to numpy for speed
 
 # FIXME not used, not finished
+# FIXME I wish I could merge flat pixels and faces!
+
 def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
+    """Pixelize object."""
+    print("BFDS: voxelize.pixelize:", ob.name)
 
     ## Init: check, voxel_size
     t0 = time()
@@ -58,18 +65,70 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
     print("BFDS: voxelize.voxelize:", ob.name)
     
     # ob: original object in local coordinates
+    # ob_cvox: original object in global coordinates with normalized bounding box
     # ob_bvox: original object in global coordinates, before voxelization
     # ob_avox: voxelized object in global coordinates, after voxelization
 
-    ## Init: check, voxel_size
+    ## Init: check, get voxel_size
     t0 = time()
     if not ob.data.vertices: raise BFException(ob, "Empty object!")
-    if ob.bf_xb_custom_voxel: voxel_size = ob.bf_xb_voxel_size
-    else: voxel_size = context.scene.bf_default_voxel_size
+    voxel_size = _get_voxel_size(ob)
+
+    ## Normalize object global bbox FIXME mi piacerebbe usare sempre lo stesso oggetto, non doverne creare tre!
+    # The best bbox: has an odd number of voxels,
+    # is at least 1 voxel far from the object,
+    # is aligned with the origin, as FDS MESHes
+    me_cvox = get_global_mesh(context, ob)
+    ob_cvox = get_new_object(context, context.scene, "cvox", me_cvox, linked=False)
+    # Get bbox
+    bbox = get_bbox(ob_cvox)
+    # Alignment and minimum distance
+    pv0 = ( # in voxels
+        floor(bbox[0]/voxel_size) - 1,
+        floor(bbox[2]/voxel_size) - 1,
+        floor(bbox[4]/voxel_size) - 1,
+    )
+    pv1 = ( # in voxels
+        ceil(bbox[1]/voxel_size) + 1,
+        ceil(bbox[3]/voxel_size) + 1,
+        ceil(bbox[5]/voxel_size) + 1,
+    )
+    # Correct pv1 for odd number of voxels
+    pv1 = ( # in voxels
+        pv0[0] + (pv1[0]-pv0[0])//2*2+1,
+        pv0[1] + (pv1[1]-pv0[1])//2*2+1,
+        pv0[2] + (pv1[2]-pv0[2])//2*2+1,
+    )
+    # New bbox and vertices
+    bbox = ( # in meters
+        pv0[0] * voxel_size, pv1[0] * voxel_size,
+        pv0[1] * voxel_size, pv1[1] * voxel_size,
+        pv0[2] * voxel_size, pv1[2] * voxel_size,
+    )
+    verts = (
+        (bbox[0], bbox[2], bbox[4]),
+        (bbox[0], bbox[2], bbox[5]),
+        (bbox[0], bbox[3], bbox[4]),
+        (bbox[0], bbox[3], bbox[5]),
+        (bbox[1], bbox[2], bbox[4]),
+        (bbox[1], bbox[2], bbox[5]),
+        (bbox[1], bbox[3], bbox[4]),
+        (bbox[1], bbox[3], bbox[5]),
+    )
+    # Insert vertices into mesh # FIXME spostare in geom_utils.py
+    bm = bmesh.new()
+    # convert the current mesh to a bmesh (must be in edit mode)
+    #bpy.ops.object.mode_set(mode='EDIT')
+    bm.from_mesh(me_cvox)
+    #bpy.ops.object.mode_set(mode='OBJECT')  # return to object mode
+    for v in verts: bm.verts.new(v)  # add a new vert
+    # make the bmesh the object's mesh
+    bm.to_mesh(me_cvox)  
+    bm.free()  # always do this when finished
 
     ## Voxelize object
     # Get a copy of original object in global coordinates (remesh works in local coordinates)
-    me_bvox = get_global_mesh(context, ob)
+    me_bvox = get_global_mesh(context, ob_cvox) # FIXME ob_cvox instead of ob
     ob_bvox = get_new_object(context, context.scene, "bvox", me_bvox, linked=False)
     # If flat, solidify and get flatten function for later generated xbs
     if flat: flat_origin, choose_flatten = _solidify_flat_ob(context, ob_bvox, voxel_size/3.)
@@ -114,7 +173,13 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
 
     ## Clean up
     if DEBUG:
-        bpy.data.objects.remove(ob_bvox)        
+#        bpy.data.objects.remove(ob_cvox) # FIXME levare        
+#        bpy.data.objects.remove(ob_bvox)        
+        context.scene.objects.link(ob_cvox) # create unlinked for speed # FIXME levare
+        tmp_objects.tmp_set(context, ob, ob_cvox) # it is left as a tmp object # FIXME levare
+        context.scene.objects.link(ob_bvox) # create unlinked for speed # FIXME levare
+        tmp_objects.tmp_set(context, ob, ob_bvox) # it is left as a tmp object # FIXME levare
+
         context.scene.objects.link(ob_avox) # create unlinked for speed
         tmp_objects.tmp_set(context, ob, ob_avox) # it is left as a tmp object
     else:
@@ -123,6 +188,11 @@ def voxelize(context, ob, flat=False) -> "(xbs, voxel_size, timing)":
 
     ## Return
     return xbs, voxel_size, (t2-t1, t4-t3, t5-t4, t6-t5) # this is timing: sort, 1b, 2g, 3g 
+
+def _get_voxel_size(ob) -> "voxel_size":
+    """Get object voxel size."""
+    if ob.bf_xb_custom_voxel: return ob.bf_xb_voxel_size
+    else: return context.scene.bf_default_voxel_size
 
 def _solidify_flat_ob(context, ob, thickness):
     """Solidify a flat object. Apply modifier, return flat_origin and flatten function for later generated xbs."""
@@ -138,9 +208,9 @@ def _solidify_flat_ob(context, ob, thickness):
     # Return the function that is going to be used to flatten later generated xbs
     return flat_origin, choose_flatten
 
-# When appling a remesh modifier, object max dimension is scaled up
+# When appling a remesh modifier, object max dimension is scaled up FIXME explain better
 # and divided in 2 ** octree_depth voxels
-# Example: dimension = 0.6, voxel_size = 0.2, octree_depth = 2, number of voxels = 2^2 = 4, scale = 3/4 = 0.75
+# Example: dimension = 4.2, voxel_size = 0.2, octree_depth = 5, number of voxels = 2^5 = 32, scale = 3/4 = 0.75
 # |-----|-----|-----|-----| voxels, dimension / scale
 #    |=====.=====.=====|    dimension
 
@@ -150,12 +220,14 @@ def _calc_remesh_modifier(context, ob_bvox, voxel_size):
     dimension = max(ob_bvox.dimensions)
     dimension_too_large = True
     # Find righ octree_depth and relative scale
-    for octree_depth in range(1,12):
+    for octree_depth in range(1,13):
         scale = dimension / voxel_size / 2 ** octree_depth
-        if 0.010 < scale < 0.990: # Was 0.010...0.990
+        if 0.010 < scale < 0.990:
             dimension_too_large = False
             break
     if dimension_too_large: raise BFException(ob_bvox, "Too large for desired resolution, split object!")
+    if DEBUG:
+        print("Remesh: dimension, voxel_size, 2 ** octree_depth, scale:", dimension, voxel_size, 2 ** octree_depth, scale) # FIXME
     # Return
     return octree_depth, scale
 
@@ -167,7 +239,7 @@ def _apply_remesh_modifier(context, ob, octree_depth, scale):
 def _apply_solidify_modifier(context, ob, thickness):
     """Apply solidify modifier with centered thickness."""
     mo = ob.modifiers.new('solid_tmp','SOLIDIFY') # apply modifier
-    mo.thickness, mo.offset = thickness, thickness / 2. # Set centered thickness # FIXME shouldn't it be 0.?
+    mo.thickness, mo.offset = thickness, 0. # Set centered thickness # FIXME check
 
 # Sort tessfaces by normal: collection of tessfaces normal to x, to y, to z
 # tessfaces created by the Remesh modifier in BLOCKS mode are perpendicular to a local axis
