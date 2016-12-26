@@ -30,7 +30,6 @@ def del_my_tmp(context, ob):
         if child.bf_is_tmp:
             sc.objects.unlink(child)
             bpy.data.objects.remove(child)
-            break
     # Set ob as selected and active object
     ob.select = True
     sc.objects.active = ob
