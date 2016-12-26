@@ -1292,7 +1292,7 @@ class ON_OBST(BFNamelist):
     fds_label = "OBST"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_id_suffix, OP_FYI, OP_SURF_ID, OP_XB_solid, OP_OBST_THICKEN, OP_free
+    bf_props = OP_ID, OP_id_suffix, OP_FYI, OP_SURF_ID, OP_XB, OP_OBST_THICKEN, OP_free # FIXME was: OP_XB_solid
     bf_other = {
         "draw_type": "SOLID",
     }
