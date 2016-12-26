@@ -448,13 +448,13 @@ class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator):
 ### Restore all tmp objects
 
 class SCENE_OT_bf_restore_all_tmp_objects(Operator):
-    bl_label = "Del Cached Geometry"
+    bl_label = "Reset FDS Geometry"
     bl_idname = "scene.bf_restore_all_tmp_objects"
-    bl_description = "Delete all cached geometry and temporary objects"
+    bl_description = "Reset all FDS cached geometry and temporary objects"
 
     def execute(self, context):
         geometry.tmp_objects.restore_all(context)
-        self.report({"INFO"}, "All cached geometry and temporary objects deleted")
+        self.report({"INFO"}, "All FDS cached geometry and temporary objects reset")
         return {'FINISHED'}
 
 ### Open text editor with right text displayed
