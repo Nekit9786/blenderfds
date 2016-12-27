@@ -11,7 +11,7 @@ epsilon = .001
 
 def get_global_mesh(context, ob) -> "Mesh":
     """Return object mesh modified and transformed in global coordinates."""
-    me = ob.to_mesh(context.scene, True, "PREVIEW") # apply modifiers
+    me = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER") # apply modifiers (as in RENDER, not PREVIEW)
     me.transform(ob.matrix_world) # transform mesh in global coordinates, apply scale, rotation, and location
     return me
 
@@ -68,6 +68,14 @@ def is_manifold(context, me) -> "Bool":
             return False
     bm.free()
     return True
+
+def insert_vertices_into_mesh(me, verts) -> "None":
+    """Insert vertices into mesh."""
+    bm = bmesh.new()
+    bm.from_mesh(me) # Inject me into bm
+    for v in verts: bm.verts.new(v) # Add vertices
+    bm.to_mesh(me) # Inject bm into me
+    bm.free()
 
 ### Working on bounding box and size
 

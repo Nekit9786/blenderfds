@@ -3,7 +3,7 @@
 import bpy
 from time import time
 from .geom_utils import *
-from .voxelize import voxelize
+from .voxelize import voxelize, pixelize
 
 DEBUG = False
 
@@ -29,7 +29,7 @@ def ob_to_xbs_pixels(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
     """Transform ob flat geometry in XBs notation (flat voxelization). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_pixels:", ob.name)
     t0 = time()
-    xbs, voxel_size, timing = voxelize(context, ob, flat=True)
+    xbs, voxel_size, timing = pixelize(context, ob)
     if not xbs: return (), "No pixel created"
     msg = "{0} pixels, resolution {1:.3f} m, in {2:.0f} s".format(len(xbs), voxel_size, time()-t0)
     if DEBUG: msg += " (s:{0[0]:.0f} 1f:{0[1]:.0f}, 2g:{0[2]:.0f}, 3g:{0[3]:.0f})".format(timing)
@@ -41,7 +41,7 @@ def ob_to_xbs_bbox(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     x0, x1, y0, y1, z0, z1 = get_global_bbox(context, ob)
     return [(x0, x1, y0, y1, z0, z1,),], ""
 
-def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
+def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'": # FIXME use BMesh
     """Transform ob faces in XBs notation (faces). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_faces:", ob.name)
     # Init
@@ -71,7 +71,7 @@ def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
     msg = len(result) > 1 and "{0} faces".format(len(result)) or ""
     return result, msg
 
-def ob_to_xbs_edges(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
+def ob_to_xbs_edges(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'": # FIXME use BMesh
     """Transform ob faces in XBs notation (faces). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_edges:", ob.name)
     # Init
@@ -110,7 +110,7 @@ def ob_to_xbs(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
 
 ### XYZ
 
-def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'":
+def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'": # FIXME use BMesh
     """Transform ob vertices in XYZs notation. Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xyzs_vertices:", ob.name)
     # Init
