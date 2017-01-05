@@ -43,7 +43,7 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)": # FIXME very bad hack,
     else:
         bpy.data.objects.remove(ob_solid, do_unlink=True)
     # Return
-    return xbs, voxel_size, ts
+    return xbs, voxel_size, ts # FIXME voxelize does not select/activate the used object! 
 
 def _get_solidify_ob(context, ob, thickness) -> "ob":
     """Get a new unlinked obj with solidify modifier for voxelization applied."""
