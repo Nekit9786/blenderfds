@@ -34,9 +34,6 @@ class BFObject():
         # Set draw_type
         draw_type = bf_namelist.bf_other.get("draw_type")
         if draw_type: self.draw_type = draw_type
-        # Set hide_select
-        hide_select = bf_namelist.bf_other.get("hide_select")
-        if hide_select: self.hide_select = hide_select
         # Set show_transparent
         self.show_transparent = True
 

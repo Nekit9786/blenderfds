@@ -92,9 +92,6 @@ class OBJECT_PT_BF_MESH(Panel):
         row = split.row(align=True)  # aspect
         row.prop(element, "show_transparent", icon="GHOST", text="")
         row.prop(element, "draw_type", text="")
-        row.prop(element, "hide", text="")
-        row.prop(element, "hide_select", text="")
-        row.prop(element, "hide_render", text="")
         element.bf_namelist.draw(context, layout)
         row = layout.row()
         if element.bf_has_tmp: row.operator("object.bf_hide_fds_geometry")

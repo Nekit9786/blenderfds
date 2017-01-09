@@ -1162,9 +1162,12 @@ class MN_SURF_solid(BFNamelist):
 @subscribe
 class OP_export(BFExportProp):
     bpy_type = Object
+#    bpy_idname = "hide_render"  # FIXME does not work. Contrary to logic...
+#    bpy_prop = None # Do not register
     bpy_other = {
-		"default": True, # If an object is created, she wants a namelist
-	}
+        "default": True,
+    }
+
 
 @subscribe
 class OP_show_transparent(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_props_copy operator
@@ -1181,22 +1184,6 @@ class OP_draw_type(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_p
     bpy_type = Object
     bpy_prop = None # Do not register
     bpy_idname = "draw_type"
-
-@subscribe
-class OP_hide(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_props_copy operator
-    label = "Hide"
-    description = "Hide object"
-    bpy_type = Object
-    bpy_prop = None # Do not register
-    bpy_idname = "hide"
-
-@subscribe
-class OP_hide_select(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_props_copy operator
-    label = "Hide From Selection"
-    description = "Hide from selection"
-    bpy_type = Object
-    bpy_prop = None # Do not register
-    bpy_idname = "hide_select"
 
 @subscribe
 class OP_id_suffix(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
@@ -1225,7 +1212,7 @@ class OP_ID(BFStringProp):
     label = "ID"
     description = "Object identificator"
     fds_label = "ID"
-    bf_props = OP_id_suffix, OP_show_transparent, OP_draw_type, OP_hide, OP_hide_select
+    bf_props = OP_id_suffix, OP_show_transparent, OP_draw_type,
     bf_other = {
         "copy_protect": True,
     }

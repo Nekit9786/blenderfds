@@ -51,7 +51,7 @@ class _BFCommon():
     bf_props =  ClsList()     # Collection of related BFProp
 
     bf_other = {}             # Other optional BlenderFDS parameters,
-                              # eg: {'copy_protection': True, 'draw_type': 'WIRE', 'hide_select': True, ...}
+                              # eg: {'copy_protection': True, 'draw_type': 'WIRE', ...}
 
     bpy_type = None           # type in bpy.types for Blender property, eg. Object
     bpy_idname = None         # idname of related bpy.types Blender property, eg. "bf_id"
