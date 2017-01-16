@@ -66,7 +66,7 @@ def _get_solidify_ob(context, ob, thickness) -> "ob":
     # Return
     return ob_new
 
-def voxelize(context, ob) -> "(xbs, voxel_size, timing)": # FIXME I do not like flat parameter
+def voxelize(context, ob) -> "(xbs, voxel_size, timing)":
     """Voxelize object."""
     print("BFDS: voxelize.voxelize:", ob.name)
 
