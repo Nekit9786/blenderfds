@@ -1162,7 +1162,7 @@ class MN_SURF_solid(BFNamelist):
 @subscribe
 class OP_export(BFExportProp):
     bpy_type = Object
-#    bpy_idname = "hide_render"  # FIXME does not work. Contrary to logic...
+#    bpy_idname = "hide_render"  # FIXME does not work. Contrary to usual logic...
 #    bpy_prop = None # Do not register
     bpy_other = {
         "default": True,
@@ -1479,6 +1479,25 @@ class OP_MESH_IJK(BFProp):
             self.infos.append("Max cell aspect ratio is {:.1f}".format(cell_aspect_ratio))             
 
 @subscribe
+class OP_MESH_MPI_PROCESS_export(BFExportProp): # FIXME Check
+    bpy_idname = "bf_mesh_mpi_process_export"
+    bpy_type = Object
+
+@subscribe
+class OP_MESH_MPI_PROCESS(BFProp):
+    label = "MPI_PROCESS"
+    description = "Assigned to given MPI process (Starting from 0.)"
+    fds_label = "MPI_PROCESS"
+    bf_prop_export = OP_MESH_MPI_PROCESS_export
+    bpy_type = Object
+    bpy_idname = "bf_mesh_mpi_process"
+    bpy_prop = IntProperty
+    bpy_other =  {
+        "min": 0,
+        "default": 0,
+    }
+
+@subscribe
 class ON_MESH(BFNamelist):
     label = "MESH"
     description = "Domain of simulation"
@@ -1486,7 +1505,7 @@ class ON_MESH(BFNamelist):
     fds_label = "MESH"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_MESH_IJK, OP_XB_bbox, OP_free
+    bf_props = OP_ID, OP_FYI, OP_MESH_IJK, OP_XB_bbox, OP_MESH_MPI_PROCESS, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
