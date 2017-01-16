@@ -63,6 +63,7 @@ class export_OT_fds_case(Operator, ExportHelper):
             w.cursor_modal_restore()
             self.report({"ERROR"}, "FDS file not writable, cannot export")
             return {'CANCELLED'}
+        print("BFDS: export_OT_fds_case: FDS file written")
         # GE1 description file requested?
         if sc.bf_dump_render_file:
             # Prepare GE1 filepath
@@ -83,6 +84,8 @@ class export_OT_fds_case(Operator, ExportHelper):
                 w.cursor_modal_restore()
                 self.report({"ERROR"}, "GE1 file not writable, cannot export")
                 return {'CANCELLED'}      
+            print("BFDS: export_OT_fds_case: GE1 file written")
+
         # End
         w.cursor_modal_restore()
         DEBUG and print("BFDS: export_OT_fds_case: End.")

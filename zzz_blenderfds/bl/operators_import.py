@@ -143,7 +143,7 @@ def bl_scene_from_fds_case(operator, context, to_current_scene=False, filepath="
     _view3d_view_all(context)
     # End
     w.cursor_modal_restore()
-    DEBUG and print("BFDS: operators_import.bl_scene_from_fds_case: End.")
-    operator.report({"INFO"}, "FDS File imported")
+    print("BFDS: operators_import.bl_scene_from_fds_case: FDS file Imported.")
+    operator.report({"INFO"}, "FDS file imported")
     return {'FINISHED'}
 
