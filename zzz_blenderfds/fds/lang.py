@@ -1130,6 +1130,29 @@ class MP_IGNITION_TEMPERATURE(BFProp):
     }
 
 @subscribe
+class MP_BACKING_export(BFExportProp): # FIXME check
+    bpy_idname = "bf_backing_export"
+    bpy_type = Material
+
+@subscribe
+class MP_BACKING(BFProp):
+    label = "BACKING"
+    description = "Exposition of back side surface"
+    fds_label = "BACKING"
+    bf_prop_export = MP_BACKING_export
+    bpy_type = Material
+    bpy_idname = "bf_backing"
+    bpy_prop = EnumProperty
+    bpy_other = {
+        "items": (
+            ("VOID",      "VOID",      "The wall is assumed to back up to the ambient temperature", 100),
+            ("INSULATED", "INSULATED", "The back side of the material is perfectly insulated", 200),
+            ("EXPOSED",   "EXPOSED",   "The heat transfer into the space behind the wall is calculated (only if wall is one cell thick)", 300),
+        ),
+        "default": "VOID",
+    }
+
+@subscribe
 class MN_SURF(BFNamelist):
     label = "SURF"
     description = "Generic Boundary Condition"
@@ -1137,7 +1160,7 @@ class MN_SURF(BFNamelist):
     fds_label = "SURF"
     bpy_type = Material
     bf_prop_export = MP_export
-    bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_MATL_ID, MP_THICKNESS, MP_free
+    bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_MATL_ID, MP_THICKNESS, MP_BACKING, MP_free
 
 @subscribe
 class MN_SURF_burner(BFNamelist):
@@ -1157,7 +1180,7 @@ class MN_SURF_solid(BFNamelist):
     fds_label = "SURF"
     bpy_type = Material
     bf_prop_export = MP_export
-    bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_HRRPUA, MP_TAU_Q, MP_MATL_ID, MP_IGNITION_TEMPERATURE, MP_THICKNESS, MP_free
+    bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_HRRPUA, MP_TAU_Q, MP_MATL_ID, MP_IGNITION_TEMPERATURE, MP_THICKNESS, MP_BACKING, MP_free
 
 
 ### Object namelists and their specific properties
