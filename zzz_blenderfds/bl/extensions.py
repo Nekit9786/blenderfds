@@ -238,7 +238,7 @@ class BFScene():
         bf_head_free_text = fds.head.set_free_text_file(context, self)
         # Get existing contents
         old_free_texts = bpy.data.texts[bf_head_free_text].as_string()
-        if old_free_texts: free_texts.extend(("\n! --- Existing free texts\n",old_free_texts))
+        if old_free_texts: free_texts.append(old_free_texts) # FIXME check
         # Write merged contents
         bpy.data.texts[bf_head_free_text].from_string("\n".join(free_texts))
 
