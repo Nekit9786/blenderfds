@@ -86,7 +86,7 @@ def get_global_bbox(context, ob) -> "x0, x1, y0, y1, z0, z1":
     # Calc the bounding box in global coordinates, as it's global
     bbox = get_bbox(ob_tmp)
     # Clean up temporary object
-    bpy.data.objects.remove(ob_tmp)
+    bpy.data.objects.remove(ob_tmp, do_unlink=True)
     # Return
     return bbox
 
@@ -113,7 +113,7 @@ def get_global_area(context, ob) -> "Float":
     area = 0.
     me_tmp = get_global_mesh(context, ob) # Apply modifiers and scales
     for polygon in me_tmp.polygons: area += polygon.area
-    bpy.data.meshes.remove(me_tmp)
+    bpy.data.meshes.remove(me_tmp, do_unlink=True)
     return area
 
 ### Working on position

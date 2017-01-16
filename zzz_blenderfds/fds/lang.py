@@ -22,14 +22,17 @@ DEBUG = False
 
 def update_OP_namelist_cls(self, context):
     # When Object namelist cls is updated:
-    # Check allowed geometries, different namelists may have different allowed geometries
-    bf_namelist = self.bf_namelist
-    bf_prop_XB = bf_namelist.bf_prop_XB
-    bf_prop_XYZ = bf_namelist.bf_prop_XYZ    
-    bf_prop_PB = bf_namelist.bf_prop_PB 
-    if bf_prop_XB and self.bf_xb not in bf_prop_XB.allowed_items: self.bf_xb = "NONE"
-    if bf_prop_XYZ and self.bf_xyz not in bf_prop_XYZ.allowed_items: self.bf_xyz = "NONE"
-    if bf_prop_PB and self.bf_pb not in bf_prop_PB.allowed_items: self.bf_pb = "NONE"
+    self.bf_xb = "NONE" # FIXME more rough but cleaner
+    self.bf_xyz = "NONE"
+    self.bf_pb = "NONE"
+    # Check allowed geometries, different namelists may have different allowed geometries FIXME multiple not allowed geometries were left
+    #bf_namelist = self.bf_namelist
+    #bf_prop_XB = bf_namelist.bf_prop_XB
+    #bf_prop_XYZ = bf_namelist.bf_prop_XYZ    
+    #bf_prop_PB = bf_namelist.bf_prop_PB 
+    #if bf_prop_XB and self.bf_xb not in bf_prop_XB.allowed_items: self.bf_xb = "NONE"
+    #if bf_prop_XYZ and self.bf_xyz not in bf_prop_XYZ.allowed_items: self.bf_xyz = "NONE"
+    #if bf_prop_PB and self.bf_pb not in bf_prop_PB.allowed_items: self.bf_pb = "NONE"
     # Set default appearance
     self.set_default_appearance(context)
 
@@ -124,7 +127,7 @@ class OP_namelist_old_1(BFStringProp):
 def update_bf_xb_voxel_size(self, context):
     """Update function for bf_xb_voxel_size"""
     # Del my tmp object and cached xbs geometry
-    geometry.tmp_objects.del_my_tmp(context, self)
+    self.remove_tmp_obs(context)
     self["ob_to_xbs_cache"] = False
 
 @subscribe
@@ -159,7 +162,7 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
 def update_bf_default_voxel_size(self, context):
     """Update function for bf_xb_custom_voxel"""
     # Del all tmp objects and all cached geometry
-    geometry.tmp_objects.restore_all(context)
+    geometry.tmp_objects.restore_all(context) # FIXME use operator?
 
 @subscribe
 class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
@@ -183,7 +186,7 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
 def update_bf_xb(self, context):
     """Update function for bf_xb"""
     # Delete my tmp object and cached xbs geometry
-    geometry.tmp_objects.del_my_tmp(context, self)
+    self.remove_tmp_obs(context)
     self["ob_to_xbs_cache"] = False
     # Set other geometries to compatible settings
     if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"):
@@ -306,8 +309,8 @@ class OP_XB_faces(OP_XB):
 
 def update_bf_xyz(self, context):
     """Update function for bf_xyz"""
-    # Delete my tmp object and cached xyzs geometry # FIXME check
-    geometry.tmp_objects.del_my_tmp(context, self)
+    # Delete my tmp object and cached xyzs geometry
+    self.remove_tmp_obs(context)
     self["ob_to_xyzs_cache"] = False
     # Set other geometries to compatible settings
     if self.bf_xyz == "VERTICES":
@@ -404,8 +407,8 @@ class OP_XYZ(BFXYZProp):
 
 def update_bf_pb(self, context):
     """Update function for bf_pb"""
-    # Delete my tmp object and cached pbs geometry # FIXME check
-    geometry.tmp_objects.del_my_tmp(context, self)
+    # Delete my tmp object and cached pbs geometry
+    self.remove_tmp_obs(context)
     self["ob_to_pbs_cache"] = False
     # Set other geometries to compatible settings
     if self.bf_pb == "PLANES":
@@ -567,10 +570,10 @@ class SP_HEAD_directory(BFNoAutoExportMod, BFProp):
         "maxlen": 1024,
     }
 
-    def check(self, context):
-        value = self.element.bf_head_directory
-        if value and not os.path.exists(bpy.path.abspath(value)):
-            raise BFException(self, "Case directory path not existing")
+#    def check(self, context): FIXME check, what if bad dir?
+#        value = self.element.bf_head_directory
+#        if value and not os.path.exists(bpy.path.abspath(value)):
+#            raise BFException(self, "Case directory path not existing")
 
 @subscribe
 class SP_HEAD_free_text(BFNoAutoExportMod, BFProp):
@@ -1479,7 +1482,7 @@ class OP_MESH_IJK(BFProp):
             self.infos.append("Max cell aspect ratio is {:.1f}".format(cell_aspect_ratio))             
 
 @subscribe
-class OP_MESH_MPI_PROCESS_export(BFExportProp): # FIXME Check
+class OP_MESH_MPI_PROCESS_export(BFExportProp):
     bpy_idname = "bf_mesh_mpi_process_export"
     bpy_type = Object
 

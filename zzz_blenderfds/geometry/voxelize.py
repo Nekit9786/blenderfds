@@ -37,13 +37,10 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)": # FIXME very bad hack,
     # Flatten
     xbs = choose_flatten(xbs, flat_origin)
     ## Clean up
-    if DEBUG:
-#        context.scene.objects.link(ob_solid)
-        tmp_objects.tmp_set(context, ob, ob_solid)
-    else:
-        bpy.data.objects.remove(ob_solid, do_unlink=True)
+    if DEBUG: ob_solid.set_tmp(context, ob)
+    else: bpy.data.objects.remove(ob_solid, do_unlink=True)
     # Return
-    return xbs, voxel_size, ts # FIXME voxelize does not select/activate the used object! 
+    return xbs, voxel_size, ts
 
 def _get_solidify_ob(context, ob, thickness) -> "ob":
     """Get a new unlinked obj with solidify modifier for voxelization applied."""
@@ -52,9 +49,8 @@ def _get_solidify_ob(context, ob, thickness) -> "ob":
         context.scene,
         "solidify_tmp",
         me=ob.data,
-        linked=True
+        linked=False
     )
-    tmp_objects.tmp_set(context, ob, ob_new)
     # Create modifier
     mo = ob_new.modifiers.new('solid_tmp','SOLIDIFY')
     mo.thickness = thickness
@@ -62,29 +58,24 @@ def _get_solidify_ob(context, ob, thickness) -> "ob":
     # Apply modifier
     me = ob_new.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER")
     ob_new.data = me
-
     # Return
     return ob_new
 
 def voxelize(context, ob) -> "(xbs, voxel_size, timing)":
     """Voxelize object."""
     print("BFDS: voxelize.voxelize:", ob.name)
-
     # Init
     t0 = time()
     voxel_size = _get_voxel_size(context, ob)
-
     # Check
     if not ob.data.vertices: raise BFException(ob, "Empty object!")
-
     ## Prepare ob
     ob_norm = _get_normalized_ob(context, ob, voxel_size)
     ob_remesh = _get_remesh_ob(context, ob_norm, voxel_size)
-
     ## Find, build and grow boxes
     # Get and check tessfaces
     tessfaces = get_tessfaces(context, ob_remesh.data)
-    if not tessfaces: raise BFException(ob, "No tessfaces available, cannot voxelize.") # FIXME rimetti
+    if not tessfaces: raise BFException(ob, "No tessfaces available, cannot voxelize.")
     # Sort tessfaces centers by face normal: normal to x, to y, to z.
     t1 = time()
     x_tessfaces, y_tessfaces, z_tessfaces = _sort_tessfaces_by_normal(tessfaces)
@@ -106,22 +97,17 @@ def voxelize(context, ob) -> "(xbs, voxel_size, timing)":
     # Grow boxes along 3rd axis
     t5 = time()
     boxes = choose[2][3](boxes) # eg. _grow_boxes_along_z(boxes)
-
     ## Make xbs
     # Transform grown boxes in xbs
     t6 = time()
     xbs = choose[0][4](boxes, voxel_size, origin) # eg. _x_boxes_to_xbs(boxes, ...)
-
     ## Clean up
     if DEBUG:
-        context.scene.objects.link(ob_norm)
-        tmp_objects.tmp_set(context, ob, ob_norm)
-        context.scene.objects.link(ob_remesh)
-        tmp_objects.tmp_set(context, ob, ob_remesh)
+        ob_norm.set_tmp(context, ob)
+        ob_remesh.set_tmp(context, ob)
     else:
-        bpy.data.objects.remove(ob_norm)
-        bpy.data.objects.remove(ob_remesh)
-
+        bpy.data.objects.remove(ob_norm, do_unlink=True)
+        bpy.data.objects.remove(ob_remesh, do_unlink=True)
     ## Return
     return xbs, voxel_size, (t2-t1, t4-t3, t5-t4, t6-t5) # this is timing: sort, 1b, 2g, 3g 
 

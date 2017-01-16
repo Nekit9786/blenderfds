@@ -66,7 +66,7 @@ def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'": # 
         result.append((bbminx, bbmaxx, bbminy, bbmaxy, bbminz, bbmaxz,),)
     result.sort()
     # Clean up
-    bpy.data.meshes.remove(me)
+    bpy.data.meshes.remove(me, do_unlink=True)
     # Return
     msg = len(result) > 1 and "{0} faces".format(len(result)) or ""
     return result, msg
@@ -84,7 +84,7 @@ def ob_to_xbs_edges(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'": # 
         result.append((pt0x, pt1x, pt0y, pt1y, pt0z, pt1z,),)
     result.sort()
     # Clean up
-    bpy.data.meshes.remove(me)
+    bpy.data.meshes.remove(me, do_unlink=True)
     # Return
     msg = len(result) > 1 and "{0} edges".format(len(result)) or ""
     return result, msg
@@ -122,7 +122,7 @@ def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'": # FIXME
         result.append((pt0x, pt0y, pt0z,),)
     result.sort()
     # Clean up
-    bpy.data.meshes.remove(me)
+    bpy.data.meshes.remove(me, do_unlink=True)
     # Return
     msg = len(result) > 1 and "{0} vertices".format(len(result)) or ""
     return result, msg

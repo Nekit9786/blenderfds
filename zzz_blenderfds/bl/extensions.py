@@ -36,6 +36,8 @@ class BFObject():
         if draw_type: self.draw_type = draw_type
         # Set show_transparent
         self.show_transparent = True
+    
+    # Export to FDS    
 
     def _myself_to_fds(self, context) -> "list":
         """Export myself in FDS notation."""
@@ -71,7 +73,44 @@ class BFObject():
         bodies.extend(self._myself_to_fds(context))
         if with_children: bodies.extend(self._children_to_fds(context))
         return "".join(bodies)
-        
+    
+    # Manage tmp objects
+
+    def set_tmp(self, context, ob):
+        """Set self as temporary object of ob."""
+        # Link object to context scene
+        # context.scene.objects.link(self) FIXME why not?
+        # Set temporary object
+        self.bf_is_tmp = True
+        self.active_material = ob.active_material
+        self.layers = ob.layers
+        # self.groups = ob.groups FIXME does not work
+        self.show_wire = True
+        # Set parenting and keep position
+        self.parent = ob
+        self.matrix_parent_inverse = ob.matrix_world.inverted()
+        # Set parent object
+        ob.bf_has_tmp = True
+
+    def show_tmp_obs(self, context):
+        """Show my temporary objects."""
+        # Show my tmp obs
+        for child in self.children:
+            if child.bf_is_tmp: child.hide = False
+        # Set myself hidden but active
+        self.select = True
+        context.scene.objects.active = self
+        self.hide = True
+
+    def remove_tmp_obs(self, context):
+        """Remove my temporary objects."""
+        # Remove my tmp obs
+        for child in self.children:
+            if child.bf_is_tmp: bpy.data.objects.remove(child, do_unlink=True)
+        self.bf_has_tmp = False        
+        # Set myself visible
+        self.hide = False
+
 # Add methods to original Blender type
 
 Object.__str__ = BFObject.__str__
@@ -80,6 +119,10 @@ Object.set_default_appearance = BFObject.set_default_appearance
 Object._myself_to_fds = BFObject._myself_to_fds
 Object._children_to_fds = BFObject._children_to_fds
 Object.to_fds = BFObject.to_fds
+Object.set_tmp = BFObject.set_tmp
+Object.show_tmp_obs = BFObject.show_tmp_obs
+Object.remove_tmp_obs = BFObject.remove_tmp_obs
+
 
 ### Extend bpy.type.Material
 

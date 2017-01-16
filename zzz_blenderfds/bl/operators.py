@@ -384,8 +384,7 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
             return{'CANCELLED'}
         if msg: msgs.append(msg)
         if xbs:
-            ob_tmp = geometry.from_fds.xbs_to_ob(xbs, context, bf_xb=ob.bf_xb, name="Shown {} XBs".format(ob.name))
-            geometry.tmp_objects.tmp_set(context, ob, ob_tmp)
+            geometry.from_fds.xbs_to_ob(xbs, context, bf_xb=ob.bf_xb, name="Shown {} XBs".format(ob.name)).set_tmp(context, ob)
         # Manage XYZ: get coordinates, show them in a tmp object, prepare msg
         xyzs = None
         msg = None
@@ -396,8 +395,7 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
             return{'CANCELLED'}
         if msg: msgs.append(msg)
         if xyzs:
-            ob_tmp = geometry.from_fds.xyzs_to_ob(xyzs, context, bf_xyz=ob.bf_xyz, name="Shown {} XYZs".format(ob.name))
-            geometry.tmp_objects.tmp_set(context, ob, ob_tmp)
+            geometry.from_fds.xyzs_to_ob(xyzs, context, bf_xyz=ob.bf_xyz, name="Shown {} XYZs".format(ob.name)).set_tmp(context, ob)
         # Manage PB*: get coordinates, show them in a tmp object, prepare msg
         pbs  = None
         msg = None        
@@ -408,12 +406,16 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
             return{'CANCELLED'}
         if msg: msgs.append(msg)
         if pbs:
-            ob_tmp = geometry.from_fds.pbs_to_ob(pbs, context, bf_pb=ob.bf_pb, name="Shown {} PBs".format(ob.name))
-            geometry.tmp_objects.tmp_set(context, ob, ob_tmp)
+            geometry.from_fds.pbs_to_ob(pbs, context, bf_pb=ob.bf_pb, name="Shown {} PBs".format(ob.name)).set_tmp(context, ob)
         # Set report
-        if msgs: report = {"INFO"}, "; ".join(msgs)
-        elif xbs or xyzs or pbs: report = {"INFO"}, "FDS geometry shown"
-        else: report = {"WARNING"}, "No geometry to show"
+        if msgs:
+            report = {"INFO"}, "; ".join(msgs)
+            ob.show_tmp_obs(context)
+        elif xbs or xyzs or pbs:
+            report = {"INFO"}, "FDS geometry shown"
+            ob.show_tmp_obs(context)
+        else:
+            report = {"WARNING"}, "No geometry to show"
         # Return
         w.cursor_modal_restore()
         self.report(*report)
@@ -425,11 +427,11 @@ class OBJECT_OT_bf_hide_fds_geometry(Operator):
     bl_description = "Hide geometry as exported to FDS"
 
     def execute(self, context):
-        geometry.tmp_objects.del_my_tmp(context, context.object)
+        context.object.remove_tmp_obs(context)
         self.report({"INFO"}, "FDS geometry hidden")
         return {'FINISHED'}
 
-class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator):
+class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator): # FIXME what if multi-level parenting?
     bl_label = "Hide FDS Geometry"
     bl_idname = "object.bf_hide_fds_geometry_from_tmp"
     bl_description = "Hide geometry as exported to FDS"
@@ -437,7 +439,7 @@ class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator):
     def execute(self, context):
         parent = context.object.parent
         if parent:
-            geometry.tmp_objects.del_my_tmp(context, parent)
+            parent.remove_tmp_obs(context)
             self.report({"INFO"}, "FDS geometry hidden")
             return {'FINISHED'}
         else:
