@@ -78,15 +78,103 @@ class WM_OT_bf_load_blenderfds_settings(Operator):
         self.report({"INFO"}, "Default BlenderFDS settings loaded")
         return {'FINISHED'}
 
+### SURF MATL_ID
+
+def _get_namelist_items(self, context, nl): # FIXME move from here
+    """Get namelist IDs available in Free Text File"""
+    # Get Free Text File
+    value = str()
+    sc = context.scene
+    if sc.bf_head_free_text:
+        value = bpy.data.texts[sc.bf_head_free_text].as_string()
+    # Tokenize value and manage exception
+    try: tokens = fds.to_py.tokenize(value)
+    except Exception as err: pass # FIXME not good
+    # Select MATL tokens, get IDs, return
+    ids = list()
+    for token in tokens:
+        if token[1] != nl: continue
+        for param in token[2]:
+            if param[1] == "ID":
+                # Built like this: (("Steel", "Steel", "",) ...)
+                ids.append((param[2],param[2],"",))
+    ids.sort(key=lambda k:k[1])
+    return ids
+
+def _get_matl_items(self, context):
+    """Get MATL IDs available in Free Text File"""
+    return _get_namelist_items(self, context, "MATL")
+    
+class MATERIAL_OT_bf_set_matl_id(Operator):
+    bl_label = "Choose MATL_ID from Free Text File"
+    bl_idname = "material.bf_set_matl_id"
+    bl_description = "Set MATL_ID parameter from MATLs available in Free Text File"
+
+    bf_matl_id = EnumProperty(
+        name="MATL_ID", description="MATL_ID parameter for SURF namelist",
+        items=_get_matl_items # Updating function
+    )
+          
+    def execute(self, context):
+        ma = context.active_object.active_material
+        ma.bf_matl_id = self.bf_matl_id
+        self.report({"INFO"}, "MATL_ID parameter set")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        ma = context.active_object.active_material
+        try: self.bf_matl_id = ma.bf_matl_id  # Manage None
+        except TypeError: ma.bf_matl_id = ""
+        # Call dialog
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=300)
+
+    def draw(self, context):
+        self.layout.prop(self,"bf_matl_id",text="")
+
+### DEVC PROP_ID
+
+def _get_prop_items(self, context):
+    """Get PROP IDs available in Free Text File"""
+    return _get_namelist_items(self, context, "PROP")
+
+class OBJECT_OT_bf_set_devc_prop_id(Operator):
+    bl_label = "Choose PROP_ID for DEVC"
+    bl_idname = "object.bf_set_devc_prop_id"
+    bl_description = "Set PROP_ID parameter from PROPs available in Free Text File"
+
+    bf_devc_prop_id = EnumProperty(
+        name="PROP_ID", description="PROP_ID parameter for DEVC namelist",
+        items=_get_prop_items # Updating function
+    )
+          
+    def execute(self, context):
+        ob = context.active_object
+        ob.bf_devc_prop_id = self.bf_devc_prop_id
+        self.report({"INFO"}, "PROP_ID parameter set")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        ob = context.active_object
+        try: self.bf_devc_prop_id = ob.bf_devc_prop_id # Manage None
+        except TypeError: ob.bf_devc_prop_id = ""
+        # Call dialog
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
+
+    def draw(self, context):
+        self.layout.prop(self,"bf_devc_prop_id",text="")
+
 ### DEVC QUANTITY
 
 class OBJECT_OT_bf_set_devc_quantity(Operator):
-    bl_label = "Set QUANTITY for DEVC"
+    bl_label = "Choose QUANTITY for DEVC"
     bl_idname = "object.bf_set_devc_quantity"
     bl_description = "Set QUANTITY parameter for DEVC namelist"
 
     bf_quantity = EnumProperty(
-        name="QUANTITY", description="Set QUANTITY parameter for DEVC namelist",
+        name="QUANTITY", description="QUANTITY parameter for DEVC namelist",
         items=fds.tables.get_quantity_items("D"),
     )
           
@@ -98,14 +186,15 @@ class OBJECT_OT_bf_set_devc_quantity(Operator):
 
     def invoke(self, context, event):
         ob = context.active_object
-        try: self.bf_quantity = ob.bf_quantity
+        try: self.bf_quantity = ob.bf_quantity # Manage None
         except TypeError: ob.bf_quantity = ""
         # Call dialog
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=300)
+        return wm.invoke_props_dialog(self)
 
     def draw(self, context):
         self.layout.prop(self,"bf_quantity",text="")
+
 
 ### MESH and IJK
 
