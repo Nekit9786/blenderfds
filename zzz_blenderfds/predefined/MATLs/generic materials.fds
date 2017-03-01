@@ -1,0 +1,44 @@
+! Generic materials
+! Source: http://www.firebid.umd.edu/material-database.php
+
+&MATL ID='Aluminum, 6061', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=167., DENSITY=2700., SPECIFIC_HEAT=0.896 /
+&MATL ID='Aluminum, 7075', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=130., DENSITY=2800., SPECIFIC_HEAT=0.841 /
+&MATL ID='Aluminum, Duralumin (4% Cu 0.5% Mg)', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=164., DENSITY=2787., SPECIFIC_HEAT=0.883 /
+&MATL ID='Aluminum, Pure', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=237., DENSITY=2707., SPECIFIC_HEAT=0.905 /
+&MATL ID='Stainless Steel, AISI 304', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=13.8, DENSITY=8000., SPECIFIC_HEAT=0.4 /
+&MATL ID='Stainless Steel, AISI 316', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=13.5, DENSITY=8000., SPECIFIC_HEAT=0.46 /
+&MATL ID='Stainless Steel, AISI 347', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=15., DENSITY=8000., SPECIFIC_HEAT=0.42 /
+&MATL ID='Stainless Steel, AISI 410', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=25., DENSITY=7700., SPECIFIC_HEAT=0.46 /
+&MATL ID='Steel, 0.5% C', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=54., DENSITY=7833., SPECIFIC_HEAT=0.465 /
+&MATL ID='Steel, 1% C', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=43., DENSITY=7801., SPECIFIC_HEAT=0.473 /
+&MATL ID='Steel, 1.5% C', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=36., DENSITY=7753., SPECIFIC_HEAT=0.486 /
+&MATL ID='Steel, AISI 1010', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=64., DENSITY=7830., SPECIFIC_HEAT=0.434 /
+&MATL ID='Steel, Plain', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=60.5, DENSITY=7854., SPECIFIC_HEAT=0.434 /
+&MATL ID='Polyester', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.2, DENSITY=1345., SPECIFIC_HEAT=1.15 /
+&MATL ID='Polyethylene, HD', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.43, DENSITY=959., SPECIFIC_HEAT=2 /
+&MATL ID='Polyethylene, LD', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.38, DENSITY=925., SPECIFIC_HEAT=1.55 /
+&MATL ID='Polyethylene, MD', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.4, DENSITY=929., SPECIFIC_HEAT=1.7 /
+&MATL ID='Polypropylene', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.15, DENSITY=880., SPECIFIC_HEAT=1.88 /
+&MATL ID='Polystyrene', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.14, DENSITY=1045., SPECIFIC_HEAT=1.25 /
+&MATL ID='Polyurethane, Rigid', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.19, DENSITY=1100., SPECIFIC_HEAT=1.76 /
+&MATL ID='Rubber, Soft', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.13, DENSITY=1100., SPECIFIC_HEAT=2.01 /
+&MATL ID='SBR', FYI='http://www.firebid.umd.edu/material-database.php ref. 4', CONDUCTIVITY=0.17, DENSITY=1100., SPECIFIC_HEAT=1.88 /
+&MATL ID='Hardwood', FYI='http://www.firebid.umd.edu/material-database.php ref. 6,4', CONDUCTIVITY=0.16, DENSITY=720., SPECIFIC_HEAT=1.255 /
+&MATL ID='Oak', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.17, DENSITY=545., SPECIFIC_HEAT=2.385 /
+&MATL ID='Douglas Fir, Plywood', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=0.12, DENSITY=550., SPECIFIC_HEAT=1.2 /
+&MATL ID='Fir', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.11, DENSITY=415., SPECIFIC_HEAT=2.72 /
+&MATL ID='Particle board', FYI='http://www.firebid.umd.edu/material-database.php ref. 8', CONDUCTIVITY=0.14, DENSITY=800., SPECIFIC_HEAT=1.3 /
+&MATL ID='Softwood', FYI='http://www.firebid.umd.edu/material-database.php ref. 6,4', CONDUCTIVITY=0.12, DENSITY=510., SPECIFIC_HEAT=1.38 /
+&MATL ID='Yellow Pine', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.15, DENSITY=640., SPECIFIC_HEAT=2.805 /
+&MATL ID='Particleboard, HD', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.17, DENSITY=1000., SPECIFIC_HEAT=1.3 /
+&MATL ID='Particleboard, LD', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.078, DENSITY=590., SPECIFIC_HEAT=1.3 /
+&MATL ID='Plywood', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.12, DENSITY=545., SPECIFIC_HEAT=1.215 /
+&MATL ID='Acoustic Tile', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.058, DENSITY=290., SPECIFIC_HEAT=1.34 /
+&MATL ID='Cotton', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.06, DENSITY=80., SPECIFIC_HEAT=0.13 /
+&MATL ID='Glass, Plate', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=1.4, DENSITY=2225., SPECIFIC_HEAT=0.835 /
+&MATL ID='Glass, Pyrex', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=1.4, DENSITY=2500., SPECIFIC_HEAT=0.75 /
+&MATL ID='Paper', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.18, DENSITY=930., SPECIFIC_HEAT=1.34 /
+&MATL ID='Paraffin', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=0.24, DENSITY=900., SPECIFIC_HEAT=2.89 /
+&MATL ID='Refrigerant, R134a', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=80.3, DENSITY=1198., SPECIFIC_HEAT=1.432 /
+&MATL ID='Refrigerant, R22', FYI='http://www.firebid.umd.edu/material-database.php ref. 6', CONDUCTIVITY=82.6, DENSITY=1183., SPECIFIC_HEAT=1.265 /
+

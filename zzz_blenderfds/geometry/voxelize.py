@@ -3,8 +3,7 @@
 import bpy
 from time import time
 
-import bmesh # FIXME
-from math import floor, ceil # FIXME
+from math import floor, ceil
 
 from ..types import BFException
 from .geom_utils import * 
@@ -16,9 +15,10 @@ DEBUG = False
 # TODO port to bmesh
 
 # "global" coordinates are absolute coordinate referring to Blender main origin of axes,
-# that are directly transformed to FDS coordinates (that refer to the only origin of axes) 
+# that are directly transformed to FDS coordinates (that refers its coordinates to the
+# one and only origin of axes) 
 
-def pixelize(context, ob) -> "(xbs, voxel_size, timing)": # FIXME very bad hack, fix it
+def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
     """Pixelize object."""
     print("BFDS: voxelize.pixelize:", ob.name)
     # Init
@@ -47,12 +47,12 @@ def _get_solidify_ob(context, ob, thickness) -> "ob":
     ob_new = get_new_object(
         context,
         context.scene,
-        "solidify_tmp",
+        "solidified_tmp",
         me=ob.data,
         linked=False
     )
     # Create modifier
-    mo = ob_new.modifiers.new('solid_tmp','SOLIDIFY')
+    mo = ob_new.modifiers.new('solidify_tmp','SOLIDIFY')
     mo.thickness = thickness
     mo.offset = 0. # centered
     # Apply modifier
@@ -123,7 +123,7 @@ def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     ob_norm = get_new_object(
         context,
         context.scene,
-        "normalized_bbox",
+        "normalized_tmp",
         me_norm,
         linked=False
     )
@@ -169,8 +169,8 @@ def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     ob_norm.data = me_norm
     return ob_norm
 
-# When appling a remesh modifier, object max dimension is scaled up FIXME explain better VERY BAD!
-# and subdivided in cubic voxels (2 ** octree_depth voxels - 1)
+# When appling a remesh box modifier, object max dimension is scaled up FIXME explain better VERY BAD!
+# and subdivided in 2 ** octree_depth voxels - 1 cubic voxels 
 # Example: dimension = 4.2, voxel_size = 0.2, octree_depth = 5, number of voxels = 2^5-1 = 31, scale = 3/4 = 0.75
 # |-----|-----|-----|-----| voxels, dimension / scale
 #    |=====.=====.=====|    dimension
@@ -181,14 +181,14 @@ def _get_remesh_ob(context, ob, voxel_size) -> "ob":
     dimension = max(ob.dimensions)
     octree_depth, scale = _calc_remesh(voxel_size, dimension)
     # Create modifier
-    mo = ob.modifiers.new('voxels_tmp','REMESH')
+    mo = ob.modifiers.new('remesh_tmp','REMESH')
     mo.mode = 'BLOCKS'
     mo.use_remove_disconnected = False
     mo.octree_depth = octree_depth
     mo.scale = scale
     # Apply modifier
     me = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER")
-    return bpy.data.objects.new("remesh_applied", me)
+    return bpy.data.objects.new("remeshed_tmp", me)
 
 def _calc_remesh(voxel_size, dimension):
     """Calc Remesh modifier parameters for voxel_size and dimension."""
@@ -198,7 +198,7 @@ def _calc_remesh(voxel_size, dimension):
         scale = dimension / voxel_size / 2 ** octree_depth
         if 0.010 < scale < 0.990: break
     if DEBUG:
-        print("BFDS:_calc_remesh_modifier:")
+        print("BFDS: _calc_remesh_modifier:")
         print("    dimension:", dimension)
         print("    voxel_size:", voxel_size)
         print("    octree_depth:", octree_depth)

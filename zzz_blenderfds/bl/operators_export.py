@@ -57,7 +57,6 @@ class export_OT_fds_case(Operator, ExportHelper):
             self.report({"ERROR"}, str(err))
             return{'CANCELLED'}
         # Add namelist index # FIXME
-        
         # Write FDS file
         if not write_to_file(filepath, fds_file):
             w.cursor_modal_restore()
