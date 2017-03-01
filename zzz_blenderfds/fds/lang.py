@@ -228,25 +228,25 @@ class OP_XB(BFXBProp):
         return "ID='{1}_{2}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name, i)
 
     def _format_xb_idx(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idy(self, value, name, i):
-        return "ID='{1}{0[2]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[2]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idz(self, value, name, i):
-        return "ID='{1}{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idxy(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}{0[2]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idxz(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idyz(self, value, name, i):
-        return "ID='{1}{0[2]:+.3f}{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[2]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idxyz(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}{0[2]:+.3f}{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
     
     def to_fds(self, context):
         # Check
@@ -339,25 +339,25 @@ class OP_XYZ(BFXYZProp):
         return "ID='{1}_{2}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name, i)
 
     def _format_xyz_idx(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idy(self, value, name, i):
-        return "ID='{1}{0[1]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[1]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idz(self, value, name, i):
-        return "ID='{1}{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idxy(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}{0[1]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idxz(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idyz(self, value, name, i):
-        return "ID='{1}{0[1]:+.3f}{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[1]:+.3f}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idxyz(self, value, name, i):
-        return "ID='{1}{0[0]:+.3f}{0[1]:+.3f}{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def to_fds(self, context):
         # Check
@@ -627,7 +627,6 @@ class SP_TIME_T_BEGIN(BFProp):
         "unit": "TIME",
         "step": 100.,
         "precision": 1,
-        "min": 0.,
         "default": 0.,
     }
 
@@ -640,6 +639,16 @@ class SP_TIME_T_END(SP_TIME_T_BEGIN):
     description = "Simulation ending time"
     fds_label = "T_END"
     bpy_idname = "bf_time_t_end"
+    bpy_other = {
+        "unit": "TIME",
+        "step": 100.,
+        "precision": 1,
+        "default": 1.,
+    }
+
+    def check(self, context): # FIXME check
+        if self.get_exported(context) and self.element.bf_time_t_end < self.element.bf_time_t_begin:
+            raise BFException(self, "T_END < T_BEGIN")
 
 @subscribe
 class SP_TIME_setup_only(BFProp):
@@ -896,17 +905,13 @@ class SP_DUMP_STATUS_FILES(BFProp):
 		"default": True, # Always dump a status file
 	}
 
-@subscribe
-class SP_DUMP_NFRAMES_export(BFExportProp):
-    bpy_type = Scene
-    bpy_idname = "bf_dump_nframes_export"
+# FIXME check
 
 @subscribe
 class SP_DUMP_NFRAMES(BFProp):
     label = "NFRAMES"
     description = "Number of output dumps per calculation"
     fds_label = "NFRAMES"
-    bf_prop_export = SP_DUMP_NFRAMES_export
     bpy_type = Scene
     bpy_idname = "bf_dump_nframes"
     bpy_prop = IntProperty
@@ -916,9 +921,36 @@ class SP_DUMP_NFRAMES(BFProp):
     }
 
     def check(self, context):
-        self.infos.append("Output is dumped every {:.2f} s".format(
-            (self.element.bf_time_t_end - self.element.bf_time_t_begin) / self.element.bf_dump_nframes
-        ))  # bf_dump_nframes != 0, its min is 1
+        if self.get_exported(context):
+            interval = (self.element.bf_time_t_end - self.element.bf_time_t_begin) / self.element.bf_dump_nframes # NFRAMES always > 0
+            if interval <= 0. : self.infos.append("Due to simulation time, output is not dumped")
+            else: self.infos.append("Output is dumped every {:.2f} s".format(interval))
+
+    def get_exported(self, context):
+        return not self.element.bf_dump_set_frequency
+
+@subscribe
+class SP_DUMP_set_frequency(BFProp):
+    label = "Dump Output every 1 s"
+    description = "Dump output every 1 s"
+    bpy_type = Scene
+    bpy_idname = "bf_dump_set_frequency"
+    bpy_prop = BoolProperty
+    bpy_other = {
+		"default": False,
+	}
+
+    def check(self, context): # FIXME
+        if self.element.bf_dump_set_frequency and round(self.element.bf_time_t_end - self.element.bf_time_t_begin) < 1:
+            raise BFException(self, "Simulation time too short")
+
+    def to_fds(self, context):
+        self.check(context)
+        if self.element.bf_dump_set_frequency:
+            self.check(context)
+            return "NFRAMES={}".format(round(self.element.bf_time_t_end - self.element.bf_time_t_begin))
+
+# FIXME end check
 
 @subscribe
 class SP_DUMP_DT_RESTART(BFProp):
@@ -945,7 +977,7 @@ class SN_DUMP(BFNamelist):
     enum_id = 3005
     fds_label = "DUMP"
     bf_prop_export = SP_DUMP_export
-    bf_props = SP_DUMP_render_file, SP_DUMP_STATUS_FILES, SP_DUMP_NFRAMES, SP_DUMP_DT_RESTART, SP_DUMP_free
+    bf_props = SP_DUMP_render_file, SP_DUMP_STATUS_FILES, SP_DUMP_NFRAMES, SP_DUMP_set_frequency, SP_DUMP_DT_RESTART, SP_DUMP_free
     bpy_type = Scene
 
 
@@ -1094,6 +1126,10 @@ class MP_TAU_Q(BFProp):
             "material.set_tau_q"
         )) # info, operator
 
+    def get_exported(self, context):
+        return self.element.bf_tau_q
+
+
 @subscribe
 class MP_MATL_ID_export(BFExportProp):
     bpy_idname = "bf_matl_id_export"
@@ -1107,6 +1143,11 @@ class MP_MATL_ID(BFStringProp):
     bf_prop_export = MP_MATL_ID_export
     bpy_type = Material
     bpy_idname = "bf_matl_id"
+
+    def _draw_body(self, context, layout):
+        row = layout.row(align=True)
+        row.prop(self.element, "bf_matl_id")
+        row.operator("material.bf_set_matl_id", icon="VIEWZOOM", text="")
 
 @subscribe
 class MP_IGNITION_TEMPERATURE_export(BFExportProp):
@@ -1130,7 +1171,7 @@ class MP_IGNITION_TEMPERATURE(BFProp):
     }
 
 @subscribe
-class MP_BACKING_export(BFExportProp): # FIXME check
+class MP_BACKING_export(BFExportProp):
     bpy_idname = "bf_backing_export"
     bpy_type = Material
 
@@ -1406,6 +1447,11 @@ class OP_DEVC_PROP_ID(BFStringProp):
     fds_label = "PROP_ID"
     bpy_type = Object
     bpy_idname = "bf_devc_prop_id"
+
+    def _draw_body(self, context, layout):
+        row = layout.row(align=True)
+        row.prop(self.element, "bf_devc_prop_id")
+        row.operator("object.bf_set_devc_prop_id", icon="VIEWZOOM", text="")
 
 @subscribe
 class ON_DEVC(BFNamelist):
