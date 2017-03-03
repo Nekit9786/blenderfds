@@ -422,6 +422,8 @@ class BFStringProp(BFProp):
         value = self.get_value()
         if '&' in value or '/' in value:
             raise BFException(self, "& and / characters not allowed")
+        if '#' in value:
+            raise BFException(self, "Some special characters are not allowed (eg. #)")
         if "'" in value or '"' in value or "`" in value or "“" in value \
             or "”" in value or "‘" in value or "’‌" in value:
             raise BFException(self, "Quote characters not allowed")
@@ -493,6 +495,8 @@ class BFFreeProp(BFProp):
         value = self.get_value()
         if '&' in value or '/' in value:
             raise BFException(self, "& and / characters not allowed")
+        if '#' in value:
+            raise BFException(self, "Some special characters are not allowed (eg. #)")
         if "`" in value or "‘" in value or "’‌" in value \
             or '"' in value or "”" in value or value.count("'") % 2 != 0:
             raise BFException(self, "Only use matched single quotes as 'string' delimiters")
