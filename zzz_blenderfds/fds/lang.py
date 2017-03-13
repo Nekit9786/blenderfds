@@ -181,6 +181,8 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
     }
     # unit = "LENGTH", # correction for scale_length needed before exporting!
 
+# MESH alignment FIXME develop!
+
 # XB
 
 def update_bf_xb(self, context):

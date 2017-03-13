@@ -46,10 +46,13 @@ def get_cell_sizes(context, ob):
 def set_cell_sizes(context, ob, desired_cell_sizes, snap_to_origin=True, poisson_restriction=True):
     """Set exact MESH cell size to Blender object by adapting its dimensions.
     Apply Poisson Solver restriction on IJK and snap to global origin of axis, if requested."""
+    # FIXME
+    desired_cell_sizes = (.6,.6,.6)
     # Get current_xbs and unpack it
     current_xbs, msg = geometry.to_fds.ob_to_xbs_bbox(context, ob)
     x0, x1, y0, y1, z0, z1 = current_xbs[0]
     # Calc nearest ijk values and optimize them for Poisson solver
+    current_ijk = ob.bf_mesh_ijk
     new_ijk = (
         round(abs(x1-x0) / desired_cell_sizes[0]) or 1, # along x
         round(abs(y1-y0) / desired_cell_sizes[1]) or 1, # along y
@@ -60,7 +63,7 @@ def set_cell_sizes(context, ob, desired_cell_sizes, snap_to_origin=True, poisson
     if snap_to_origin:
         x0 = round(x0 / desired_cell_sizes[0]) * desired_cell_sizes[0]
         y0 = round(y0 / desired_cell_sizes[1]) * desired_cell_sizes[1]
-        z0 = round(z0 / desired_cell_sizes[2]) * desired_cell_sizes[2]
+        # z0 = round(z0 / desired_cell_sizes[2]) * desired_cell_sizes[2] # FIXME
     x1 = x0 + new_ijk[0] * desired_cell_sizes[0]
     y1 = y0 + new_ijk[1] * desired_cell_sizes[1]
     z1 = z0 + new_ijk[2] * desired_cell_sizes[2]

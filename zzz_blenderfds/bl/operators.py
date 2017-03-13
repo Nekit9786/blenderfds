@@ -205,17 +205,17 @@ class OBJECT_OT_bf_set_cell_size(Operator):
 
     bf_cell_sizes = FloatVectorProperty(
         name="Desired Cell Sizes [m]", description="Desired MESH cell sizes",
-        default=(.2, .2, .2), min=.001, step=1000, precision=3, size=3
+        default=(.3, .3, .3), min=.001, step=1000, precision=3, size=3
     )
     bf_snap_to_origin = BoolProperty(
         name="Snap To Global Origin",
         description="Snap this MESH to global origin while setting desired cell sizes (Object may be scaled and moved)",
-        default=False,
+        default=True,
     )
     bf_poisson_restriction = BoolProperty(
         name="Poisson Restriction",
         description="Respect FDS Poisson solver restriction on IJK values while setting desired cell sizes (Object may be scaled and moved)",
-        default=False,
+        default=True,
     )
     
     def draw(self, context):
