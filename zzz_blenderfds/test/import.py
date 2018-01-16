@@ -5,7 +5,7 @@ import bpy
 from .term_colors import *
 from .utils import run, clean_dir
 
-def test_file(filepath): # FIXME
+def test_file(filepath): # TODO
     # Import
     bpy.ops.import_scene.fds_case(filepath=filepath)
     import_file = bpy.path.basename(filepath)
