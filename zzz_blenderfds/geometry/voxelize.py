@@ -169,7 +169,7 @@ def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     ob_norm.data = me_norm
     return ob_norm
 
-# When appling a remesh box modifier, object max dimension is scaled up FIXME explain better VERY BAD!
+# When appling a remesh box modifier, object max dimension is scaled up
 # and subdivided in 2 ** octree_depth voxels - 1 cubic voxels 
 # Example: dimension = 4.2, voxel_size = 0.2, octree_depth = 5, number of voxels = 2^5-1 = 31, scale = 3/4 = 0.75
 # |-----|-----|-----|-----| voxels, dimension / scale

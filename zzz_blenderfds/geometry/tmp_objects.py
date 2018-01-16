@@ -2,7 +2,7 @@
 
 import bpy
 
-def restore_all(context): # FIXME sposta e elimina file
+def restore_all(context): # TODO sposta e elimina file
     """Restore all original obs, delete all tmp objects, delete all cached geometry."""
     if context.mode != 'OBJECT': bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     sc = context.scene

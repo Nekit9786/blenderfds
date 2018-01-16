@@ -41,7 +41,7 @@ def ob_to_xbs_bbox(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     x0, x1, y0, y1, z0, z1 = get_global_bbox(context, ob)
     return [(x0, x1, y0, y1, z0, z1,),], ""
 
-def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'": # FIXME use BMesh
+def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'": # TODO use BMesh
     """Transform ob faces in XBs notation (faces). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_faces:", ob.name)
     # Init
@@ -71,7 +71,7 @@ def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'": # 
     msg = len(result) > 1 and "{0} faces".format(len(result)) or ""
     return result, msg
 
-def ob_to_xbs_edges(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'": # FIXME use BMesh
+def ob_to_xbs_edges(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'": # TODO use BMesh
     """Transform ob faces in XBs notation (faces). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_edges:", ob.name)
     # Init
@@ -110,7 +110,7 @@ def ob_to_xbs(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
 
 ### XYZ
 
-def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'": # FIXME use BMesh
+def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'": # TODO use BMesh
     """Transform ob vertices in XYZs notation. Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xyzs_vertices:", ob.name)
     # Init

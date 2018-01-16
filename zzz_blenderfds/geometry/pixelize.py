@@ -1,5 +1,5 @@
-# FIXME not used, not finished
-# FIXME I wish I could merge flat pixels and faces!
+# TODO not used, not finished
+# TODO I wish I could merge flat pixels and faces!
 
 def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
     """Pixelize object."""

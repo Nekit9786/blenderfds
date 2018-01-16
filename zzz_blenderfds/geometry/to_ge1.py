@@ -23,7 +23,7 @@ from .geom_utils import *
 # 6.0 3.9 0.5 6.0 1.9 0.5 6.0 1.9 1.9 6.0 3.9 1.9 0
 # EOF
 
-def scene_to_ge1(context, scene):  # FIXME use BMesh
+def scene_to_ge1(context, scene):  # TODO use BMesh
     """Export scene geometry in FDS GE1 notation."""
     # Cursor
     w = context.window_manager.windows[0]
