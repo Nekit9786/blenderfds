@@ -21,7 +21,7 @@ def unregister():
     DEBUG and print("BFDS: handlers.py unregister")
     bpy.app.handlers.load_post.remove(_load_post)
     bpy.app.handlers.save_pre.remove(_save_pre)
-    bpy.app.handlers.scene_update_post.remove(_scene_update_post) # FIXME change name
+    bpy.app.handlers.scene_update_post.remove(_scene_update_post) # TODO change name
 
 ### Load and save post
 

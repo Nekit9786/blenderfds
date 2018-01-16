@@ -79,12 +79,12 @@ class BFObject():
     def set_tmp(self, context, ob):
         """Set self as temporary object of ob."""
         # Link object to context scene
-        # context.scene.objects.link(self) FIXME why not?
+        # context.scene.objects.link(self) # TODO Is it always already linked?
         # Set temporary object
         self.bf_is_tmp = True
         self.active_material = ob.active_material
         self.layers = ob.layers
-        # self.groups = ob.groups FIXME does not work
+        # self.groups = ob.groups TODO does not work but would be useful!
         self.show_wire = True
         # Set parenting and keep position
         self.parent = ob
@@ -145,8 +145,13 @@ class BFMaterial():
     def to_fds(self, context) -> "str or None":
         """Export myself in FDS notation."""
         if self.name not in fds.surf.predefined:
-            bf_namelist = self.bf_namelist
-            if bf_namelist: return bf_namelist.to_fds(context)
+            # Check if it is used by at least an object
+            for ob in bpy.data.objects:
+                if ob.active_material == self and ob.bf_export and ob.bf_namelist_cls in ["ON_OBST","ON_VENT","ON_free"]:
+                    # Send
+                    bf_namelist = self.bf_namelist
+                    if bf_namelist: return bf_namelist.to_fds(context)
+
         
 # Add methods to original Blender type
 
@@ -281,7 +286,7 @@ class BFScene():
         bf_head_free_text = fds.head.set_free_text_file(context, self)
         # Get existing contents
         old_free_texts = bpy.data.texts[bf_head_free_text].as_string()
-        if old_free_texts: free_texts.append(old_free_texts) # FIXME check
+        if old_free_texts: free_texts.append(old_free_texts)
         # Write merged contents
         bpy.data.texts[bf_head_free_text].from_string("\n".join(free_texts))
 

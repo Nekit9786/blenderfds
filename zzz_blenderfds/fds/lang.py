@@ -22,17 +22,9 @@ DEBUG = False
 
 def update_OP_namelist_cls(self, context):
     # When Object namelist cls is updated:
-    self.bf_xb = "NONE" # FIXME more rough but cleaner
+    self.bf_xb = "NONE"
     self.bf_xyz = "NONE"
     self.bf_pb = "NONE"
-    # Check allowed geometries, different namelists may have different allowed geometries FIXME multiple not allowed geometries were left
-    #bf_namelist = self.bf_namelist
-    #bf_prop_XB = bf_namelist.bf_prop_XB
-    #bf_prop_XYZ = bf_namelist.bf_prop_XYZ    
-    #bf_prop_PB = bf_namelist.bf_prop_PB 
-    #if bf_prop_XB and self.bf_xb not in bf_prop_XB.allowed_items: self.bf_xb = "NONE"
-    #if bf_prop_XYZ and self.bf_xyz not in bf_prop_XYZ.allowed_items: self.bf_xyz = "NONE"
-    #if bf_prop_PB and self.bf_pb not in bf_prop_PB.allowed_items: self.bf_pb = "NONE"
     # Set default appearance
     self.set_default_appearance(context)
 
@@ -69,7 +61,7 @@ class MP_namelist_cls(BFProp):
         "default": "MN_SURF",
     }
 
-# Object tmp # FIXME move to self[""] var? is it saved?
+# Object tmp # TODO move to self[""] var? is it saved?
 
 @subscribe
 class OP_is_tmp(BFProp):
@@ -162,7 +154,7 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
 def update_bf_default_voxel_size(self, context):
     """Update function for bf_xb_custom_voxel"""
     # Del all tmp objects and all cached geometry
-    geometry.tmp_objects.restore_all(context) # FIXME use operator?
+    geometry.tmp_objects.restore_all(context) # TODO use operator?
 
 @subscribe
 class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
@@ -181,7 +173,7 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
     }
     # unit = "LENGTH", # correction for scale_length needed before exporting!
 
-# MESH alignment FIXME develop!
+# MESH alignment TODO develop!
 
 # XB
 
@@ -470,7 +462,7 @@ class OP_PB(BFPBProp):
         # Prepare
         if len(pbs) == 1: return self._format_pb(pbs[0])
         else:
-            _format_pb = { # FIXME risk of name clash _format_pb self._format_pb. Elsewhere?
+            _format_pb = { # TODO risk of name clash _format_pb self._format_pb. Elsewhere?
                 "IDI" :   self._format_pb_idi,
                 "IDX" :   self._format_pb_idxyz,
                 "IDY" :   self._format_pb_idxyz,
@@ -572,10 +564,10 @@ class SP_HEAD_directory(BFNoAutoExportMod, BFProp):
         "maxlen": 1024,
     }
 
-#    def check(self, context): FIXME check, what if bad dir?
-#        value = self.element.bf_head_directory
-#        if value and not os.path.exists(bpy.path.abspath(value)):
-#            raise BFException(self, "Case directory path not existing")
+    def check(self, context):
+        value = self.element.bf_head_directory
+        if value and not os.path.exists(bpy.path.abspath(value)):
+            raise BFException(self, "Case directory path not existing")
 
 @subscribe
 class SP_HEAD_free_text(BFNoAutoExportMod, BFProp):
@@ -648,7 +640,7 @@ class SP_TIME_T_END(SP_TIME_T_BEGIN):
         "default": 1.,
     }
 
-    def check(self, context): # FIXME check
+    def check(self, context):
         if self.get_exported(context) and self.element.bf_time_t_end < self.element.bf_time_t_begin:
             raise BFException(self, "T_END < T_BEGIN")
 
@@ -907,8 +899,6 @@ class SP_DUMP_STATUS_FILES(BFProp):
 		"default": True, # Always dump a status file
 	}
 
-# FIXME check
-
 @subscribe
 class SP_DUMP_NFRAMES(BFProp):
     label = "NFRAMES"
@@ -942,7 +932,7 @@ class SP_DUMP_set_frequency(BFProp):
 		"default": False,
 	}
 
-    def check(self, context): # FIXME
+    def check(self, context):
         if self.element.bf_dump_set_frequency and round(self.element.bf_time_t_end - self.element.bf_time_t_begin) < 1:
             raise BFException(self, "Simulation time too short")
 
@@ -951,8 +941,6 @@ class SP_DUMP_set_frequency(BFProp):
         if self.element.bf_dump_set_frequency:
             self.check(context)
             return "NFRAMES={}".format(round(self.element.bf_time_t_end - self.element.bf_time_t_begin))
-
-# FIXME end check
 
 @subscribe
 class SP_DUMP_DT_RESTART(BFProp):
@@ -1231,8 +1219,6 @@ class MN_SURF_solid(BFNamelist):
 @subscribe
 class OP_export(BFExportProp):
     bpy_type = Object
-#    bpy_idname = "hide_render"  # FIXME does not work. Contrary to usual logic...
-#    bpy_prop = None # Do not register
     bpy_other = {
         "default": True,
     }
@@ -1348,7 +1334,7 @@ class ON_OBST(BFNamelist):
     fds_label = "OBST"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_id_suffix, OP_FYI, OP_SURF_ID, OP_XB, OP_OBST_THICKEN, OP_free # FIXME was: OP_XB_solid
+    bf_props = OP_ID, OP_id_suffix, OP_FYI, OP_SURF_ID, OP_XB, OP_OBST_THICKEN, OP_free # It is OP_XB instead of OP_XB_solid, for flat solids
     bf_other = {
         "draw_type": "SOLID",
     }

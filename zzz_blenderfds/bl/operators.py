@@ -80,7 +80,7 @@ class WM_OT_bf_load_blenderfds_settings(Operator):
 
 ### SURF MATL_ID
 
-def _get_namelist_items(self, context, nl): # FIXME move from here
+def _get_namelist_items(self, context, nl): # TODO move away from here
     """Get namelist IDs available in Free Text File"""
     # Get Free Text File
     value = str()
@@ -89,7 +89,7 @@ def _get_namelist_items(self, context, nl): # FIXME move from here
         value = bpy.data.texts[sc.bf_head_free_text].as_string()
     # Tokenize value and manage exception
     try: tokens = fds.to_py.tokenize(value)
-    except Exception as err: pass # FIXME not good
+    except Exception as err: pass # TODO not good
     # Select MATL tokens, get IDs, return
     ids = list()
     for token in tokens:
@@ -520,7 +520,7 @@ class OBJECT_OT_bf_hide_fds_geometry(Operator):
         self.report({"INFO"}, "FDS geometry hidden")
         return {'FINISHED'}
 
-class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator): # FIXME what if multi-level parenting?
+class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator): # TODO check what if multi-level parenting?
     bl_label = "Hide FDS Geometry"
     bl_idname = "object.bf_hide_fds_geometry_from_tmp"
     bl_description = "Hide geometry as exported to FDS"
