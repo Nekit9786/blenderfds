@@ -9,7 +9,7 @@ from ..types import BFException
 from .geom_utils import * 
 from . import tmp_objects
 
-DEBUG = False
+DEBUG = True
 
 # TODO port to numpy for speed
 # TODO port to bmesh
@@ -22,23 +22,33 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
     """Pixelize object."""
     print("BFDS: voxelize.pixelize:", ob.name)
     # Init
-    flat_axis = _get_flat_axis(ob)
-    voxel_size = _get_voxel_size(context, ob)
-    thickness = voxel_size
-    bbox = get_global_bbox(context,ob)
+    voxel_size = _get_voxel_size(context, ob)    
+    ob_global = get_new_object(
+        context,
+        context.scene,
+        "global_ob",
+        get_global_mesh(context, ob),
+        linked=True, # FIXME False
+    )
+    flat_axis = _get_flat_axis(ob_global)
+    bbox = get_global_bbox(context,ob_global)
     flat_origin = bbox[0],bbox[2],bbox[4]
-    # Solidify
     choose_flatten = (_x_flatten_xbs, _y_flatten_xbs, _z_flatten_xbs)[flat_axis]
-    ob_solid = _get_solidify_ob(context, ob, thickness)
+    # Solidify
+    ob_solid = _get_solidify_ob(context, ob_global, voxel_size * 1.5)
+    # Voxelize
     ob_solid.bf_xb_voxel_size = voxel_size # prepare new object, you are not passing the voxel size
     ob_solid.bf_xb_custom_voxel = True
-    # Voxelize
     xbs, voxel_size, ts = voxelize(context, ob_solid)
     # Flatten
     xbs = choose_flatten(xbs, flat_origin)
     ## Clean up
-    if DEBUG: ob_solid.set_tmp(context, ob)
-    else: bpy.data.objects.remove(ob_solid, do_unlink=True)
+    if DEBUG:
+        ob_global.set_tmp(context, ob)
+        ob_solid.set_tmp(context, ob)
+    else:
+        bpy.data.objects.remove(ob_global, do_unlink=True)
+        bpy.data.objects.remove(ob_solid, do_unlink=True)        
     # Return
     return xbs, voxel_size, ts
 
@@ -49,12 +59,13 @@ def _get_solidify_ob(context, ob, thickness) -> "ob":
         context.scene,
         "solidified_tmp",
         me=ob.data,
-        linked=False
+        linked=True, # FIXME False
     )
     # Create modifier
     mo = ob_new.modifiers.new('solidify_tmp','SOLIDIFY')
     mo.thickness = thickness
     mo.offset = 0. # centered
+    ob_new.data.update(calc_edges=True, calc_tessface=True) # Or it will not update the mesh
     # Apply modifier
     me = ob_new.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER")
     ob_new.data = me
@@ -167,6 +178,7 @@ def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     insert_vertices_into_mesh(me_norm, verts)
     # Update mesh and return
     ob_norm.data = me_norm
+    ob_norm.data.update(calc_tessface=True) # Or it will not update the mesh FIXME
     return ob_norm
 
 # When appling a remesh box modifier, object max dimension is scaled up
@@ -186,6 +198,7 @@ def _get_remesh_ob(context, ob, voxel_size) -> "ob":
     mo.use_remove_disconnected = False
     mo.octree_depth = octree_depth
     mo.scale = scale
+    ob.data.update(calc_tessface=True) # Or it will not update the mesh FIXME
     # Apply modifier
     me = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER")
     return bpy.data.objects.new("remeshed_tmp", me)
@@ -451,6 +464,7 @@ def _get_flat_axis(ob):
         (dimensions[2],2), # ... to z axis
     ]
     choose.sort(key=lambda k:k[0]) # sort by dimension
+    print("Flat axis:",choose[0][1]) # FIXME del
     return choose[0][1]
 
 def _x_flatten_xbs(xbs, flat_origin) -> "[(l0, l0, y0, y1, z0, z1), ...]":
