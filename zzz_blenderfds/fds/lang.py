@@ -299,6 +299,8 @@ class OP_XB_solid(OP_XB):
 class OP_XB_faces(OP_XB):
     allowed_items = "NONE", "FACES", "PIXELS"
 
+# GEOM: VERTS, FACES, VOLUS
+
 # XYZ
 
 def update_bf_xyz(self, context):
@@ -1338,6 +1340,35 @@ class ON_OBST(BFNamelist):
     bf_other = {
         "draw_type": "SOLID",
     }
+
+# GEOM FIXME
+
+@subscribe
+class OP_GEOM(BFProp): # FIXME
+    label = "Triangulated geometry"
+    description = "Triangulated geometry vertices and faces"
+    bpy_type = Object
+    
+    def to_fds(self, context):
+        return "VERTS='{}_verts', FACES='{}_faces'".format(self.element.name, self.element.name)
+
+    def from_fds(self, context, value): # FIXME
+        pass
+
+@subscribe
+class ON_GEOM(BFNamelist):
+    label = "GEOM"
+    description = "Geometry"
+    enum_id = 1020
+    fds_label = "GEOM"
+    bpy_type = Object
+    bf_prop_export = OP_export
+    bf_props = OP_ID, OP_FYI, OP_SURF_ID, OP_GEOM, OP_free
+    bf_other = {
+        "draw_type": "SOLID",
+    }
+    
+# FIXME ID index should not be displayed
 
 # HOLE
 
