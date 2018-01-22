@@ -147,7 +147,7 @@ class BFMaterial():
         if self.name not in fds.surf.predefined:
             # Check if it is used by at least an object
             for ob in bpy.data.objects:
-                if ob.active_material == self and ob.bf_export and ob.bf_namelist_cls in ["ON_OBST","ON_VENT","ON_free"]:
+                if ob.active_material == self and ob.bf_export and ob.bf_namelist_cls in ["ON_OBST","ON_GEOM","ON_VENT","ON_free"]:
                     # Send
                     bf_namelist = self.bf_namelist
                     if bf_namelist: return bf_namelist.to_fds(context)

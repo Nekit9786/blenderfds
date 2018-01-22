@@ -1348,13 +1348,29 @@ class OP_GEOM(BFProp): # FIXME
     label = "Triangulated geometry"
     description = "Triangulated geometry vertices and faces"
     bpy_type = Object
-    
-    def to_fds(self, context):
-        return "VERTS='{}_verts', FACES='{}_faces'".format(self.element.name, self.element.name)
 
     def from_fds(self, context, value): # FIXME
         pass
 
+    def to_fds(self, context):
+        # Check
+        # self.check(context) (FIXME check sanity?)
+        # Get verts and faces
+        verts, faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
+        if msg: self.infos.append(msg)
+        if not verts: return None     
+        # Correct for scale_lenght FIXME
+        # scale_length = context.scene.unit_settings.scale_length
+        # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
+        # Prepare FIXME
+        verts_str = ""
+        for v in verts:
+            verts_str += "\n            {0[0]:.3f},{0[1]:.3f},{0[2]:.3f},".format(v)
+        faces_str = ""
+        for f in faces:
+            faces_str += "\n            {0[0]},{0[1]},{0[2]},".format(f)
+        return "VERTS={}\n      FACES={}".format(verts_str,faces_str)
+        
 @subscribe
 class ON_GEOM(BFNamelist):
     label = "GEOM"

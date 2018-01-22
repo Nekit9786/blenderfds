@@ -1,6 +1,6 @@
 """BlenderFDS, translate Blender object geometry to FDS notation."""
 
-import bpy
+import bpy, bmesh
 from time import time
 from .geom_utils import *
 from .voxelize import voxelize, pixelize
@@ -183,5 +183,55 @@ def ob_to_pbs(context, ob):
         ob["ob_to_pbs_cache"] = choose_to_pbs[ob.bf_pb](context, ob) # Calculate
     return ob["ob_to_pbs_cache"]
 
+### GEOM FIXME
 
+# &GEOM ID='FEM_MESH',
+#       SURF_ID='CONE',
+#       MATL_ID='CONE',
+#       VERTS=0.0699,-0.0146,3.4286,
+#             0.0714, 0.0000,3.4286,
+#             ...
+#       FACES=1,2,3,
+#             4,5,2,
+#             ...
+#       /
 
+def ob_to_geom(context, ob) -> "verts, faces":
+    """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
+
+    # Get the Object mesh
+    bm = bmesh.new()
+    bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
+
+    # Get its verts
+    verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
+
+    # Get its faces and triangulate them (Blender beauty way)
+    faces = []
+    for f in bm.faces:
+        if len(f.verts) == 3:
+            faces.append((f.verts[0].index+1, f.verts[1].index+1, f.verts[2].index+1))
+        else:
+            v0, v1, v2, v3 = f.verts
+            d1 = (v2.co.x - v0.co.x) ** 2 + (v2.co.y - v0.co.y) ** 2 + (v2.co.z - v0.co.z) ** 2
+            d2 = (v1.co.x - v3.co.x) ** 2 + (v1.co.y - v3.co.y) ** 2 + (v1.co.z - v3.co.z) ** 2
+            if d1 < d2: # v0, v2 edge shorter
+                faces.append((v0.index+1, v1.index+1, v2.index+1))
+                faces.append((v0.index+1, v2.index+1, v3.index+1))
+            else:       # v1, v3 edge shorter
+                faces.append((v0.index+1, v1.index+1, v3.index+1))
+                faces.append((v1.index+1, v2.index+1, v3.index+1))
+
+    # Free bmesh
+    bm.free()
+
+    # Set up msg
+    msg = "{} vertices, {} faces".format(len(verts), len(faces))
+
+    # print("VERTS=") # FIXME
+    # print(verts)
+
+    # print("FACES=") # FIXME
+    # print(faces)
+            
+    return verts, faces, msg
