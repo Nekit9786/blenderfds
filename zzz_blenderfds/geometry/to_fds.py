@@ -199,10 +199,12 @@ def ob_to_pbs(context, ob):
 def ob_to_geom(context, ob) -> "verts, faces":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
 
-    # Get the Object mesh
+    # Get the Object mesh, apply modifiers, in global coordinates,
     bm = bmesh.new()
     bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
-
+	bm.transform(ob.matrix_world) # get global coordinates FIXME check
+	# bmesh.ops.triangulate(bm, faces=bm.faces) # triangulate FIXME is it beauty?
+	
     # Get its verts
     verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
 
