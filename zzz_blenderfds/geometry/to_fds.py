@@ -4,6 +4,7 @@ import bpy, bmesh
 from time import time
 from .geom_utils import *
 from .voxelize import voxelize, pixelize
+from ..exceptions import BFException
 
 DEBUG = False
 
@@ -198,42 +199,55 @@ def ob_to_pbs(context, ob):
 
 def ob_to_geom(context, ob) -> "verts, faces":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
-
-    # Get the Object mesh, apply modifiers, in global coordinates,
+    assert(ob.type == 'MESH')
+    
+    # Get the new bmesh from the Object, apply modifiers, set in global coordinates, and triangulate
     bm = bmesh.new()
     bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
-	bm.transform(ob.matrix_world) # get global coordinates FIXME check
-	# bmesh.ops.triangulate(bm, faces=bm.faces) # triangulate FIXME is it beauty?
+    bm.transform(ob.matrix_world)
+    bmesh.ops.triangulate(bm, faces=bm.faces)
+
+    # Check its sanity FIXME
+
+    # Check self intersection
+    import mathutils
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=0.00001) # FIXME epsilon
+    if tree.overlap(tree): raise BFException(ob, "Object self intersection.")
+
+    # Check manifold (each edge should join two faces, no more no less)
+    # and non-contiguous normals (adjoining faces which have
+    # normals in different directions)
+    for edge in bm.edges:
+        if not edge.is_manifold:
+            raise BFException(ob, "Non manifold edges.")
+        if not edge.is_contiguous:
+            raise BFException(ob, "Adjoining faces have opposite normals.")
+    
+    # Check loose vertices
+    # FIXME
+
+    # Check degenerate faces and edges (zero lenght edges, zero area faces)
+    # FIXME
+
+    # Check vertices connecting multiple face regions (bow-ties)
+    # FIXME
+
+    # Check minimum wall thickness?
+    # FIXME
+    
+    # Merge geometries?
+    # FIXME
 	
-    # Get its verts
+    # Get its vertex coordinates
     verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
 
-    # Get its faces and triangulate them (Blender beauty way)
-    faces = []
-    for f in bm.faces:
-        if len(f.verts) == 3:
-            faces.append((f.verts[0].index+1, f.verts[1].index+1, f.verts[2].index+1))
-        else:
-            v0, v1, v2, v3 = f.verts
-            d1 = (v2.co.x - v0.co.x) ** 2 + (v2.co.y - v0.co.y) ** 2 + (v2.co.z - v0.co.z) ** 2
-            d2 = (v1.co.x - v3.co.x) ** 2 + (v1.co.y - v3.co.y) ** 2 + (v1.co.z - v3.co.z) ** 2
-            if d1 < d2: # v0, v2 edge shorter
-                faces.append((v0.index+1, v1.index+1, v2.index+1))
-                faces.append((v0.index+1, v2.index+1, v3.index+1))
-            else:       # v1, v3 edge shorter
-                faces.append((v0.index+1, v1.index+1, v3.index+1))
-                faces.append((v1.index+1, v2.index+1, v3.index+1))
+    # Get its faces by vertex index
+    faces = [(f.verts[0].index+1, f.verts[1].index+1, f.verts[2].index+1) for f in bm.faces]
 
-    # Free bmesh
+    # Free the bmesh
     bm.free()
 
     # Set up msg
     msg = "{} vertices, {} faces".format(len(verts), len(faces))
-
-    # print("VERTS=") # FIXME
-    # print(verts)
-
-    # print("FACES=") # FIXME
-    # print(faces)
             
     return verts, faces, msg
