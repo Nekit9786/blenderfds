@@ -146,3 +146,21 @@ def pbs_to_ob(pbs, context, ob=None, bf_pb="NONE", name="pbs_to_ob", update_cent
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
     return ob
+
+### from GEOM
+
+def geom_to_mesh(verts, faces, me=None) -> "Mesh":
+    """Translate GEOM vertices ((x0,y0,z0,), ...) and faces ((1,2,3,), ...) to Blender mesh."""
+    if not me: me = bpy.data.meshes.new("geom_to_mesh")
+    verts, edges, faces = verts, list(), [(face[0]-1,face[1]-1,face[2]-1,) for face in faces]
+    me.from_pydata(verts, edges, faces)
+    return me
+
+def geom_to_ob(verts, faces, context, ob=None, name="geom_to_ob", update_center=True) -> "Mesh":
+    """Transform geometry in FDS notation to Blender object."""
+    # Get mesh, set it, set properties and center position
+    me = geom_to_mesh(verts, faces, me=None)
+    if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
+    else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
+    if update_center: set_balanced_center_position(context, ob)
+    return ob
