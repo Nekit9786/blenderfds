@@ -186,6 +186,7 @@ def ob_to_pbs(context, ob):
 
 ### to GEOM
 
+# Current format:
 # &GEOM ID='FEM_MESH',
 #       SURF_ID='CONE',
 #       MATL_ID='CONE',
@@ -194,8 +195,26 @@ def ob_to_pbs(context, ob):
 #             ...
 #       FACES=1,2,3,
 #             4,5,2,
+#             ...   
+#       /
+
+# Future format:
+# &GEOM ID='FEM_MESH',
+#       SURF_IDV='CONE','Gypsum plaster','Wood',
+#       MATL_ID='Matl1',
+#       VERTS=0.0699,-0.0146,3.4286,
+#             0.0714, 0.0000,3.4286,
+#             ...
+#       FACES=1,2,3, 1,
+#             4,5,2, 1,
 #             ...
 #       /
+#
+# Notes:
+# ob.data.materials[me.polygons[2].material_index]
+# ob.data.materials[me.polygons[0].material_index]
+# ob.materials?
+#
 
 def ob_to_geom(context, ob) -> "verts, faces":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
@@ -229,9 +248,6 @@ def ob_to_geom(context, ob) -> "verts, faces":
     # Check loose vertices, vertices that have no connectivity
     for vert in bm.verts:
         if not bool(vert.link_edges): raise BFException(ob, "Loose vertices detected.")
-
-    # Check minimum wall thickness?
-    # FIXME
 
     # Get its vertex coordinates
     verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]

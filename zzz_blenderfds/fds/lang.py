@@ -299,8 +299,6 @@ class OP_XB_solid(OP_XB):
 class OP_XB_faces(OP_XB):
     allowed_items = "NONE", "FACES", "PIXELS"
 
-# GEOM: VERTS, FACES, VOLUS
-
 # XYZ
 
 def update_bf_xyz(self, context):
@@ -1341,7 +1339,7 @@ class ON_OBST(BFNamelist):
         "draw_type": "SOLID",
     }
 
-# GEOM FIXME
+# GEOM
 
 @subscribe
 class OP_GEOM(BFProp): # FIXME
@@ -1374,7 +1372,7 @@ class OP_GEOM(BFProp): # FIXME
 @subscribe
 class ON_GEOM(BFNamelist):
     label = "GEOM"
-    description = "Geometry"
+    description = "Geometry (dev)"
     enum_id = 1020
     fds_label = "GEOM"
     bpy_type = Object
@@ -1383,7 +1381,7 @@ class ON_GEOM(BFNamelist):
     bf_other = {
         "draw_type": "SOLID",
     }
-    
+
 # FIXME ID index should not be displayed
 
 # HOLE
