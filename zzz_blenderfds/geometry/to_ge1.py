@@ -54,7 +54,7 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
         and not ob.hide_render  # hide some objects if requested
         and not ob.bf_is_tmp    # do not show temporary objects
         and ob.bf_export        # show only exported objects
-        and ob.bf_namelist_cls in ("ON_OBST", "ON_VENT", "ON_HOLE") # show only some namelists
+        and ob.bf_namelist_cls in ("ON_OBST", "ON_GEOM", "ON_VENT", "ON_HOLE") # show only some namelists
         and getattr(ob.active_material, "name", None) != "OPEN" # do not show open VENTs
     )
     gefaces = list()
