@@ -109,7 +109,7 @@ def ob_to_xbs(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
         ob["ob_to_xbs_cache"] = choose_to_xbs[ob.bf_xb](context, ob) # Calculate
     return ob["ob_to_xbs_cache"]
 
-### XYZ
+### to XYZ
 
 def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'": # TODO use BMesh
     """Transform ob vertices in XYZs notation. Never send None."""
@@ -150,7 +150,7 @@ def ob_to_xyzs(context, ob):
     return ob["ob_to_xyzs_cache"]
     
 
-### PB
+### to PB
 
 def ob_to_pbs_planes(context, ob) -> "(('X',x3,), ('X',x7,), ('Y',y9,), ...), 'Message'":
     """Transform ob faces in PBs notation. Never send None."""
@@ -184,7 +184,7 @@ def ob_to_pbs(context, ob):
         ob["ob_to_pbs_cache"] = choose_to_pbs[ob.bf_pb](context, ob) # Calculate
     return ob["ob_to_pbs_cache"]
 
-### GEOM FIXME
+### to GEOM
 
 # &GEOM ID='FEM_MESH',
 #       SURF_ID='CONE',
@@ -200,6 +200,7 @@ def ob_to_pbs(context, ob):
 def ob_to_geom(context, ob) -> "verts, faces":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
     assert(ob.type == 'MESH')
+    epsilon = .000001 # FIXME global epsilon
     
     # Get the new bmesh from the Object, apply modifiers, set in global coordinates, and triangulate
     bm = bmesh.new()
@@ -207,37 +208,31 @@ def ob_to_geom(context, ob) -> "verts, faces":
     bm.transform(ob.matrix_world)
     bmesh.ops.triangulate(bm, faces=bm.faces)
 
-    # Check its sanity FIXME
-
     # Check self intersection
     import mathutils
     tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=0.00001) # FIXME epsilon
-    if tree.overlap(tree): raise BFException(ob, "Object self intersection.")
+    if tree.overlap(tree): raise BFException(ob, "Object self intersection detected.")
 
-    # Check manifold (each edge should join two faces, no more no less)
-    # and non-contiguous normals (adjoining faces which have
-    # normals in different directions)
+    # Check edges:
+    # - manifold, each edge should join two faces, no more no less
+    # - contiguous normals, adjoining faces should have normals in the same directions
+    # - no degenerate edges, zero lenght edges
     for edge in bm.edges:
-        if not edge.is_manifold:
-            raise BFException(ob, "Non manifold edges.")
-        if not edge.is_contiguous:
-            raise BFException(ob, "Adjoining faces have opposite normals.")
+        if not edge.is_manifold: raise BFException(ob, "Non manifold edges detected.")
+        if not edge.is_contiguous: raise BFException(ob, "Adjoining faces have opposite normals.")
+        if edge.calc_length() <= epsilon: raise BFException(ob, "Zero lenght edges detected.")
     
-    # Check loose vertices
-    # FIXME
+    # Check degenerate faces, zero area faces
+    for face in bm.faces:
+        if face.calc_area() <= epsilon: raise BFException(ob, "Zero area faces detected.")
 
-    # Check degenerate faces and edges (zero lenght edges, zero area faces)
-    # FIXME
-
-    # Check vertices connecting multiple face regions (bow-ties)
-    # FIXME
+    # Check loose vertices, vertices that have no connectivity
+    for vert in bm.verts:
+        if not bool(vert.link_edges): raise BFException(ob, "Loose vertices detected.")
 
     # Check minimum wall thickness?
     # FIXME
-    
-    # Merge geometries?
-    # FIXME
-	
+
     # Get its vertex coordinates
     verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
 
