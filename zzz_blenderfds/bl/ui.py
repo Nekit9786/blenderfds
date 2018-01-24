@@ -180,6 +180,8 @@ _used_panels = (
     'SCENE_PT_BF_HEAD', 'SCENE_PT_BF_TIME', 'SCENE_PT_BF_DUMP', 'SCENE_PT_BF_MISC', 'SCENE_PT_BF_REAC',
     'OBJECT_PT_BF_MESH', 'OBJECT_PT_BF_EMPTY', 'OBJECT_PT_BF_TMP',
     'MATERIAL_PT_BF',
+    'MATERIAL_PT_context_material','MaterialButtonsPanel',
+    'Cycles_PT_context_material','CyclesButtonsPanel',
     'DATA_PT_modifiers', 'RENDER_PT_render',
     'OBJECT_PT_relations',
 )
