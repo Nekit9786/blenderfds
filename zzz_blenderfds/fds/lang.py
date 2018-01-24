@@ -1001,9 +1001,10 @@ class MP_ID(BFStringProp):
 
     def _draw_body(self, context, layout):
         pass # FIXME
-        # row = layout.row()
-        # row.template_ID(context.object, "active_material", new="material.new")
-        # row.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="")
+        row = layout.row()
+        #row.template_ID(context.object, "active_material", new="material.new") FIXME
+        row.prop(context.object, "active_material", text="")
+        row.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="")
 
 @subscribe
 class MP_FYI(BFFYIProp):
