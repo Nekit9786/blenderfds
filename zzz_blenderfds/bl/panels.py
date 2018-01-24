@@ -179,7 +179,6 @@ class MATERIAL_PT_BF(Panel):
         # Panel
         split = layout.split(.7) # namelist
         split.prop(element, "bf_namelist_cls", text="")
-        split.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="") # FIXME shorten
         row = split.row(align=True) # aspect
         row.prop(element, "diffuse_color", text="")
         row.prop(element, "alpha", text="")
