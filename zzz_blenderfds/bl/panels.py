@@ -2,7 +2,7 @@
 
 from bpy.types import Panel
 
-from ..fds.lang import SN_HEAD, SN_TIME, SN_DUMP, SN_MISC, SN_REAC, OP_SURF_ID # TODO migrate to new search [" "]
+from ..fds.lang import SN_HEAD, SN_TIME, SN_DUMP, SN_MISC, SN_REAC, OP_SURF_ID, OP_GEOM2 # TODO migrate to new search [" "]
 
 ### Scene panels
 
@@ -160,8 +160,9 @@ class MATERIAL_PT_BF(Panel):
     def poll(cls,context):
         ma = context.material
         ob = context.active_object
+        all_bf_props = ob.bf_namelist.all_bf_props
         return ma and ob and ob.type == "MESH" and not ob.bf_is_tmp \
-            and OP_SURF_ID in ob.bf_namelist.all_bf_props
+            and (OP_SURF_ID in all_bf_props or OP_GEOM2 in all_bf_props) 
             # show the panel only when relevant
 
     def draw_header(self, context):
@@ -178,6 +179,7 @@ class MATERIAL_PT_BF(Panel):
         # Panel
         split = layout.split(.7) # namelist
         split.prop(element, "bf_namelist_cls", text="")
+        split.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="") # FIXME shorten
         row = split.row(align=True) # aspect
         row.prop(element, "diffuse_color", text="")
         row.prop(element, "alpha", text="")
