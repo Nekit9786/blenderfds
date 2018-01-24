@@ -186,7 +186,7 @@ def ob_to_pbs(context, ob):
 
 ### to GEOM
 
-# Current format:
+# Current format DEV1:
 # &GEOM ID='FEM_MESH',
 #       SURF_ID='CONE',
 #       MATL_ID='CONE',
@@ -198,7 +198,7 @@ def ob_to_pbs(context, ob):
 #             ...   
 #       /
 
-# Future format:
+# Future format DEV2:
 # &GEOM ID='FEM_MESH',
 #       SURF_IDV='CONE','Gypsum plaster','Wood',
 #       MATL_ID='Matl1',
@@ -209,12 +209,15 @@ def ob_to_pbs(context, ob):
 #             4,5,2, 1,
 #             ...
 #       /
-#
-# Notes:
-# ob.data.materials[me.polygons[2].material_index]
-# ob.data.materials[me.polygons[0].material_index]
-# ob.materials?
-#
+
+# Get face 5 material:
+# ob.material_slots[bm.faces[5].material_index].material
+
+# Get linked Blender Material names list:
+# [material_slot.material.name for material_slot in ob.material_slots]
+
+# Get Material index in FDS format with bmesh for face 5:
+# bm.faces[5].material_index + 1
 
 def ob_to_geom(context, ob) -> "verts, faces":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
@@ -262,3 +265,59 @@ def ob_to_geom(context, ob) -> "verts, faces":
     msg = "{} vertices, {} faces".format(len(verts), len(faces))
             
     return verts, faces, msg
+
+    
+def ob_to_geom2(context, ob) -> "surf_idv, verts, faces":
+    """Transform Blender object geometry to new GEOM FDS notation. Never send a None."""
+    assert(ob.type == 'MESH')
+    epsilon = .000001 # FIXME global epsilon
+    
+    # Get the new bmesh from the Object, apply modifiers, set in global coordinates, and triangulate
+    bm = bmesh.new()
+    bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
+    bm.transform(ob.matrix_world)
+    bmesh.ops.triangulate(bm, faces=bm.faces)
+
+    # Check self intersection
+    import mathutils
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=0.00001) # FIXME epsilon
+    if tree.overlap(tree): raise BFException(ob, "Object self intersection detected.")
+
+    # Check edges:
+    # - manifold, each edge should join two faces, no more no less
+    # - contiguous normals, adjoining faces should have normals in the same directions
+    # - no degenerate edges, zero lenght edges
+    for edge in bm.edges:
+        if not edge.is_manifold: raise BFException(ob, "Non manifold edges detected.")
+        if not edge.is_contiguous: raise BFException(ob, "Adjoining faces have opposite normals.")
+        if edge.calc_length() <= epsilon: raise BFException(ob, "Zero lenght edges detected.")
+    
+    # Check degenerate faces, zero area faces
+    for face in bm.faces:
+        if face.calc_area() <= epsilon: raise BFException(ob, "Zero area faces detected.")
+
+    # Check loose vertices, vertices that have no connectivity
+    for vert in bm.verts:
+        if not bool(vert.link_edges): raise BFException(ob, "Loose vertices detected.")
+
+    # Get its surf_idv
+    surf_idv = [material_slot.material.name for material_slot in ob.material_slots]
+        
+    # Get its vertex coordinates
+    verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
+
+    # Get its faces by vertex index
+    faces = [(
+        f.verts[0].index+1, # FDS index start from 1, not 0
+        f.verts[1].index+1,
+        f.verts[2].index+1,
+        f.material_index+1,
+        ) for f in bm.faces]
+
+    # Free the bmesh
+    bm.free()
+
+    # Set up msg
+    msg = "{} surf_idv, {} vertices, {} faces".format(len(surf_idv),len(verts),len(faces))
+            
+    return surf_idv, verts, faces, msg
