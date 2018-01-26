@@ -272,6 +272,8 @@ def ob_to_geom2(context, ob) -> "surf_idv, verts, faces":
     assert(ob.type == 'MESH')
     epsilon = .000001 # FIXME global epsilon
     
+    ## Check for closed orientable non-intersecting manifolds, no degenerate geometry
+    
     # Get the new bmesh from the Object, apply modifiers, set in global coordinates, and triangulate
     bm = bmesh.new()
     bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
@@ -283,6 +285,9 @@ def ob_to_geom2(context, ob) -> "surf_idv, verts, faces":
     tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=0.00001) # FIXME epsilon
     if tree.overlap(tree): raise BFException(ob, "Object self intersection detected.")
 
+    # Prototype for FDS
+    
+    
     # Check edges:
     # - manifold, each edge should join two faces, no more no less
     # - contiguous normals, adjoining faces should have normals in the same directions
