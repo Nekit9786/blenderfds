@@ -5,24 +5,19 @@ from functools import reduce
 # increase the max number of recursive calls
 sys.setrecursionlimit(10000) # my default is 1000, increasing too much may cause a seg fault
 
+EPSILON = 1e-05
+
 class Vector(object):
     """
-    class Vector
-
-    Represents a 3D vector.
-    
-    Example usage:
-         Vector(1, 2, 3);
-         Vector([1, 2, 3]);
-         Vector({ 'x': 1, 'y': 2, 'z': 3 });
+    A 3D vector.
     """
     def __init__(self, *args):
         self.x, self.y, self.z = 0., 0., 0.
-        if len(args) == 3:
+        if len(args) == 3: # Vector(1,2,3)
             self.x = args[0]
             self.y = args[1]
             self.z = args[2]
-        elif len(args) == 1:
+        elif len(args) == 1:  # Vector([1,2,3])
             a = args[0]
             if isinstance(a, dict):
                 self.x = a.get('x', 0.0)
@@ -117,18 +112,21 @@ class Vector(object):
             
     def __repr__(self):
         return 'Vector(%.2f, %.2f, %0.2f)' % (self.x, self.y, self.z) 
-        
+
+    def __eq__(self, other):
+        return \
+            math.isclose(self.x, other.x, rel_tol=1e-6) and \
+            math.isclose(self.y, other.y, rel_tol=1e-6) and \
+            math.isclose(self.z, other.z, rel_tol=1e-6)
+
+    def __hash__(self):
+        return hash((self.x, self.y, self.z))
+
 class Vertex(object):
     """ 
     Class Vertex 
 
-    Represents a vertex of a polygon. Use your own vertex class instead of this
-    one to provide additional features like texture coordinates and vertex
-    colors. Custom vertex classes need to provide a `pos` property and `clone()`,
-    `flip()`, and `interpolate()` methods that behave analogous to the ones
-    defined by `Vertex`. This class provides `normal` so convenience
-    functions like `CSG.sphere()` can return a smooth vertex normal, but `normal`
-    is not used anywhere else.
+    Represents a vertex of a polygon.
     """
     def __init__(self, pos, normal=None):
         self.pos = Vector(pos)
@@ -155,19 +153,17 @@ class Vertex(object):
 
     def __repr__(self):
         return repr(self.pos)
-                          
+
+    def __eq__(self, other): # FIXME
+        return self.pos == other.pos
+    
+    def __hash__(self):
+        return hash(self.pos)
+        
 class Plane(object):
     """
-    class Plane
-
     Represents a plane in 3D space.
     """
-    
-    """
-    `Plane.EPSILON` is the tolerance used by `splitPolygon()` to decide if a
-    point is on the plane.
-    """
-    EPSILON = 1.e-5
 
     def __init__(self, normal, w):
         self.normal = normal
@@ -212,9 +208,9 @@ class Plane(object):
             # t is the distance: vertices[i] to Plane 
             t = self.normal.dot(polygon.vertices[i].pos) - self.w
             loc = -1 # Is this necessary? FIXME
-            if t < -Plane.EPSILON: 
+            if t < -EPSILON: 
                 loc = BACK
-            elif t > Plane.EPSILON: 
+            elif t > EPSILON: 
                 loc = FRONT
             else: 
                 loc = COPLANAR
@@ -232,7 +228,7 @@ class Plane(object):
             front.append(polygon)
         elif polygonType == BACK:
             back.append(polygon)
-        elif polygonType == SPANNING:
+        elif polygonType == SPANNING: # The polygon is spanning, so something to cut
             f = [] # frontvertices
             b = [] # backvertices
             for i in range(numVertices):
@@ -255,47 +251,43 @@ class Plane(object):
                     v = vi.interpolate(vj, t)
                     f.append(v)
                     b.append(v.clone())
-            if len(f) >= 3: 
-                front.append(Polygon(f, polygon.shared))
-            else: raise Exception('Loosing vertices (f)')
+                    polygon.cuts.append(v) # Add to the list of polygon cuts FIXME
+            # Add cut polygons
+            if len(f) >= 3:
+                front.append(Polygon(f, polygon.shared, polygon.parent_csg, polygon.cuts)) # FIXME parent_csg
+            else: raise Exception('Wasting vertices (f)')
             if len(b) >= 3: 
-                back.append(Polygon(b, polygon.shared))
-            else: raise Exception('Loosing vertices (b)')
-
+                back.append(Polygon(b, polygon.shared, polygon.parent_csg, polygon.cuts)) # FIXME parent_csg
+            else: raise Exception('Wasting vertices (b)')
+                     
 class Polygon(object):
     """
-    class Polygon
-
     Represents a convex polygon. The vertices used to initialize a polygon must
-    be coplanar and form a convex loop. They do not have to be `Vertex`
-    instances but they must behave similarly (duck typing can be used for
-    customization).
-    
-    Each convex polygon has a `shared` property, which is shared between all
-    polygons that are clones of each other or were split from the same polygon.
-    This can be used to define per-polygon properties (such as surface color).
+    be coplanar and form a convex loop.
     """
-    def __init__(self, vertices, shared=None):
+    def __init__(self, vertices, shared=None, parent_csg=None, cuts=None): # FIXME
         self.vertices = vertices
-        self.shared = shared
+        self.shared = shared # FIXME delete
+        self.parent_csg = parent_csg # FIXME
+        self.cuts = cuts or [] # FIXME
         self.plane = Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
         #self.check()
         
     def clone(self):
         vertices = list(map(lambda v: v.clone(), self.vertices))
-        return Polygon(vertices, self.shared)
+        return Polygon(vertices, self.shared, self.parent_csg, self.cuts) # FIXME
                 
     def flip(self):
         self.vertices.reverse()
         map(lambda v: v.flip(), self.vertices)
         self.plane.flip()
 
-    def __repr__(self):
+    def __repr__(self): # FIXME add parent_csg
         return reduce(lambda x,y: x+y,
                       ['Polygon(['] + [repr(v) + ', ' \
                                        for v in self.vertices] + ['])'], '')
 
-    def check(self):
+    def check(self): # FIXME
         # Degenerate
         if len(self.vertices) < 3: raise Exception('Polygon vertices < 3')
         # Not flat
@@ -304,7 +296,7 @@ class Polygon(object):
         for v in self.vertices:
             # t is the distance: vertices[i] to Plane 
             t = n.dot(v.pos) - w
-            if abs(t) > Plane.EPSILON: 
+            if abs(t) > EPSILON: 
                 raise Exception('Polygon is not flat')
         # Not convex
         numVertices = len(self.vertices)
@@ -314,15 +306,13 @@ class Polygon(object):
             pos2 = self.vertices[i].pos
             edge0 = pos1-pos0
             edge1 = pos2-pos1
-            if edge0.cross(edge1).dot(n) < -Plane.EPSILON:
+            if edge0.cross(edge1).dot(n) < -EPSILON:
                 raise Exception('Polygon is not convex')
             pos0 = pos1
             pos1 = pos2
             
 class BSPNode(object):
     """
-    class BSPNode
-
     Holds a node in a BSP tree. A BSP tree is built from a collection of polygons
     by picking a polygon to split along. That polygon (and all other coplanar
     polygons) are added directly to that node and the other polygons are added to
@@ -399,6 +389,67 @@ class BSPNode(object):
         if self.back: 
             self.back.clipTo(bsp)
         
+        # Fix T-junctions of the surface
+        self.fixPolygons(self.getAllCuts()) # FIXME
+
+
+                
+    def fixPolygons(self, cuts): # FIXME improve for speed
+        # Check all polygons for all cuts
+        for cut in cuts:
+            print("\nCut:",cut.pos)
+            for poly in self.allPolygons():
+                numVertices = len(poly.vertices)
+                for i in range(numVertices):
+                    # Get the edge
+                    v0 = poly.vertices[i]
+                    v1 = poly.vertices[(i+1) % numVertices]
+                    if v0.pos == cut.pos or v1.pos == cut.pos:
+                        print("It is in") # FIXME
+                        break
+                    # If v is on that edge, add to poly
+                    if within(v0.pos, cut.pos, v1.pos) and collinear(v0.pos, cut.pos, v1.pos):
+                        poly.vertices.insert((i+1) % numVertices, cut.clone())
+                        print("Added", poly.vertices) # FIXME
+                        break                
+
+    def solderJunction(self):
+        cuts = self.getNonManifoldVertices()
+        self.fixPolygons(cuts)
+        print("Non manifold vertices:\n", self.getNonManifoldVertices())
+        
+    def getAllCuts(self):
+        # Get all cuts
+        allCuts = set()
+        for poly in self.allPolygons():
+            allCuts.update(poly.cuts)
+            poly.cuts = [] # FIXME not sure!
+        return list(allCuts)
+        
+    def getNonManifoldEdges(self): # FIXME
+        # Get all edges
+        allEdges = []
+        nonManifoldEdges = []
+        for poly in self.allPolygons():
+            numVertices = len(poly.vertices)
+            allEdges.extend([(poly.vertices[i], poly.vertices[(i+1) % numVertices]) for i in range(numVertices)])
+        # Check existence of antiEdge
+        while allEdges:
+            edge = allEdges.pop()
+            antiEdge = (edge[1], edge[0])
+            try:
+                allEdges.remove(antiEdge)
+            except:
+                nonManifoldEdges.append(edge)
+        return nonManifoldEdges
+
+    def getNonManifoldVertices(self): # FIXME
+        nonManifoldEdges = self.getNonManifoldEdges()
+        nonManifoldVertices = set()
+        nonManifoldVertices.update([edge[0] for edge in nonManifoldEdges])
+        nonManifoldVertices.update([edge[1] for edge in nonManifoldEdges])
+        return list(nonManifoldVertices)
+        
     def allPolygons(self):
         """
         Return a list of all polygons in this BSP tree.
@@ -409,7 +460,7 @@ class BSPNode(object):
         if self.back: 
             polygons.extend(self.back.allPolygons())
         return polygons
-        
+      
     def build(self, polygons):
         """
         Build a BSP tree out of `polygons`. When called on an existing tree, the
@@ -440,3 +491,17 @@ class BSPNode(object):
                 self.back = BSPNode()
             self.back.build(back)
 
+def collinear(a, b, c): # FIXME could be vertex objects instead
+    "Return true if a, b, and c all lie on the same line."
+    return -EPSILON < (c-a).cross(b-a).length() < EPSILON
+    
+def within(p, q, r): # FIXME can be improved for edges along axis
+    "Return true if q is between p and r (inclusive)."
+    return (p.x <= q.x <= r.x or r.x <= q.x <= p.x) and (p.y <= q.y <= r.y or r.y <= q.y <= p.y) and (p.z <= q.z <= r.z or r.z <= q.z <= p.z) 
+    
+if __name__ == '__main__':
+    a, c = Vector(-0.50, 1.00, -1.00), Vector(-0.50, -1.00, -1.00)
+    b = Vector(-0.50, -0.50, -1.00)
+    print("Collinear:", collinear(a,b,c))
+    print("Within:", within(a,b,c))
+    hash(a)

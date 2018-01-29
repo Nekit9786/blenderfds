@@ -1,6 +1,7 @@
 import math
 import operator
-from csg.geom import *
+# from csg.geom import *
+from geom import *
 from functools import reduce
 
 class CSG(object):
@@ -64,6 +65,8 @@ class CSG(object):
     def fromPolygons(cls, polygons):
         csg = CSG()
         csg.polygons = polygons
+        for poly in csg.polygons: # FIXME inform polygons of who created them
+            poly.parent_csg = csg
         return csg
     
     def clone(self):
@@ -102,14 +105,14 @@ class CSG(object):
 
             i = 0
             vs = [newVerts[i], newVerts[i+numVerts], newVerts[2*numVerts], newVerts[2*numVerts-1]]
-            newPoly = Polygon(vs, poly.shared)
+            newPoly = Polygon(vs, poly.shared, newCSG)
             newPoly.shared = poly.shared
             newPoly.plane = poly.plane
             newCSG.polygons.append(newPoly)
 
             for i in range(1, numVerts):
                 vs = [newVerts[i], newVerts[numVerts+i], newVerts[2*numVerts], newVerts[numVerts+i-1]]
-                newPoly = Polygon(vs, poly.shared)
+                newPoly = Polygon(vs, poly.shared, newCSG)
                 newCSG.polygons.append(newPoly)
                 
         return newCSG
@@ -267,12 +270,15 @@ class CSG(object):
         a = BSPNode(self.clone().polygons) # create a BSP tree starting from this BSPNode
         b = BSPNode(csg.clone().polygons) # create b BSP tree starting from this BSPNode
         a.clipTo(b) # remove everything in a inside b
-        b.clipTo(a) # remove everything in b inside a
+        b.clipTo(a) # remove everything in b inside a FIXME
         b.invert()  # invert solid-empty for b
         b.clipTo(a) # remove everything in -b inside a
         b.invert()  # invert solid-empty for b
         a.build(b.allPolygons()); # generate a new a made of a and b
-        return CSG.fromPolygons(a.allPolygons()) # create a new clean object
+        
+        a.solderJunction()
+        res = CSG.fromPolygons(a.allPolygons()) # create a new clean object
+        return res
 
     def __add__(self, csg):
         return self.union(csg)
@@ -614,7 +620,15 @@ class CSG(object):
         return CSG.fromPolygons(polygons)
 
 if __name__ == '__main__':
-    a = CSG.cube()
-    b = CSG.cube([0.5, 0.5, 0.0])
+    # a = CSG.cube()
+    # b = CSG.cube([0.5, 0.5, 0.0])
+    # c = a + b
+    # a.saveSTL('test_cube_a.stl')
+    # c.saveSTL('test_cube_union.stl')
+
+    a = CSG.cylinder(start=[0., 0., 0.], end=[1., 2., 3.], radius=1.0, slices=8)
+    b = CSG.cylinder(start=[0.7, 0.7, 0.7], end=[1.7, 2.7, 3.7], radius=1.0, slices=8)
     c = a + b
-    c.saveSTL('test_cube_union.stl')
+    a.saveSTL('test_cylinder_union_a.stl')
+    b.saveSTL('test_cylinder_union_b.stl')
+    c.saveSTL('test_cylinder_union.stl')
