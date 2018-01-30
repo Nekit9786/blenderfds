@@ -12,7 +12,7 @@ class Geom():
             self.verts.extend(verts)
             if (len(faces) % 3) != 0: raise Exception('faces length should be 3xn')
             self.faces.extend(faces)
-        if filename:
+        elif filename:
             self.from_STL(filename)
     
     def get_face(self, iface):
