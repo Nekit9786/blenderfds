@@ -267,16 +267,22 @@ class CSG(object):
                  +-------+            +-------+
         """
         print("Union") # FIXME
-        a = BSPNode(self.clone().polygons) # create a BSP tree starting from this BSPNode
-        b = BSPNode(csg.clone().polygons) # create b BSP tree starting from this BSPNode
-        a.clipTo(b) # remove everything in a inside b
-        b.clipTo(a) # remove everything in b inside a FIXME
-        b.invert()  # invert solid-empty for b
-        b.clipTo(a) # remove everything in -b inside a
-        b.invert()  # invert solid-empty for b
-        a.build(b.allPolygons()); # generate a new a made of a and b
+        # Create BSP trees
+        a = BSPNode(self.clone().polygons)
+        b = BSPNode(csg.clone().polygons)
         
-        a.solderJunction()
+        a.clipTo(b) # remove everything in a inside b
+        a.fixTJunctions()
+        
+        b.clipTo(a) # remove everything in b inside a FIXME
+        b.fixTJunctions()
+        
+        #b.invert()  # invert solid-empty for b
+        #b.clipTo(a) # remove everything in -b inside a
+        #b.invert()  # invert solid-empty for b
+        a.build(b.allPolygons()); # generate     new a made of a and b
+        
+        # a.solderJunction() FIXME
         res = CSG.fromPolygons(a.allPolygons()) # create a new clean object
         return res
 
@@ -626,9 +632,22 @@ if __name__ == '__main__':
     # a.saveSTL('test_cube_a.stl')
     # c.saveSTL('test_cube_union.stl')
 
-    a = CSG.cylinder(start=[0., 0., 0.], end=[1., 2., 3.], radius=1.0, slices=8)
-    b = CSG.cylinder(start=[0.7, 0.7, 0.7], end=[1.7, 2.7, 3.7], radius=1.0, slices=8)
-    c = a + b
-    a.saveSTL('test_cylinder_union_a.stl')
-    b.saveSTL('test_cylinder_union_b.stl')
-    c.saveSTL('test_cylinder_union.stl')
+    # a = CSG.cylinder(start=[0., 0., 0.], end=[1., 2., 3.], radius=1.0, slices=8)
+    # b = CSG.cylinder(start=[0.7, 0.7, 0.7], end=[1.7, 2.7, 3.7], radius=1.0, slices=8)
+    # c = a + b
+    # a.saveSTL('test_cylinder_union_a.stl')
+    # b.saveSTL('test_cylinder_union_b.stl')
+    # c.saveSTL('test_cylinder_union.stl')
+    
+    shaft = CSG.cylinder(start=[0., 0., 0.], end=[1., 0., 0.], radius=0.1, slices=32)
+    head = CSG.cone(start=[-0.12, 0., 0.], end=[0.10, 0., 0.], radius=0.25)
+    notch1 = CSG.cube(center=[-0.10, 0., 0.], radius=[0.02, 0.20, 0.02])
+    notch2 = CSG.cube(center=[-0.10, 0., 0.], radius=[0.02, 0.02, 0.20])
+
+    shaft.saveSTL('test_bolt_shaft.stl')
+    head.saveSTL('test_bolt_head.stl')
+
+    bolt = shaft + head
+#    bolt = shaft + head - notch1 - notch2
+
+    bolt.saveSTL('test_bolt.stl')

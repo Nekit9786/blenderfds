@@ -5,12 +5,11 @@ from functools import reduce
 # increase the max number of recursive calls
 sys.setrecursionlimit(10000) # my default is 1000, increasing too much may cause a seg fault
 
-EPSILON = 1e-05
+EPSILON = 1e-07
+EPSILON2 = 1e-05
 
 class Vector(object):
-    """
-    A 3D vector.
-    """
+    "A 3D vector."
     def __init__(self, *args):
         self.x, self.y, self.z = 0., 0., 0.
         if len(args) == 3: # Vector(1,2,3)
@@ -32,39 +31,33 @@ class Vector(object):
         return '({0}, {1}, {2})'.format(self.x, self.y, self.z)
             
     def clone(self):
-        """ Clone. """
         return Vector(self.x, self.y, self.z)
         
     def negated(self):
-        """ Negated. """
         return Vector(-self.x, -self.y, -self.z)
 
     def __neg__(self):
         return self.negated()
     
     def plus(self, a):
-        """ Add. """
         return Vector(self.x+a.x, self.y+a.y, self.z+a.z)
 
     def __add__(self, a):
         return self.plus(a)
     
     def minus(self, a):
-        """ Subtract. """
         return Vector(self.x-a.x, self.y-a.y, self.z-a.z)
 
     def __sub__(self, a):
         return self.minus(a)
     
     def times(self, a):
-        """ Multiply. """
         return Vector(self.x*a, self.y*a, self.z*a)
 
     def __mul__(self, a):
         return self.times(a)
 
     def dividedBy(self, a):
-        """ Divide. """
         return Vector(self.x/a, self.y/a, self.z/a)
 
     def __truediv__(self, a):
@@ -74,23 +67,19 @@ class Vector(object):
         return self.dividedBy(float(a))
     
     def dot(self, a):
-        """ Dot. """
         return self.x*a.x + self.y*a.y + self.z*a.z
     
     def lerp(self, a, t):
-        """ Lerp. Linear interpolation from self to a"""
+        "Linear interpolation from self to a"
         return self.plus(a.minus(self).times(t));
     
     def length(self):
-        """ Length. """
         return math.sqrt(self.dot(self))
     
     def unit(self):
-        """ Normalize. """
         return self.dividedBy(self.length())
         
     def cross(self, a):
-        """ Cross. """
         return Vector(
             self.y * a.z - self.z * a.y,
             self.z * a.x - self.x * a.z,
@@ -115,19 +104,18 @@ class Vector(object):
 
     def __eq__(self, other):
         return \
-            math.isclose(self.x, other.x, rel_tol=1e-6) and \
-            math.isclose(self.y, other.y, rel_tol=1e-6) and \
-            math.isclose(self.z, other.z, rel_tol=1e-6)
+            math.isclose(self.x, other.x, rel_tol=EPSILON) and \
+            math.isclose(self.y, other.y, rel_tol=EPSILON) and \
+            math.isclose(self.z, other.z, rel_tol=EPSILON)
 
     def __hash__(self):
         return hash((self.x, self.y, self.z))
 
+    def isZero(self):
+        return abs(self.x) < EPSILON and abs(self.y) < EPSILON and abs(self.z) < EPSILON
+        
 class Vertex(object):
-    """ 
-    Class Vertex 
-
-    Represents a vertex of a polygon.
-    """
+    "A 3D vertex of a polygon."
     def __init__(self, pos, normal=None):
         self.pos = Vector(pos)
         self.normal = Vector(normal)
@@ -136,39 +124,52 @@ class Vertex(object):
         return Vertex(self.pos.clone(), self.normal.clone())
     
     def flip(self):
-        """
-        Invert all orientation-specific data (e.g. vertex normal). Called when the
-        orientation of a polygon is flipped.
-        """
         self.normal = self.normal.negated()
 
     def interpolate(self, other, t):
         """
-        Create a new vertex between this vertex and `other` by linearly
-        interpolating all properties using a parameter of `t`. Subclasses should
-        override this to interpolate additional properties.
+        Return a new vertex between this vertex and `other` by linearly
+        interpolating all properties using a parameter of `t`.
         """
-        return Vertex(self.pos.lerp(other.pos, t), 
-                          self.normal.lerp(other.normal, t))
+        return Vertex(self.pos.lerp(other.pos,t),self.normal.lerp(other.normal,t))
 
+    def isCollinear(self, v1, v2):
+        """Return true if self and other vertices v1 and v2, all lie on the same line.
+        >>> Vertex((-1.00, -1.00, -1.00)).isCollinear(Vertex((-1.00, 1.00, -1.00)),Vertex((1.00, 1.00, -1.00)))
+        False
+        >>> Vertex((-1.00, -1.00, -1.00)).isCollinear(Vertex((.0, .0, .0)),Vertex((1.00, 1.00, 1.00)))
+        True
+        """
+        a, b, c = v1.pos, self.pos, v2.pos
+        return (a - c).cross(a - b).isZero()
+
+    def isInBBox(self, v1, v2):
+        "Return true if self is in the bounding box (v1, v2)."
+        p, q, r = v1.pos, self.pos, v2.pos
+        return (p.x <= q.x <= r.x or r.x <= q.x <= p.x) and (p.y <= q.y <= r.y or r.y <= q.y <= p.y) and (p.z <= q.z <= r.z or r.z <= q.z <= p.z) 
+        
+    def isOnEdge(self, v1, v2):
+        """Return true if self is on the edge (v1, v2).
+        >>> Vertex((-0.5,-0.5,-1.0)).isOnEdge(Vertex((-0.5,1.0,-1.0)),Vertex((-0.5,-1.0, -1.0)))
+        True
+        """
+        return self.isInBBox(v1, v2) and self.isCollinear(v1, v2)
+    
     def __repr__(self):
         return repr(self.pos)
 
-    def __eq__(self, other): # FIXME
+    def __eq__(self, other):
         return self.pos == other.pos
     
     def __hash__(self):
         return hash(self.pos)
-        
+
 class Plane(object):
-    """
-    Represents a plane in 3D space.
-    """
+    "A plane in 3D space."
 
     def __init__(self, normal, w):
         self.normal = normal
-        # w is the (perpendicular) distance of the plane from (0, 0, 0)
-        self.w = w
+        self.w = w # perpendicular distance of the plane from (0, 0, 0)
     
     @classmethod
     def fromPoints(cls, a, b, c):
@@ -194,84 +195,82 @@ class Plane(object):
         either `front` or `back`
         """
         COPLANAR = 0 # all the vertices are within EPSILON distance from plane
-        FRONT = 1 # all the vertices are in front of the plane
-        BACK = 2 # all the vertices are at the back of the plane
+        FRONT = 1    # all the vertices are in front of the plane
+        BACK = 2     # all the vertices are at the back of the plane
         SPANNING = 3 # some vertices are in front, some in the back
 
-        # Classify each point as well as the entire polygon into one of the above
-        # four classes.
+        # Classify each point as well as the entire polygon into one of the above classes.
         polygonType = 0
         vertexLocs = []
         
         numVertices = len(polygon.vertices)
         for i in range(numVertices):
-            # t is the distance: vertices[i] to Plane 
+            # Calc the distance between the vertex and this plane
             t = self.normal.dot(polygon.vertices[i].pos) - self.w
+            # Classify the vertex
             loc = -1 # Is this necessary? FIXME
-            if t < -EPSILON: 
-                loc = BACK
-            elif t > EPSILON: 
-                loc = FRONT
-            else: 
-                loc = COPLANAR
+            if t < -EPSILON2: loc = BACK
+            elif t > EPSILON2: loc = FRONT
+            else: loc = COPLANAR
             polygonType |= loc
             vertexLocs.append(loc)
     
         # Put the polygon in the correct list, splitting it when necessary.
-        if polygonType == COPLANAR:
-            normalDotPlaneNormal = self.normal.dot(polygon.plane.normal)
-            if normalDotPlaneNormal > 0: # > is ok, there is an else
-                coplanarFront.append(polygon)
-            else:
-                coplanarBack.append(polygon)
-        elif polygonType == FRONT:
-            front.append(polygon)
-        elif polygonType == BACK:
-            back.append(polygon)
-        elif polygonType == SPANNING: # The polygon is spanning, so something to cut
-            f = [] # frontvertices
-            b = [] # backvertices
+        if   polygonType == COPLANAR:
+            if self.normal.dot(polygon.plane.normal) > 0: coplanarFront.append(polygon)
+            else: coplanarBack.append(polygon)
+        elif polygonType == FRONT: front.append(polygon)
+        elif polygonType == BACK: back.append(polygon)
+        elif polygonType == SPANNING: # the polygon is spanning, so cut it
+            f, b = [], [] # front vertices, back vertices
             for i in range(numVertices):
                 j = (i+1) % numVertices
                 ti = vertexLocs[i] # can be BACK, COPLANAR, FRONT
                 tj = vertexLocs[j]
                 vi = polygon.vertices[i]
                 vj = polygon.vertices[j]
-                if ti != BACK: 
-                    f.append(vi)
+                # the edge is on one side or spanning?
+                if ti != BACK: f.append(vi)
                 if ti != FRONT:
-                    if ti != BACK: 
-                        b.append(vi.clone())
-                    else:
-                        b.append(vi)
-                if (ti | tj) == SPANNING: # One is BACK, the other is FRONT, so split the edge
+                    if ti != BACK: b.append(vi.clone())
+                    else: b.append(vi)
+                if (ti | tj) == SPANNING: # one is BACK, the other is FRONT, so split the edge
                     # interpolation weight at the intersection point
                     t = (self.w - self.normal.dot(vi.pos)) / self.normal.dot(vj.pos.minus(vi.pos))
                     # intersection point on the plane
                     v = vi.interpolate(vj, t)
                     f.append(v)
                     b.append(v.clone())
-                    polygon.cuts.append(v) # Add to the list of polygon cuts FIXME
+                    # add this cut to the list of polygon cuts, for t-junctions detection
+                    polygon.cuts.append(v) # FIXME
             # Add cut polygons
-            if len(f) >= 3:
-                front.append(Polygon(f, polygon.shared, polygon.parent_csg, polygon.cuts)) # FIXME parent_csg
+            if len(f) >= 3: front.append(Polygon(f, polygon.shared, polygon.parent_csg, polygon.cuts))
             else: raise Exception('Wasting vertices (f)')
-            if len(b) >= 3: 
-                back.append(Polygon(b, polygon.shared, polygon.parent_csg, polygon.cuts)) # FIXME parent_csg
+            if len(b) >= 3: back.append(Polygon(b, polygon.shared, polygon.parent_csg, polygon.cuts))
             else: raise Exception('Wasting vertices (b)')
                      
 class Polygon(object):
-    """
-    Represents a convex polygon. The vertices used to initialize a polygon must
-    be coplanar and form a convex loop.
-    """
+    "Represents a convex polygon. The vertices must be coplanar and form a convex loop."
+    
     def __init__(self, vertices, shared=None, parent_csg=None, cuts=None): # FIXME
         self.vertices = vertices
         self.shared = shared # FIXME delete
         self.parent_csg = parent_csg # FIXME
         self.cuts = cuts or [] # FIXME
-        self.plane = Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos)
-        #self.check()
+        # Get plane from vertices, check if collinear triplet
+        numVertices = len(self.vertices)
+        #self.plane = Plane.fromPoints(vertices[0].pos, vertices[1].pos, vertices[2].pos) # Check for not collinear
+        self.plane = None
+        for i in range(numVertices-2):
+            v0 = self.vertices[i]
+            v1 = self.vertices[i+1]
+            v2 = self.vertices[i+2]
+            if not v0.isCollinear(v1, v2):
+                self.plane = Plane.fromPoints(v0.pos, v1.pos, v2.pos)
+                break
+        if not self.plane:
+            raise Exception('Zero area polygon, vertices:',v0,v1,v2)
+        self.check()
         
     def clone(self):
         vertices = list(map(lambda v: v.clone(), self.vertices))
@@ -294,10 +293,8 @@ class Polygon(object):
         w = self.plane.w
         n = self.plane.normal
         for v in self.vertices:
-            # t is the distance: vertices[i] to Plane 
-            t = n.dot(v.pos) - w
-            if abs(t) > EPSILON: 
-                raise Exception('Polygon is not flat')
+            t = n.dot(v.pos) - w # distance from vertex to plane 
+            if abs(t) > EPSILON: raise Exception('Polygon is not flat')
         # Not convex
         numVertices = len(self.vertices)
         pos0 = self.vertices[numVertices-2].pos
@@ -306,10 +303,11 @@ class Polygon(object):
             pos2 = self.vertices[i].pos
             edge0 = pos1-pos0
             edge1 = pos2-pos1
-            if edge0.cross(edge1).dot(n) < -EPSILON:
-                raise Exception('Polygon is not convex')
+            if edge0.cross(edge1).dot(n) < -EPSILON: raise Exception('Polygon is not convex')
             pos0 = pos1
             pos1 = pos2
+        # Check area 0 FIXME because he has no plane, done in init
+        pass
             
 class BSPNode(object):
     """
@@ -324,17 +322,13 @@ class BSPNode(object):
         self.front = None # BSPNode
         self.back = None  # BSPNode
         self.polygons = []
-        if polygons:
-            self.build(polygons)
+        if polygons: self.build(polygons)
             
     def clone(self):
         node = BSPNode()
-        if self.plane: 
-            node.plane = self.plane.clone()
-        if self.front: 
-            node.front = self.front.clone()
-        if self.back: 
-            node.back = self.back.clone()
+        if self.plane: node.plane = self.plane.clone()
+        if self.front: node.front = self.front.clone()
+        if self.back:  node.back = self.back.clone()
         node.polygons = list(map(lambda p: p.clone(), self.polygons))
         return node
         
@@ -355,49 +349,42 @@ class BSPNode(object):
         
     def clipPolygons(self, polygons):
         """ 
-        Recursively remove all polygons in `polygons` that are inside this BSP
-        tree.
+        Recursively remove all polygons in `polygons` that are inside this BSP tree.
         """
-        if not self.plane: 
-            return polygons[:]
+        if not self.plane: return polygons[:]
 
         front = []
         back = []
         
-        for poly in polygons:
-            self.plane.splitPolygon(poly, front, back, front, back)
+        for poly in polygons: self.plane.splitPolygon(poly, front, back, front, back)
 
-        if self.front: 
-            front = self.front.clipPolygons(front)
+        if self.front: front = self.front.clipPolygons(front) # recurse on branches, conserve those polygons
 
-        if self.back: 
-            back = self.back.clipPolygons(back)
-        else:
-            back = []
+        if self.back: back = self.back.clipPolygons(back) # recurse on branches
+        else: back = [] # but remove polygons that are back of the leaves
 
-        front.extend(back)
+        front.extend(back) # send all non removed polygons, for recursion
         return front
         
     def clipTo(self, bsp):
         """ 
-        Remove all polygons in this BSP tree that are inside the other BSP tree
-        `bsp`.
+        Remove all polygons in this BSP tree that are inside the other BSP tree.
         """
         self.polygons = bsp.clipPolygons(self.polygons)
-        if self.front: 
-            self.front.clipTo(bsp)
-        if self.back: 
-            self.back.clipTo(bsp)
-        
-        # Fix T-junctions of the surface
-        self.fixPolygons(self.getAllCuts()) # FIXME
+        if self.front: self.front.clipTo(bsp)
+        if self.back: self.back.clipTo(bsp)
 
+    def fixTJunctions(self):
+        self.fixPolygons(self.getAllCuts())
 
-                
+    def solderJunction(self):
+        cuts = self.getNonManifoldVertices()
+        self.fixPolygons(cuts)
+        print("Non manifold vertices:\n", self.getNonManifoldVertices())
+
     def fixPolygons(self, cuts): # FIXME improve for speed
         # Check all polygons for all cuts
         for cut in cuts:
-            print("\nCut:",cut.pos)
             for poly in self.allPolygons():
                 numVertices = len(poly.vertices)
                 for i in range(numVertices):
@@ -405,18 +392,11 @@ class BSPNode(object):
                     v0 = poly.vertices[i]
                     v1 = poly.vertices[(i+1) % numVertices]
                     if v0.pos == cut.pos or v1.pos == cut.pos:
-                        print("It is in") # FIXME
                         break
-                    # If v is on that edge, add to poly
-                    if within(v0.pos, cut.pos, v1.pos) and collinear(v0.pos, cut.pos, v1.pos):
+                    # If cut is on that edge, add to poly
+                    if cut.isOnEdge(v0, v1):
                         poly.vertices.insert((i+1) % numVertices, cut.clone())
-                        print("Added", poly.vertices) # FIXME
-                        break                
-
-    def solderJunction(self):
-        cuts = self.getNonManifoldVertices()
-        self.fixPolygons(cuts)
-        print("Non manifold vertices:\n", self.getNonManifoldVertices())
+                        break
         
     def getAllCuts(self):
         # Get all cuts
@@ -460,7 +440,29 @@ class BSPNode(object):
         if self.back: 
             polygons.extend(self.back.allPolygons())
         return polygons
-      
+
+    # def reTessellate(self):
+        # polygons = self.polygons[:]
+        # while polygons:
+            # poly = polygons.pop()
+            # numVertices = len(poly.vertices)
+            # antiEdges = set((v[i].pos, v[(i+1) % numVertices]) for i in range(numVertices))
+
+            # for p in polygons:
+                # p_edges = set((v[(i+1) % numVertices], v[i].pos) for i in range(numVertices))
+                # common_edge = antiEdges & p_edges
+                # if common_edge:
+                    # polygons.remove(p)
+                    # poly.vertices = 
+                    # polygons.append()
+                
+        # self.polygons = polygons
+        
+        # if self.front:
+            # self.front.reTessellate()
+        # if self.back:
+            # self.back.reTessellate()            
+        
     def build(self, polygons):
         """
         Build a BSP tree out of `polygons`. When called on an existing tree, the
@@ -468,40 +470,26 @@ class BSPNode(object):
         nodes there. Each set of polygons is partitioned using the first polygon
         (no heuristic is used to pick a good split).
         """
-        if len(polygons) == 0:
-            return
-        if not self.plane: 
-            self.plane = polygons[0].plane.clone()
-        # add polygon to this node
+        if len(polygons) == 0: return
+        # first polygon plane is used as partition plane, if not existing
+        if not self.plane: self.plane = polygons[0].plane.clone()
+        # add first polygon to this node
         self.polygons.append(polygons[0])
+        # split all other polygons using the first polygon's plane
         front = []
         back = []
-        # split all other polygons using the first polygon's plane
         for poly in polygons[1:]:
             # coplanar front and back polygons go into self.polygons
-            self.plane.splitPolygon(poly, self.polygons, self.polygons,
-                                    front, back)
+            self.plane.splitPolygon(poly, self.polygons, self.polygons, front, back)
         # recursively build the BSP tree
         if len(front) > 0:
-            if not self.front:
-                self.front = BSPNode()
+            if not self.front: self.front = BSPNode()
             self.front.build(front)
         if len(back) > 0:
-            if not self.back:
-                self.back = BSPNode()
+            if not self.back: self.back = BSPNode()
             self.back.build(back)
-
-def collinear(a, b, c): # FIXME could be vertex objects instead
-    "Return true if a, b, and c all lie on the same line."
-    return -EPSILON < (c-a).cross(b-a).length() < EPSILON
-    
-def within(p, q, r): # FIXME can be improved for edges along axis
-    "Return true if q is between p and r (inclusive)."
-    return (p.x <= q.x <= r.x or r.x <= q.x <= p.x) and (p.y <= q.y <= r.y or r.y <= q.y <= p.y) and (p.z <= q.z <= r.z or r.z <= q.z <= p.z) 
-    
-if __name__ == '__main__':
-    a, c = Vector(-0.50, 1.00, -1.00), Vector(-0.50, -1.00, -1.00)
-    b = Vector(-0.50, -0.50, -1.00)
-    print("Collinear:", collinear(a,b,c))
-    print("Within:", within(a,b,c))
-    hash(a)
+            
+            
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
