@@ -25,22 +25,37 @@ sys.setrecursionlimit(10000)  # my default is 1000
 # iverts: [3,4,5,9,], list of indexes of selected verts
 # ivert: 7, index of a vert
 
-geometry = [None, ]
 EPSILON = 1e-07
 EPSILON2 = 1e-05
 
+geometry = [None, ]
+
 
 class Geom():
-    def __init__(self, verts=None, faces=None):
-        self.verts = array.array('f')
-        self.faces = array.array('i')
-        if verts and faces:
-            if (len(verts) % 3) != 0:
-                raise Exception('verts length should be 3xn')
-            self.verts.extend(verts)
-            if (len(faces) % 3) != 0:
-                raise Exception('faces length should be 3xn')
-            self.faces.extend(faces)
+    def __init__(self, verts, faces):
+        # Check lenght
+        if (len(verts) % 3) != 0:
+            raise Exception('verts length should be 3xn')
+        if (len(faces) % 3) != 0:
+            raise Exception('faces length should be 3xn')
+        # Check self intersection FIXME
+        # Check edges: FIXME
+        # - manifold, each edge should join two faces, no more no less
+        # - contiguous normals, adjoining faces should have normals
+        #   in the same directions
+        # - no degenerate edges, zero lenght edges
+        # Check degenerate faces, zero area faces FIXME
+        # Check loose vertices, vertices that have no connectivity FIXME
+
+        # Init tmp geometry
+        self.verts = array.array('f', verts)
+        self.faces = array.array('i', faces)
+        # Init a copy of original geometry
+        self.original_verts = array.array('f', verts)  # FIXME
+        self.original_faces = array.array('i', faces)  # FIXME
+        # Keep a link between new ifaces and their parent
+        # Example: {1: (3, 4)} ifaces 3 and 4 are fragments of 1
+        self.iface_to_children = {}
 
     def __repr__(self):
         return 'Geom(\n     {},\n     {},\n)'.format(self.verts, self.faces,)
@@ -59,28 +74,45 @@ def get_face(igeom, iface):
     return geometry[igeom].faces[3*iface:3*iface+3]
 
 
-def append_face(igeom, face):
+def append_face(igeom, face, iface_parent):  # FIXME
     """
-    Append a face to the Geom, return its index.
+    Append a face to the Geom, return its index iface.
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
-    >>> iface = append_face(0, [0,2,3])
+    >>> iface = append_face(0, [0,2,3], 0)
     >>> get_face(0, iface)
     array('i', [0, 2, 3])
     """
+    # Append face
     geometry[igeom].faces.extend(face)
-    return get_nfaces(igeom)-1
-
-
-def update_face(igeom, iface, face):
-    """
-    Update a face in Geom, return its index.
-    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1, -1,1,2], [0,1,2, 0,2,3])
-    >>> iface = update_face(0, 1, [0,2,4])
-    >>> get_face(0, iface)
-    array('i', [0, 2, 4])
-    """
-    geometry[igeom].faces[3*iface:3*iface+3] = array.array('i', face)
+    iface = get_nfaces(igeom)-1
+    # Register child
+    children = geometry[igeom].iface_to_children
+    if iface_parent in children:
+        geometry[igeom].iface_to_children[iface_parent].append(iface)
+    else:
+        geometry[igeom].iface_to_children[iface_parent] = [iface, ]
+    # Return
     return iface
+
+
+def get_iface_children(igeom, iface):  # FIXME
+    """
+    Get iface children
+    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
+    >>> iface = append_face(0, [0,2,3], 0)
+    >>> iface = append_face(0, [0,2,3], 0)
+    >>> iface = append_face(0, [0,2,3], 2)
+    >>> iface = append_face(0, [0,2,3], 3)
+    >>> get_iface_children(0, 0)
+    [1, 2, 3, 4]
+    """
+    if iface not in geometry[igeom].iface_to_children:
+        return []
+    children = geometry[igeom].iface_to_children[iface]
+    print("Children:", iface, children)
+    for child in children:
+        children.extend(get_iface_children(igeom, child))
+    return children
 
 
 def get_nfaces(igeom):
@@ -344,6 +376,7 @@ def get_new_geom_from_bsp(bsp):
     igeom = bsp.igeom
     verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
     ifaces = get_all_ifaces_from_bsp(bsp)
+    # FIXME  
     # Create the new faces from selected ifaces
     faces = []
     for iface in ifaces:
@@ -363,6 +396,11 @@ def get_all_ifaces_from_bsp(bsp):
         ifaces.extend(get_all_ifaces_from_bsp(bsp.back_bsp))
     return ifaces
 
+
+def check_fragments(igeom, ifaces, selected): # FIXME
+    for iface in ifaces:
+        if iface in selected: 
+            pass
 
 def build_bsp(igeom, ifaces):
     """
@@ -470,11 +508,11 @@ def split_face(igeom, iface, spl_igeom, spl_iface):
     Return ifaces in the appropriate lists.
     >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -2.0, -2.0, 0.0, 2.0, -2.0, 0.0, 2.0, 2.0, 0.0,], [0,1,2, 3,4,5],)
     >>> print(split_face(igeom=0, iface=0, spl_igeom=0, spl_iface=1))
-    ([], [], [0, 2], [3], [6, 7])
+    ([], [], [2, 3], [4], [6, 7])
     >>> print(geometry[0])
     Geom(
          array('f', [-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -2.0, -2.0, 0.0, 2.0, -2.0, 0.0, 2.0, 2.0, 0.0, -1.0, -1.0, 0.0, -1.0, 0.0, 0.0]),
-         array('i', [6, 1, 2, 3, 4, 5, 6, 2, 7, 0, 6, 7]),
+         array('i', [0, 1, 2, 3, 4, 5, 6, 1, 2, 6, 2, 7, 0, 6, 7]),
     )
     """
     # Vertices and faces types, collections of ifaces
@@ -547,35 +585,32 @@ def split_face(igeom, iface, spl_igeom, spl_iface):
                 cut_iverts.append(cut_ivert)
 
         # Add front cut faces
-        updated = False
         if len(front_iverts) > 2:
-            update_face(igeom, iface, front_iverts[0:3])
-            updated = True
-            front.append(iface)
+            new_iface = append_face(igeom, front_iverts[0:3], iface)
+            front.append(new_iface)
             if len(front_iverts) == 4:
-                iface = append_face(
+                new_iface = append_face(
                         igeom,
                         (front_iverts[0], front_iverts[2], front_iverts[3]),
+                        iface,
                     )
-                front.append(iface)
+                front.append(new_iface)
         else:
-            raise Exception('Unused front vertices:', front_iverts)
+            raise Exception('Problem with front spanning:', front_iverts)
 
         # Add back cut faces
         if len(back_iverts) > 2:
-            if not updated:
-                update_face(igeom, iface, back_iverts[0:3])
-            else:
-                iface = append_face(igeom, back_iverts[0:3])
-            back.append(iface)
+            new_iface = append_face(igeom, back_iverts[0:3], iface)
+            back.append(new_iface)
             if len(back_iverts) == 4:
-                iface = append_face(
+                new_iface = append_face(
                         igeom,
                         (back_iverts[0], back_iverts[2], back_iverts[3]),
+                        iface,
                     )
-                back.append(iface)
+                back.append(new_iface)
         else:
-            raise Exception('Unused back vertices:', back_iverts)
+            raise Exception('Problem with back spanning:', back_iverts)
 
     # Return
     return coplanar_front, coplanar_back, front, back, cut_iverts
