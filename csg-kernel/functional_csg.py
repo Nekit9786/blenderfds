@@ -371,28 +371,47 @@ def get_new_geom_from_bsp(bsp):  # FIXME remove children
     igeom = bsp.igeom
     verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
     ifaces = get_ifaces(igeom)
-    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
+    bsp_ifaces = set(get_all_ifaces_from_bsp(bsp))
     selected_ifaces = []
-    # FIXME
+    # Chose the best faces
     for iface in ifaces:
-        if iface in bsp_ifaces:
+        if check_iface_export(igeom, iface, bsp_ifaces):
             selected_ifaces.append(iface)
-        else:
-            children = get_iface_children(igeom, iface)
-            if children:
-                export = True
-                for child in children:
-                    if child not in bsp_ifaces:
-                        export = False
-                        continue
-                if export:
-                    selected_ifaces.append(iface)
+            bsp_ifaces -= set(get_iface_descendants(igeom, iface))
     # Create the new faces from selected ifaces
     # selected_ifaces = bsp_ifaces  # FIXME
     faces = []
     for iface in selected_ifaces:
         faces.extend(get_face(igeom, iface))
     return Geom(verts, faces)
+
+
+def check_iface_export(igeom, iface, bsp_ifaces):  # FIXME
+    """
+    Check if the face has all its fragments
+    """
+    if iface in bsp_ifaces:
+        return True
+    children = get_iface_children(igeom, iface)
+    if children:
+        for child in children:
+            if not check_iface_export(igeom, child, bsp_ifaces):
+                return False
+        return True
+    else:
+        return False
+
+
+def get_iface_descendants(igeom, iface):  # FIXME
+    """
+    Returns all descendants of iface
+    """
+    descendants = []
+    children = get_iface_children(igeom, iface)
+    descendants.extend(children)
+    for child in children:
+        descendants.extend(get_iface_descendants(igeom, child))
+    return descendants
 
 
 def get_all_ifaces_from_bsp(bsp):
@@ -408,10 +427,11 @@ def get_all_ifaces_from_bsp(bsp):
     return ifaces
 
 
-def check_fragments(igeom, ifaces, selected): # FIXME
+def check_fragments(igeom, ifaces, selected):  # FIXME
     for iface in ifaces:
-        if iface in selected: 
+        if iface in selected:
             pass
+
 
 def build_bsp(igeom, ifaces):
     """
