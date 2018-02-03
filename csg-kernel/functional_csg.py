@@ -50,9 +50,6 @@ class Geom():
         # Init tmp geometry
         self.verts = array.array('f', verts)
         self.faces = array.array('i', faces)
-        # Init a copy of original geometry
-        self.original_verts = array.array('f', verts)  # FIXME
-        self.original_faces = array.array('i', faces)  # FIXME
         # Keep a link between new ifaces and their parent
         # Example: {1: (3, 4)} ifaces 3 and 4 are fragments of 1
         self.iface_to_children = {}
@@ -95,24 +92,22 @@ def append_face(igeom, face, iface_parent):  # FIXME
     return iface
 
 
-def get_iface_children(igeom, iface):  # FIXME
+def get_iface_children(igeom, iface):
     """
-    Get iface children
+    Get iface children (not descendants)
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
     >>> iface = append_face(0, [0,2,3], 0)
     >>> iface = append_face(0, [0,2,3], 0)
     >>> iface = append_face(0, [0,2,3], 2)
     >>> iface = append_face(0, [0,2,3], 3)
     >>> get_iface_children(0, 0)
-    [1, 2, 3, 4]
+    [1, 2]
+    >>> get_iface_children(0, 4)
+    []
     """
     if iface not in geometry[igeom].iface_to_children:
         return []
-    children = geometry[igeom].iface_to_children[iface]
-    print("Children:", iface, children)
-    for child in children:
-        children.extend(get_iface_children(igeom, child))
-    return children
+    return geometry[igeom].iface_to_children[iface]
 
 
 def get_nfaces(igeom):
@@ -369,17 +364,33 @@ class BSP():
         return textwrap.indent(text, prefix)
 
 
-def get_new_geom_from_bsp(bsp):
+def get_new_geom_from_bsp(bsp):  # FIXME remove children
     """
     Return a new Geom according to bsp contents
     """
     igeom = bsp.igeom
     verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
-    ifaces = get_all_ifaces_from_bsp(bsp)
-    # FIXME  
-    # Create the new faces from selected ifaces
-    faces = []
+    ifaces = get_ifaces(igeom)
+    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
+    selected_ifaces = []
+    # FIXME
     for iface in ifaces:
+        if iface in bsp_ifaces:
+            selected_ifaces.append(iface)
+        else:
+            children = get_iface_children(igeom, iface)
+            if children:
+                export = True
+                for child in children:
+                    if child not in bsp_ifaces:
+                        export = False
+                        continue
+                if export:
+                    selected_ifaces.append(iface)
+    # Create the new faces from selected ifaces
+    # selected_ifaces = bsp_ifaces  # FIXME
+    faces = []
+    for iface in selected_ifaces:
         faces.extend(get_face(igeom, iface))
     return Geom(verts, faces)
 
