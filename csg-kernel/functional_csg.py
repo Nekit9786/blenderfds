@@ -191,6 +191,49 @@ def get_iverts(igeom):
     return [i for i in range(int(len(geometry[igeom].verts)/3))]
 
 
+def get_edges(igeom):
+    """
+    Get edge dict
+    Eg: {(1,2):7,8]}
+    {(ivert0, ivert1) : [iface on the left, iface on the right]}
+    according to iface0 normal up, None if non-manifold.
+    Raise exception if wrong normals.
+    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])
+    >>> print(get_edges(0))
+    {(0, 1): [0, None], (1, 2): [0, None], (2, 0): [0, 1], (2, 3): [1, None], (3, 0): [1, None]}
+    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,1,3])
+    >>> print(get_edges(0))
+    Traceback (most recent call last):
+    ...
+    Exception: ('Wrong normals in adjacent faces. iface, straight_edge:', 1, (0, 1))
+    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 3,2,0])
+    >>> print(get_edges(0))
+    Traceback (most recent call last):
+    ...
+    Exception: ('Wrong normals in adjacent faces. iface, straight_edge:', 1, (2, 0))
+    """
+    edges = dict()
+    ifaces = get_ifaces(igeom)
+    for iface in ifaces:
+        face = get_face(igeom, iface)
+        for i in range(3):
+            # Set opposite edge
+            opposite_edge = (face[(i+1) % 3], face[i])
+            if opposite_edge in edges:
+                if edges[opposite_edge][1]:
+                    raise Exception('Wrong normals in adjacent faces. iface, opposite_edge:', iface, opposite_edge)
+                else:
+                    edges[opposite_edge][1] = iface
+                    continue
+            # Set straight edge
+            straight_edge = (face[i], face[(i+1) % 3])
+            if straight_edge in edges:
+                raise Exception('Wrong normals in adjacent faces. iface, straight_edge:', iface, straight_edge)
+            else:
+                edges[straight_edge] = [iface, None]
+    return edges
+
+
 def to_STL(igeom, filename):
     """
     Write self to STL file
@@ -388,7 +431,7 @@ def get_new_geom_from_bsp(bsp):  # FIXME remove children
 
 def check_iface_export(igeom, iface, bsp_ifaces):  # FIXME
     """
-    Check if the face has all its fragments
+    Check if the face has all its fragments selected
     """
     if iface in bsp_ifaces:
         return True
@@ -425,12 +468,6 @@ def get_all_ifaces_from_bsp(bsp):
     if bsp.back_bsp:
         ifaces.extend(get_all_ifaces_from_bsp(bsp.back_bsp))
     return ifaces
-
-
-def check_fragments(igeom, ifaces, selected):  # FIXME
-    for iface in ifaces:
-        if iface in selected:
-            pass
 
 
 def build_bsp(igeom, ifaces):
