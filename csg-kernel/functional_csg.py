@@ -38,15 +38,6 @@ class Geom():
             raise Exception('verts length should be 3xn')
         if (len(faces) % 3) != 0:
             raise Exception('faces length should be 3xn')
-        # Check self intersection FIXME
-        # Check edges: FIXME
-        # - manifold, each edge should join two faces, no more no less
-        # - contiguous normals, adjoining faces should have normals
-        #   in the same directions
-        # - no degenerate edges, zero lenght edges
-        # Check degenerate faces, zero area faces FIXME
-        # Check loose vertices, vertices that have no connectivity FIXME
-
         # Init tmp geometry
         self.verts = array.array('f', verts)
         self.faces = array.array('i', faces)
@@ -59,6 +50,79 @@ class Geom():
 
     def clone(self):
         return Geom(verts=self.verts[:], faces=self.faces[:])
+
+
+def check_geom_sanity(igeom):
+    """
+    Check geometry sanity
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet
+    >>> check_geom_sanity(0)
+    True
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [       0,1,3, 1,2,3, 2,0,3])  # Tet, no base
+    >>> check_geom_sanity(0)
+    Traceback (most recent call last):
+    ...
+    Exception: ('Non-manifold geometry, faces:', [0, None])
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,0,1, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, zero edge
+    >>> check_geom_sanity(0)
+    Traceback (most recent call last):
+    ...
+    Exception: ('Zero lenght edge, edge:', [2, 3])
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,-1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, zero face
+    >>> check_geom_sanity(0)
+    Traceback (most recent call last):
+    ...
+    Exception: ('Zero area face, iface:', 0)
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1,  0,0,2], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, loose vert
+    >>> check_geom_sanity(0)
+    Traceback (most recent call last):
+    ...
+    Exception: Loose verts
+    """    
+    # Check self intersection FIXME
+    pass  # STUB
+    # Check edges:
+    # - manifold, each edge should join two faces, no more no less
+    # - contiguous normals, adjoining faces should have normals
+    #   in the same directions
+    # - no degenerate edges, zero lenght edges
+    edges = get_edges(igeom)
+    for edge in edges.values():
+        if edge[1] is None:
+            raise Exception("Non-manifold geometry, faces:", edge)
+        if (get_vert(igeom, edge[0]) - get_vert(igeom, edge[1])).isZero():
+            raise Exception("Zero lenght edge, edge:", edge)
+    # Check degenerate faces, zero area faces
+    nfaces = get_nfaces(igeom)
+    for iface in range(nfaces):
+        face = get_face(igeom, iface)
+        a, b, c = get_vert(igeom, face[0]), get_vert(igeom, face[1]), get_vert(igeom, face[2])
+        if (a - b).cross(a - c).isZero(): raise Exception('Zero area face, iface:', iface)
+    # Check loose vertices, vertices that have no connectivity FIXME
+    nverts = get_nverts(igeom) 
+    nfaces = get_nfaces(igeom)
+    used_iverts = []
+    for iface in range(nfaces):
+        used_iverts.extend(get_face(igeom, iface))
+    used_iverts = set(used_iverts)
+    if nverts != len(used_iverts) or nverts != max(used_iverts) + 1:
+        raise Exception("Loose verts")
+    # Euler formula: nverts - nedges + nfaces = chi FIXME use it!
+    # Euler characteristic chi of the connected sum of g tori is chi = 2 − 2g, with g genus
+    # g = 0, 1, 2, 3, ... => chi = 2, 0, -2, -4, ...
+    nedges = nfaces * 3 / 2 # if manifold
+    return True
+
+
+def get_pyfaces(igeom):
+    """
+    Get pyfaces
+    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])
+    >>> get_pyfaces(0)
+    [array('i', [0, 1, 2]), array('i', [0, 2, 3])]
+    """
+    faces = geometry[igeom].faces
+    return [faces[3*iface:3*iface+3] for iface in range(get_nfaces(igeom))]
 
 
 def get_face(igeom, iface):
