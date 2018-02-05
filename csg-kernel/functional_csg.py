@@ -35,9 +35,9 @@ class Geom():
     def __init__(self, verts, faces):
         # Check lenght
         if (len(verts) % 3) != 0:
-            raise Exception('verts length should be 3xn')
+            raise Exception('Invalid geom, verts lenght not 3n.')
         if (len(faces) % 3) != 0:
-            raise Exception('faces length should be 3xn')
+            raise Exception('Invalid geom, faces lenght not 3n.')
         # Init tmp geometry
         self.verts = array.array('f', verts)
         self.faces = array.array('i', faces)
@@ -62,43 +62,24 @@ def check_geom_sanity(igeom):
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: ('Non-manifold geometry, faces:', [0, None])
+    Exception: ('Invalid GEOM, non closed at least at edge:', [0, None])
     >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,0,1, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, zero edge
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: ('Zero lenght edge, edge:', [2, 3])
+    Exception: ('Invalid GEOM, zero lenght edge:', [2, 3])
     >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,-1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, zero face
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: ('Zero area face, iface:', 0)
+    Exception: ('Invalid GEOM, zero area iface:', 0)
     >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1,  0,0,2], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, loose vert
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: Loose verts
+    Exception: Invalid GEOM, loose verts detected.
     """    
-    # Check self intersection FIXME
-    pass  # STUB
-    # Check edges:
-    # - manifold, each edge should join two faces, no more no less
-    # - contiguous normals, adjoining faces should have normals
-    #   in the same directions
-    # - no degenerate edges, zero lenght edges
-    edges = get_edges(igeom)
-    for edge in edges.values():
-        if edge[1] is None:
-            raise Exception("Non-manifold geometry, faces:", edge)
-        if (get_vert(igeom, edge[0]) - get_vert(igeom, edge[1])).isZero():
-            raise Exception("Zero lenght edge, edge:", edge)
-    # Check degenerate faces, zero area faces
-    nfaces = get_nfaces(igeom)
-    for iface in range(nfaces):
-        face = get_face(igeom, iface)
-        a, b, c = get_vert(igeom, face[0]), get_vert(igeom, face[1]), get_vert(igeom, face[2])
-        if (a - b).cross(a - c).isZero(): raise Exception('Zero area face, iface:', iface)
-    # Check loose vertices, vertices that have no connectivity FIXME
+    # Check loose vertices (vertices that have no connectivity)
     nverts = get_nverts(igeom) 
     nfaces = get_nfaces(igeom)
     used_iverts = []
@@ -106,11 +87,33 @@ def check_geom_sanity(igeom):
         used_iverts.extend(get_face(igeom, iface))
     used_iverts = set(used_iverts)
     if nverts != len(used_iverts) or nverts != max(used_iverts) + 1:
-        raise Exception("Loose verts")
+        raise Exception("Invalid GEOM, loose verts detected.")
+    # Check edges:
+    # - manifold, each edge should join two faces, no more no less
+    # - contiguous normals, adjoining faces should have normals
+    #   in the same directions
+    # - no degenerate edges (zero lenght edges)
+    edges = get_edges(igeom)
+    nedges = len(edges)
+    for edge in edges.values():
+        if edge[1] is None:
+            raise Exception("Invalid GEOM, non closed at least at edge:", edge)
+        if (get_vert(igeom, edge[0]) - get_vert(igeom, edge[1])).isZero():
+            raise Exception("Invalid GEOM, zero lenght edge:", edge)
+    # Check degenerate faces (zero area faces)
+    nfaces = get_nfaces(igeom)
+    for iface in range(nfaces):
+        face = get_face(igeom, iface)
+        a, b, c = get_vert(igeom, face[0]), get_vert(igeom, face[1]), get_vert(igeom, face[2])
+        if (a - b).cross(a - c).isZero(): raise Exception('Invalid GEOM, zero area iface:', iface)
+    # Check self intersection FIXME
+    pass  # STUB
     # Euler formula: nverts - nedges + nfaces = chi FIXME use it!
-    # Euler characteristic chi of the connected sum of g tori is chi = 2 − 2g, with g genus
+    # Euler characteristic chi of the connected sum of g tori is: chi = 2 − 2g, with g genus
     # g = 0, 1, 2, 3, ... => chi = 2, 0, -2, -4, ...
-    nedges = nfaces * 3 / 2 # if manifold
+    chi = nverts - nedges + nfaces
+    if chi not in range(2, 100, 2):
+        raise Exception('Invalid GEOM, in Euler formula chi is:', chi)
     return True
 
 
@@ -269,12 +272,12 @@ def get_edges(igeom):
     >>> print(get_edges(0))
     Traceback (most recent call last):
     ...
-    Exception: ('Wrong normals in adjacent faces. iface, straight_edge:', 1, (0, 1))
+    Exception: ('Invalid GEOM, unorientable. iface, straight_edge:', 1, (0, 1))
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 3,2,0])
     >>> print(get_edges(0))
     Traceback (most recent call last):
     ...
-    Exception: ('Wrong normals in adjacent faces. iface, straight_edge:', 1, (2, 0))
+    Exception: ('Invalid GEOM, unorientable. iface, straight_edge:', 1, (2, 0))
     """
     edges = dict()
     ifaces = get_ifaces(igeom)
@@ -285,14 +288,14 @@ def get_edges(igeom):
             opposite_edge = (face[(i+1) % 3], face[i])
             if opposite_edge in edges:
                 if edges[opposite_edge][1]:
-                    raise Exception('Wrong normals in adjacent faces. iface, opposite_edge:', iface, opposite_edge)
+                    raise Exception('Invalid GEOM, unorientable. iface, opposite_edge:', iface, opposite_edge)
                 else:
                     edges[opposite_edge][1] = iface
                     continue
             # Set straight edge
             straight_edge = (face[i], face[(i+1) % 3])
             if straight_edge in edges:
-                raise Exception('Wrong normals in adjacent faces. iface, straight_edge:', iface, straight_edge)
+                raise Exception('Invalid GEOM, unorientable. iface, straight_edge:', iface, straight_edge)
             else:
                 edges[straight_edge] = [iface, None]
     return edges
