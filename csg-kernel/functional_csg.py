@@ -28,7 +28,7 @@ sys.setrecursionlimit(10000)  # my default is 1000
 EPSILON = 1e-07
 EPSILON2 = 1e-05
 
-geometry = [None, ]
+geometry = [None, None, None, None ]
 
 
 class Geom():
@@ -55,77 +55,112 @@ class Geom():
 def check_geom_sanity(igeom):
     """
     Check geometry sanity
-    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet
+
+    If the mesh is correct and encloses a volume, this can be checked with
+    prior tests: checking orientability, non-borders, non-self-intersecting.
+    After that we can calculate its topological features and check if
+    Euler's formula  C+V=A+2(S-H) is satisfied.
+    If the mesh is not correct, many geometric algorithms will fail.
+    The only solution in this case is the user repairing the mesh.
+
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Good tet
     >>> check_geom_sanity(0)
     True
-    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [       0,1,3, 1,2,3, 2,0,3])  # Tet, no base
+
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1,  0,0,2], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, loose vert
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: ('Invalid GEOM, non closed at least at edge:', [0, None])
+    Exception: Invalid GEOM, loose verts.
+
     >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,0,1, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, zero edge
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: ('Invalid GEOM, zero lenght edge:', [2, 3])
+    Exception: ('Invalid GEOM, zero lenght edge in face:', 2)
+    
     >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,-1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, zero face
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
     Exception: ('Invalid GEOM, zero area iface:', 0)
-    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1,  0,0,2], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Tet, loose vert
+
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [0,1,2, 0,1,3, 1,2,3, 2,0,3])  # Tet, unorientable
     >>> check_geom_sanity(0)
     Traceback (most recent call last):
     ...
-    Exception: Invalid GEOM, loose verts detected.
-    """    
-    # Check loose vertices (vertices that have no connectivity)
+    Exception: ('Invalid GEOM, non-manifold or unorientable. iface, straight_edge:', 1, (0, 1))
+
+    >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [       0,1,3, 1,2,3, 2,0,3])  # Tet, no base
+    >>> check_geom_sanity(0)
+    Traceback (most recent call last):
+    ...
+    Exception: ('Invalid GEOM, non closed at edge:', [0, None])
+    
+#    >>> geometry[0] = from_STL('self_intersecting.stl')
+#    >>> check_geom_sanity(0)
+#    Traceback (most recent call last):
+#    ...
+#    Exception: ('Invalid GEOM, self-intersecting:', 79, 145)
+    """
+    # Init
     nverts = get_nverts(igeom) 
     nfaces = get_nfaces(igeom)
+    
+    # Check loose vertices: vertices that have no connectivity
     used_iverts = []
     for iface in range(nfaces):
         used_iverts.extend(get_face(igeom, iface))
     used_iverts = set(used_iverts)
     if nverts != len(used_iverts) or nverts != max(used_iverts) + 1:
-        raise Exception("Invalid GEOM, loose verts detected.")
-    # Check edges:
-    # - manifold, each edge should join two faces, no more no less
-    # - contiguous normals, adjoining faces should have normals
-    #   in the same directions
-    # - no degenerate edges (zero lenght edges)
-    edges = get_edges(igeom)
+        raise Exception("Invalid GEOM, loose verts.")
+
+    # Check degenerate geometry: zero lenght edge, zero area faces
+    for iface in range(nfaces):      
+        face = get_face(igeom, iface)
+        a, b, c = get_vert(igeom, face[0]), get_vert(igeom, face[1]), get_vert(igeom, face[2])
+        if (a - b).isZero() or (b - c).isZero() or (c - a).isZero():
+            raise Exception("Invalid GEOM, zero lenght edge in face:", iface)
+        if (a - b).cross(a - c).isZero():
+            raise Exception('Invalid GEOM, zero area iface:', iface)
+        
+    # Check surface:
+    # - 2-manifold and closed, each edge should join two faces, no more no less
+    # - orientable, adjoining faces should have normals in the same directions
+    edges = get_edges(igeom)  # This also checks orientability and 2-manifoldness
     nedges = len(edges)
     for edge in edges.values():
         if edge[1] is None:
-            raise Exception("Invalid GEOM, non closed at least at edge:", edge)
-        if (get_vert(igeom, edge[0]) - get_vert(igeom, edge[1])).isZero():
-            raise Exception("Invalid GEOM, zero lenght edge:", edge)
-    # Check degenerate faces (zero area faces)
-    nfaces = get_nfaces(igeom)
-    for iface in range(nfaces):
-        face = get_face(igeom, iface)
-        a, b, c = get_vert(igeom, face[0]), get_vert(igeom, face[1]), get_vert(igeom, face[2])
-        if (a - b).cross(a - c).isZero(): raise Exception('Invalid GEOM, zero area iface:', iface)
-    # Check self intersection FIXME
-    pass  # STUB
+            raise Exception("Invalid GEOM, non closed at edge:", edge)
+        
+#    # Check self intersection  # FIXME not working
+#    ifaces = get_ifaces(igeom)
+#    bsp = build_bsp(igeom, ifaces)
+#    inverted_bsp = get_inverted_bsp(bsp)
+#    clip_to(bsp, inverted_bsp)
+#    remaining_ifaces = get_all_ifaces_from_bsp(bsp)
+#    if remaining_ifaces:
+#        raise Exception('Invalid GEOM, self-intersecting at faces:', remaining_ifaces)
+    
     # Euler formula: nverts - nedges + nfaces = chi FIXME use it!
     # Euler characteristic chi of the connected sum of g tori is: chi = 2 − 2g, with g genus
     # g = 0, 1, 2, 3, ... => chi = 2, 0, -2, -4, ...
     chi = nverts - nedges + nfaces
     if chi not in range(2, 100, 2):
         raise Exception('Invalid GEOM, in Euler formula chi is:', chi)
+        
     return True
 
 
-def get_pyfaces(igeom):
-    """
-    Get pyfaces
-    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])
-    >>> get_pyfaces(0)
-    [array('i', [0, 1, 2]), array('i', [0, 2, 3])]
-    """
-    faces = geometry[igeom].faces
-    return [faces[3*iface:3*iface+3] for iface in range(get_nfaces(igeom))]
+#def get_pyfaces(igeom):  # FIXME currently not used
+#    """
+#    Get pyfaces
+#    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])
+#    >>> get_pyfaces(0)
+#    [array('i', [0, 1, 2]), array('i', [0, 2, 3])]
+#    """
+#    faces = geometry[igeom].faces
+#    return [faces[3*iface:3*iface+3] for iface in range(get_nfaces(igeom))]
 
 
 def get_face(igeom, iface):
@@ -136,6 +171,17 @@ def get_face(igeom, iface):
     array('i', [0, 2, 3])
     """
     return geometry[igeom].faces[3*iface:3*iface+3]
+
+
+def set_face(igeom, iface, face):
+    """
+    Set iface face connectivity
+    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])
+    >>> set_face(0, 1, (3,2,0))
+    >>> get_face(0, 1)    
+    array('i', [3, 2, 0])
+    """
+    geometry[igeom].faces[3*iface:3*iface+3] = array.array('i', face)
 
 
 def append_face(igeom, face, iface_parent):  # FIXME
@@ -199,7 +245,7 @@ def get_ifaces(igeom):
 
 def get_face_plane(igeom, iface):
     """
-    Get plane fo face normal and distance.
+    Get plane from face normal and distance.
     >>> geometry[0] = Geom([1,0,0, 0,1,0, 0,0,1,], [0,1,2, ])
     >>> n, w = get_face_plane(0, 0)
     >>> print('n:', n, 'w:', w)
@@ -214,6 +260,19 @@ def get_face_plane(igeom, iface):
     normal = b.minus(a).cross(c.minus(a)).unit()  # plane normal vector
     distance = normal.dot(a)  # plane distance from origin
     return normal, distance
+
+
+def flip_iface_normal(igeom, iface):
+    """
+    Flip face normal.
+    >>> geometry[0] = Geom([1,0,0, 0,1,0, 0,0,1,], [0,1,2, ])
+    >>> flip_iface_normal(igeom=0, iface=0)
+    >>> n, w = get_face_plane(igeom=0, iface=0)
+    >>> print('n:', n, 'w:', w)
+    n: Vector(-0.577, -0.577, -0.577) w: -0.5773502691896258
+    """
+    face = get_face(igeom, iface)
+    set_face(igeom, iface, face=(face[2], face[1], face[0]))
 
 
 def get_vert(igeom, ivert):
@@ -272,12 +331,12 @@ def get_edges(igeom):
     >>> print(get_edges(0))
     Traceback (most recent call last):
     ...
-    Exception: ('Invalid GEOM, unorientable. iface, straight_edge:', 1, (0, 1))
+    Exception: ('Invalid GEOM, non-manifold or unorientable. iface, straight_edge:', 1, (0, 1))
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 3,2,0])
     >>> print(get_edges(0))
     Traceback (most recent call last):
     ...
-    Exception: ('Invalid GEOM, unorientable. iface, straight_edge:', 1, (2, 0))
+    Exception: ('Invalid GEOM, non-manifold or unorientable. iface, straight_edge:', 1, (2, 0))
     """
     edges = dict()
     ifaces = get_ifaces(igeom)
@@ -288,14 +347,14 @@ def get_edges(igeom):
             opposite_edge = (face[(i+1) % 3], face[i])
             if opposite_edge in edges:
                 if edges[opposite_edge][1]:
-                    raise Exception('Invalid GEOM, unorientable. iface, opposite_edge:', iface, opposite_edge)
+                    raise Exception('Invalid GEOM, non-manifold or unorientable. iface, opposite_edge:', iface, opposite_edge)
                 else:
                     edges[opposite_edge][1] = iface
                     continue
             # Set straight edge
             straight_edge = (face[i], face[(i+1) % 3])
             if straight_edge in edges:
-                raise Exception('Invalid GEOM, unorientable. iface, straight_edge:', iface, straight_edge)
+                raise Exception('Invalid GEOM, non-manifold or unorientable. iface, straight_edge:', iface, straight_edge)
             else:
                 edges[straight_edge] = [iface, None]
     return edges
@@ -347,6 +406,17 @@ def from_STL(filename):
         new_faces.append(new_ivert)  # Append it to the faces
     unique_verts = [v for vs in unique_py_verts for v in vs]  # Flatten
     return Geom(unique_verts, new_faces)
+
+
+def get_joined_geom(igeom0, igeom1):  # FIXME
+    verts = geometry[igeom0].verts[:]
+    faces = geometry[igeom0].faces[:]
+    nverts0 = int(len(verts)/3)
+    verts.extend(geometry[igeom1].verts[:])
+    for ivert in geometry[igeom1].faces[:]:
+        new_ivert = ivert + nverts0
+        faces.append(new_ivert)
+    return Geom(verts, faces)
 
 
 class Vector(object):
@@ -473,21 +543,33 @@ class BSP():
         )
         return textwrap.indent(text, prefix)
 
+    def clone(self):
+        cloned = BSP(igeom=self.igeom)
+        cloned.ifaces = self.ifaces[:]
+        if self.front_bsp:
+            cloned.front_bsp = self.front_bsp.clone()
+        if self.back_bsp:
+            cloned.back_bsp = self.back_bsp.clone()
+        return cloned
 
-def get_new_geom_from_bsp(bsp):  # FIXME remove children
+def get_new_geom_from_bsp(bsp):
     """
     Return a new Geom according to bsp contents
     """
+    DEBUG = True
     igeom = bsp.igeom
     verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
     ifaces = get_ifaces(igeom)
     bsp_ifaces = set(get_all_ifaces_from_bsp(bsp))
     selected_ifaces = []
-    # Chose the best faces
-    for iface in ifaces:
-        if check_iface_export(igeom, iface, bsp_ifaces):
-            selected_ifaces.append(iface)
-            bsp_ifaces -= set(get_iface_descendants(igeom, iface))
+    # Choose the best faces
+    if DEBUG:  # FIXME
+        selected_ifaces = bsp_ifaces
+    else:
+        for iface in ifaces:
+            if check_iface_export(igeom, iface, bsp_ifaces):
+                selected_ifaces.append(iface)
+                bsp_ifaces -= set(get_iface_descendants(igeom, iface))
     # Create the new faces from selected ifaces
     # selected_ifaces = bsp_ifaces  # FIXME
     faces = []
@@ -576,7 +658,32 @@ def build_bsp(igeom, ifaces):
     return bsp
 
 
-def clip_faces(igeom, ifaces, clipping_bsp):
+def get_inverted_bsp(bsp):  # FIXME
+    """ 
+    Convert bsp solid space to empty space and empty space to solid space.
+    >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
+    >>> bsp = build_bsp(igeom=0, ifaces=get_ifaces(0))
+    >>> bsp = get_inverted_bsp(bsp)
+    >>> print(get_face_plane(0, 5))
+    (Vector(-1.000, 0.000, 0.000), -1.0)
+    """
+    # Work on a clone
+    bsp = bsp.clone()
+    # Flip all face normals
+    igeom = bsp.igeom
+    for iface in bsp.ifaces:
+        flip_iface_normal(igeom, iface)
+    if bsp.front_bsp:
+        bsp.front_bsp = get_inverted_bsp(bsp.front_bsp)
+    if bsp.back_bsp: 
+        bsp.back_bsp = get_inverted_bsp(bsp.back_bsp)
+    # Swap front and back bsps
+    tmp = bsp.front_bsp
+    bsp.front_bsp = bsp.back_bsp
+    bsp.back_bsp = tmp
+    return bsp
+
+def clip_faces(igeom, ifaces, clipping_bsp):  # FIX name, it returns front faces
     """
     Recursively remove all ifaces that are inside the clipping_bsp tree.
     """
@@ -613,7 +720,7 @@ def clip_faces(igeom, ifaces, clipping_bsp):
     return front
 
 
-def clip_to(bsp, clipping_bsp):
+def clip_to(bsp, clipping_bsp):  # FIX name, it returns None
     """
     Remove all polygons in bsp tree that are inside the clipping_bsp tree.
     """
@@ -751,24 +858,109 @@ def split_face(igeom, iface, spl_igeom, spl_iface):
     return coplanar_front, coplanar_back, front, back, cut_iverts
 
 
+def geom_union(igeom0, igeom1, name='union'):  # FIXME
+    """
+    Union of igeom0 and igeom1
+    >>> geometry[0] = Geom([-1,-1,0,   1,-1,0,   0,1,0,   0,0,1],   [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Good tet
+    >>> geometry[1] = Geom([-.5,-1,0,  1.5,-1,0, 0.5,1,0, 0.5,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Good tet, move x .5
+    >>> geom_union(0, 1)
+    Geom(
+         array('f', [-1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.25, 0.5, 0.0, 0.25, -0.25, 0.75, -0.5, -1.0, 0.0, 1.5, -1.0, 0.0, 0.5, 1.0, 0.0, 0.5, 0.0, 1.0, 0.25, 0.5, 0.0, 0.25, -0.25, 0.75, 1.0, -1.0, 0.0, 0.25, 0.5, 0.0, 1.0, -1.0, 0.0, 0.25, -0.25, 0.75]),
+         array('i', [2, 1, 0, 0, 1, 3, 2, 0, 3, 4, 2, 3, 4, 3, 5, 7, 8, 9, 8, 10, 11, 8, 11, 9, 8, 7, 12, 13, 8, 12, 14, 7, 9, 15, 14, 9]),
+    )
+    """
+    a = build_bsp(igeom=igeom0, ifaces=get_ifaces(igeom0))
+    b = build_bsp(igeom=igeom1, ifaces=get_ifaces(igeom1))
+
+    # Send to STL
+    to_STL(igeom0, filename='{}_a.stl'.format(name))
+    to_STL(igeom1, filename='{}_b.stl'.format(name))
+
+    # Clip    
+    clip_to(a, b)  # remove everything in a inside b
+    clip_to(b, a)  # remove everything in b inside a
+
+    b = get_inverted_bsp(b)
+    clip_to(b, a)  # remove everything in -b inside a
+    b = get_inverted_bsp(b)
+
+    # Create new geometry
+    geometry[igeom0] = get_new_geom_from_bsp(a)
+    geometry[igeom1] = get_new_geom_from_bsp(b)
+
+    # Send to STL
+    to_STL(igeom0, filename='{}_a_clipped.stl'.format(name))
+    to_STL(igeom1, filename='{}_b_clipped.stl'.format(name))
+
+    # Join
+    geometry[igeom0] = get_joined_geom(igeom0, igeom1)
+
+    # Send to STL
+    to_STL(igeom0, filename='{}_ab.stl'.format(name))
+
+    return geometry[igeom0]
+
+def geom_intersection(igeom0, igeom1, name='inters'):  # FIXME working on this
+    """
+    Intersection of igeom0 and igeom1
+    >>> geometry[0] = Geom([-1,-1,0,   1,-1,0,   0,1,0,   0,0,1],   [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Good tet
+    >>> geometry[1] = Geom([-.5,-1,0,  1.5,-1,0, 0.5,1,0, 0.5,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Good tet, move x .5
+    >>> geom_intersection(0, 1)
+    """
+    a = build_bsp(igeom=igeom0, ifaces=get_ifaces(igeom0))
+    b = build_bsp(igeom=igeom1, ifaces=get_ifaces(igeom1))
+
+    # Send to STL
+    to_STL(igeom0, filename='{}_a.stl'.format(name))
+    to_STL(igeom1, filename='{}_b.stl'.format(name))
+
+    a = get_inverted_bsp(a)
+    clip_to(b, a)  # remove everything in b inside -a
+    b = get_inverted_bsp(b)
+    clip_to(a, b)  # remove everything in -a inside -b
+    clip_to(b, a)  # remove everything in -b inside -a
+
+    a = get_inverted_bsp(a)
+    b = get_inverted_bsp(b)
+
+    # Create new geometry
+    geometry[igeom0] = get_new_geom_from_bsp(a)
+    geometry[igeom1] = get_new_geom_from_bsp(b)
+
+    # Send to STL
+    to_STL(igeom0, filename='{}_a_clipped.stl'.format(name))
+    to_STL(igeom1, filename='{}_b_clipped.stl'.format(name))
+
+    # Join
+    geometry[igeom0] = get_joined_geom(igeom0, igeom1)
+
+    # Send to STL
+    to_STL(igeom0, filename='{}_ab.stl'.format(name))
+
+    return geometry[igeom0]
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
-
+    
     print("Test cut")
     # Get geometries
     geometry = []
     geometry.append(from_STL(filename='a.stl'))
     geometry.append(from_STL(filename='b.stl'))
-    # Create BSPs, this splits some triangles in the geometry
-    a = build_bsp(igeom=0, ifaces=get_ifaces(0))
-    b = build_bsp(igeom=1, ifaces=get_ifaces(1))
-    # Clip, this splits more triangles in the geometry
-    clip_to(a, b)
-    clip_to(b, a)
-    # Create new geometry
-    geometry.append(get_new_geom_from_bsp(a))
-    geometry.append(get_new_geom_from_bsp(b))
-    # Send to STL
-    to_STL(igeom=2, filename='a_clipped.stl')
-    to_STL(igeom=3, filename='b_clipped.stl')
+    geom_union(0, 1, name='sphere_union')
+
+
+#    # Create BSPs, this splits some triangles in the geometry
+#    a = build_bsp(igeom=0, ifaces=get_ifaces(0))
+#    b = build_bsp(igeom=1, ifaces=get_ifaces(1))
+#    # Clip, this splits more triangles in the geometry
+#    clip_to(a, b)
+#    clip_to(b, a)
+#    # Create new geometry
+#    geometry.append(get_new_geom_from_bsp(a))
+#    geometry.append(get_new_geom_from_bsp(b))
+#    # Send to STL
+#    to_STL(igeom=2, filename='a_clipped.stl')
+#    to_STL(igeom=3, filename='b_clipped.stl')
