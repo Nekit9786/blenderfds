@@ -2,6 +2,7 @@
 import array
 import math
 import sys
+import textwrap
 
 # increase the max number of recursive calls
 sys.setrecursionlimit(10000)  # my default is 1000
@@ -184,7 +185,7 @@ def set_face(igeom, iface, face):
     geometry[igeom].faces[3*iface:3*iface+3] = array.array('i', face)
 
 
-def append_face(igeom, face, iface_parent):  # FIXME
+def append_face(igeom, face, iface_parent):
     """
     Append a face to the Geom, return its index iface.
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
@@ -194,7 +195,7 @@ def append_face(igeom, face, iface_parent):  # FIXME
     """
     # Append face
     geometry[igeom].faces.extend(face)
-    iface = get_nfaces(igeom)-1
+    iface = get_nfaces(igeom) - 1
     # Register child
     children = geometry[igeom].iface_to_children
     if iface_parent in children:
@@ -531,17 +532,23 @@ class BSP():
         self.back_bsp = None   # link to child BSPNode
 
     def __repr__(self):
-        return 'BSP(igeom: {}\n{}\n)'.format(self.igeom, self._print_tree())
+        return '\nBSP tree of igeom: {}{}'.format(self.igeom, self._repr_tree())
 
-    def _print_tree(self, i=1):
-        import textwrap
-        prefix = '  ' * i
-        text = 'ifaces: {}\nfront_bsp:\n{}\nback_bsp:\n{}'.format(
+    def _repr_tree(self):
+        # Get children trees
+        front_tree = "None"
+        if self.front_bsp:
+            front_tree = self.front_bsp._repr_tree()
+        back_tree = "None"
+        if self.back_bsp:
+            back_tree = self.back_bsp._repr_tree()
+        # Join texts
+        text = '\nifaces: {}\nfront_bsp: {}\nback_bsp: {}'.format(
             self.ifaces,
-            self.front_bsp and self.front_bsp._print_tree(i+1) or '    None',
-            self.back_bsp and self.back_bsp._print_tree(i+1) or '    None',
+            front_tree,
+            back_tree,
         )
-        return textwrap.indent(text, prefix)
+        return textwrap.indent(text, ' ')
 
     def clone(self):
         cloned = BSP(igeom=self.igeom)
@@ -872,17 +879,17 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
     a = build_bsp(igeom=igeom0, ifaces=get_ifaces(igeom0))
     b = build_bsp(igeom=igeom1, ifaces=get_ifaces(igeom1))
 
-    # Send to STL
-    to_STL(igeom0, filename='{}_a.stl'.format(name))
-    to_STL(igeom1, filename='{}_b.stl'.format(name))
+#    # Send to STL
+#    to_STL(igeom0, filename='{}_a.stl'.format(name))
+#    to_STL(igeom1, filename='{}_b.stl'.format(name))
 
     # Clip    
     clip_to(a, b)  # remove everything in a inside b
     clip_to(b, a)  # remove everything in b inside a
 
-    b = get_inverted_bsp(b)
-    clip_to(b, a)  # remove everything in -b inside a
-    b = get_inverted_bsp(b)
+#    b = get_inverted_bsp(b)  # FIXME
+#    clip_to(b, a)  # remove everything in -b inside a
+#    b = get_inverted_bsp(b)
 
     # Create new geometry
     geometry[igeom0] = get_new_geom_from_bsp(a)
@@ -941,15 +948,19 @@ def geom_intersection(igeom0, igeom1, name='inters'):  # FIXME working on this
 
 
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+#    import doctest
+#    doctest.testmod()
     
-    print("Test cut")
+    print("Test cut: 1,0")
     # Get geometries
-    geometry = []
-    geometry.append(from_STL(filename='a.stl'))
-    geometry.append(from_STL(filename='b.stl'))
-    geom_union(0, 1, name='sphere_union')
+    geometry = [None, None,]
+    geometry[0] = from_STL(filename='cube_a.stl')
+    geometry[1] = from_STL(filename='cube_b.stl')
+    geom_union(0, 1, name='cube_union')
+
+#    geometry[0] = from_STL(filename='icosphere_a.stl')
+#    geometry[1] = from_STL(filename='icosphere_b.stl')
+#    geom_union(0, 1, name='icosphere_union')
 
 
 #    # Create BSPs, this splits some triangles in the geometry
