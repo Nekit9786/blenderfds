@@ -155,6 +155,7 @@ class Geom():
 
 #    def __repr__(self):
 #        return 'Geom(\n     {},\n     {},\n)'.format(self.verts, self.faces,)
+        
     def __repr__(self):
         text = 'Geom:'
         for iface in range(int(len(self.faces)/3)):
@@ -682,11 +683,41 @@ class BSP():
         self.back_bsp = tmp
 
 
-#def get_new_geom_from_bsp(bsp):
+def get_new_geom_from_bsp(bsp):  # FIXME test
+    """
+    Return a new Geom according to bsp contents
+    """
+    DEBUG = False
+    igeom = bsp.igeom
+    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
+    ifaces = get_ifaces(igeom)
+    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
+    selected_ifaces = []
+    # Choose the best faces
+    if DEBUG:  # FIXME
+        selected_ifaces = bsp_ifaces
+    else:
+        for iface in ifaces:
+            if check_iface_export(igeom, iface, bsp_ifaces):
+                selected_ifaces.append(iface)
+                bsp_ifaces -= set(get_iface_descendants(igeom, iface))
+    # Create the new faces from only selected ifaces
+    faces = []
+    for iface in selected_ifaces:
+        faces.extend(get_face(igeom, iface))
+    # Selected only used verts
+    verts = []
+    for ivert in faces:
+        verts.extend(get_vert(igeom, ivert))
+        # FIXME correct faces indexes for new alignment FIXME FIXME FIXME FIXME 
+    return Geom(verts, faces)
+
+
+#def get_new_geom_from_bsp(bsp):  # FIXME test
 #    """
 #    Return a new Geom according to bsp contents
 #    """
-#    DEBUG = True
+#    DEBUG = False
 #    igeom = bsp.igeom
 #    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
 #    ifaces = get_ifaces(igeom)
@@ -708,43 +739,54 @@ class BSP():
 #    return Geom(verts, faces)
 
 
-def get_new_geom_from_bsp(bsp):
-    igeom = bsp.igeom
-    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
-    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
-    # Create the new faces from bsp ifaces
-    faces = []
-    for iface in bsp_ifaces:
-        faces.extend(get_face(igeom, iface))
-    return Geom(verts, faces)  
+#def get_new_geom_from_bsp(bsp):
+#    igeom = bsp.igeom
+#    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
+#    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
+#    # Create the new faces from bsp ifaces
+#    faces = []
+#    for iface in bsp_ifaces:
+#        faces.extend(get_face(igeom, iface))
+#    return Geom(verts, faces)  
     
     
-#def check_iface_export(igeom, iface, bsp_ifaces):  # FIXME
-#    """
-#    Check if the face has all its fragments selected
-#    """
-#    if iface in bsp_ifaces:
-#        return True
-#    children = get_iface_children(igeom, iface)
-#    if children:
-#        for child in children:
-#            if not check_iface_export(igeom, child, bsp_ifaces):
-#                return False
-#        return True
-#    else:
-#        return False
+def check_iface_export(igeom, iface, bsp_ifaces):
+    """
+    Recursively check if the face has all its fragments of any level selected
+    >>> geometry[0] = Geom([], [])
+    >>> geometry[0].faces = [0,1,2, 0,1,3, 0,3,2, 0,4,2, 4,3,2]
+    >>> geometry[0].iface_to_children = {0:[1,2], 1:[3,4]}
+    >>> check_iface_export(igeom=0, iface=0, bsp_ifaces=[2,3,4])
+    True
+    >>> check_iface_export(igeom=0, iface=0, bsp_ifaces=[2,3])
+    False
+    """
+    if iface in bsp_ifaces:
+        return True
+    children = get_iface_children(igeom, iface)
+    if not children:
+        return False
+    for child in children:
+        if not check_iface_export(igeom, child, bsp_ifaces):
+            return False
+    return True
 
 
-#def get_iface_descendants(igeom, iface):  # FIXME
-#    """
-#    Returns all descendants of iface
-#    """
-#    descendants = []
-#    children = get_iface_children(igeom, iface)
-#    descendants.extend(children)
-#    for child in children:
-#        descendants.extend(get_iface_descendants(igeom, child))
-#    return descendants
+def get_iface_descendants(igeom, iface):
+    """
+    Returns all descendants of iface
+    >>> geometry[0] = Geom([], [])
+    >>> geometry[0].faces = [0,1,2, 0,1,3, 0,3,2, 0,4,2, 4,3,2]
+    >>> geometry[0].iface_to_children = {0:[1,2], 1:[3,4]}
+    >>> get_iface_descendants(0, 0)
+    [1, 2, 3, 4]
+    >>> get_iface_descendants(0, 2)
+    []
+    """
+    descendants = get_iface_children(igeom, iface)
+    for d in descendants:
+        descendants.extend(get_iface_descendants(igeom, d))
+    return descendants
 
 
 def get_all_ifaces_from_bsp(bsp):
@@ -759,10 +801,11 @@ def get_all_ifaces_from_bsp(bsp):
         ifaces.extend(get_all_ifaces_from_bsp(bsp.front_bsp))
     if bsp.back_bsp:
         ifaces.extend(get_all_ifaces_from_bsp(bsp.back_bsp))
+    ifaces.sort()
     return ifaces
 
 
-def clip_ifaces(igeom, ifaces, clipping_bsp):
+def clip_ifaces(igeom, ifaces, clipping_bsp):  # FIXME test
     """
     Recursively remove all ifaces that are inside the clipping_bsp tree.
     """
@@ -798,7 +841,7 @@ def clip_ifaces(igeom, ifaces, clipping_bsp):
     return front
 
 
-def clip_to(bsp, clipping_bsp):  # FIX name, it returns None
+def clip_to(bsp, clipping_bsp):  # FIX name, it returns None   # FIXME test
     """
     Remove all polygons in bsp tree that are inside the clipping_bsp tree.
     Just send all bsp ifaces to clip_ifaces().
@@ -971,11 +1014,10 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
     # Clip    
     clip_to(a, b)  # remove everything in a inside b
     clip_to(b, a)  # remove everything in b inside a
-    
-#    b.invert()
-#    clip_to(b, a)  # remove everything in -b inside a
-#    b.invert()
-#    a.build(b.all_ifaces())
+    b.invert()
+    clip_to(b, a)  # remove everything in -b inside a
+    b.invert()
+
     # Create new geometry
     geometry[igeom0] = get_new_geom_from_bsp(a)
     geometry[igeom1] = get_new_geom_from_bsp(b)
@@ -1036,41 +1078,41 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
    
-    # Get geometries
-    print("Test cut: 1,0")
-    
-    name="sphere"
-    
-    geometry = [None, None, None, None]
-    geometry[0] = from_STL(filename='{}_a.stl'.format(name))
-    geometry[1] = from_STL(filename='{}_b.stl'.format(name))
-    print(geometry[0])
-    print(geometry[1])
-
-    bsp_a = BSP(igeom=0, ifaces=get_ifaces(0))
-    bsp_b = BSP(igeom=1, ifaces=get_ifaces(1))
-    print("Initial")
-    print(bsp_a)
-    print(bsp_b)
-
-    # Clip    
-    clip_to(bsp_a, bsp_b)  # remove everything in a inside b
-    print("After first clipping")
-    print(bsp_a)
-    print(bsp_b)
-
-    clip_to(bsp_b, bsp_a)  # remove everything in b inside a
-    print("After second clipping")
-    print(bsp_a)
-    print(bsp_b)
-    
-    # Create new geometry
-    geometry[2] = get_new_geom_from_bsp(bsp_a)
-    geometry[3] = get_new_geom_from_bsp(bsp_b)
-
-    # Send to STL
-    to_STL(2, filename='{}_a_clipped.stl'.format(name))
-    to_STL(3, filename='{}_b_clipped.stl'.format(name))
+#    # Get geometries
+#    print("Test cut: 1,0")
+#    
+#    name="sphere"
+#    
+#    geometry = [None, None, None, None]
+#    geometry[0] = from_STL(filename='{}_a.stl'.format(name))
+#    geometry[1] = from_STL(filename='{}_b.stl'.format(name))
+#    print(geometry[0])
+#    print(geometry[1])
+#
+#    bsp_a = BSP(igeom=0, ifaces=get_ifaces(0))
+#    bsp_b = BSP(igeom=1, ifaces=get_ifaces(1))
+#    print("Initial")
+#    print(bsp_a)
+#    print(bsp_b)
+#
+#    # Clip    
+#    clip_to(bsp_a, bsp_b)  # remove everything in a inside b
+#    print("After first clipping")
+#    print(bsp_a)
+#    print(bsp_b)
+#
+#    clip_to(bsp_b, bsp_a)  # remove everything in b inside a
+#    print("After second clipping")
+#    print(bsp_a)
+#    print(bsp_b)
+#    
+#    # Create new geometry
+#    geometry[2] = get_new_geom_from_bsp(bsp_a)
+#    geometry[3] = get_new_geom_from_bsp(bsp_b)
+#
+#    # Send to STL
+#    to_STL(2, filename='{}_a_clipped.stl'.format(name))
+#    to_STL(3, filename='{}_b_clipped.stl'.format(name))
 
 #    geom_union(0, 1, name='cube_union')
 #    geometry[0] = from_STL(filename='icosphere_a.stl')
