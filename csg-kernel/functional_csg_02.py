@@ -552,15 +552,15 @@ def from_STL(filename):
     return Geom(unique_verts, new_faces)
 
 
-def get_joined_geom(igeom0, igeom1):  # FIXME
-    verts = geometry[igeom0].verts[:]
-    faces = geometry[igeom0].faces[:]
-    nverts0 = int(len(verts)/3)
-    verts.extend(geometry[igeom1].verts[:])
-    for ivert in geometry[igeom1].faces[:]:
-        new_ivert = ivert + nverts0
-        faces.append(new_ivert)
-    return Geom(verts, faces)
+#def get_joined_geom(igeom0, igeom1):  # FIXME
+#    verts = geometry[igeom0].verts[:]
+#    faces = geometry[igeom0].faces[:]
+#    nverts0 = int(len(verts)/3)
+#    verts.extend(geometry[igeom1].verts[:])
+#    for ivert in geometry[igeom1].faces[:]:
+#        new_ivert = ivert + nverts0
+#        faces.append(new_ivert)
+#    return Geom(verts, faces)
 
 
 ### BSP
@@ -704,6 +704,11 @@ class BSP():
 def get_new_geom_from_bsp(bsp):  # FIXME test
     """
     Return a new Geom according to bsp contents
+    >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
+    >>> bsp = BSP(igeom=0, ifaces=get_ifaces(0))
+    >>> geometry[0] = get_new_geom_from_bsp(bsp)
+    >>> get_nverts(igeom=0), get_nfaces(igeom=0)
+    (8, 12)
     """
     igeom = bsp.igeom
     verts = geometry[igeom].verts
@@ -716,9 +721,20 @@ def get_new_geom_from_bsp(bsp):  # FIXME test
             selected_ifaces.append(iface)
             bsp_ifaces -= set((iface,))
             bsp_ifaces -= set(get_iface_descendants(igeom, iface))
+        if not bsp_ifaces:
+            break        
     if bsp_ifaces: raise Exception('bsp_ifaces left!')
 #    selected_ifaces = bsp_ifaces  # FIXME
+    
     # Create the new faces and verts from only selected ifaces
+    iverts = set()
+    # Do not repeat verts! FIXME FIXME
+    for iface in selected_ifaces:
+        face = get_face(igeom, iface)
+        iverts = iverts.union((face[0], face[1], face[2]))
+    iverts = list(iverts).sort()
+    
+    # Create the new faces and verts from only selected ifaces FIXME
     faces = []
     verts = []
     ivert = 0
@@ -1009,6 +1025,10 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
     geometry[igeom0] = get_new_geom_from_bsp(a)
     geometry[igeom1] = get_new_geom_from_bsp(b)
 
+    edges = get_edges(igeom0)
+    print(edges)
+    check_geom_sanity(igeom0)
+
     # Send to STL
     to_STL(igeom0, filename='{}_a_clipped.stl'.format(name))
     to_STL(igeom1, filename='{}_b_clipped.stl'.format(name))
@@ -1065,9 +1085,9 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-    geometry[0] = from_STL(filename='icosphere_a.stl')
-    geometry[1] = from_STL(filename='icosphere_b.stl')
-    geom_union(0, 1, name='icosphere')
+#    geometry[0] = from_STL(filename='icosphere_a.stl')
+#    geometry[1] = from_STL(filename='icosphere_b.stl')
+#    geom_union(0, 1, name='icosphere')
 
    
 #    # Get geometries
