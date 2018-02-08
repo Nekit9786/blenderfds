@@ -31,6 +31,8 @@ sys.setrecursionlimit(10000)  # my default is 1000
 # iverts: [3,4,5,9,], list of indexes of selected verts
 # ivert: 7, index of a vert
 
+# isurfids: [0,1,1,1,4], list of isurfid for each face
+# isurfid: 4, index of SURF_IDV
 
 ### Vector
 
@@ -140,7 +142,7 @@ class Vector(object):
 
 
 class Geom():
-    def __init__(self, verts, faces):
+    def __init__(self, verts, faces, isurfids=None):
         # Check lenght
         if (len(verts) % 3) != 0:
             raise Exception('Invalid geom, verts lenght not 3n.')
@@ -152,7 +154,16 @@ class Geom():
         # Keep a link between new ifaces and their parent
         # Example: {1: (3, 4)} ifaces 3 and 4 are fragments of 1
         self.iface_to_children = {}
-
+        # Keep a reference of the original face surf_idi, surf_id index
+        # Not updated, only original faces have it
+        if isurfids:
+            if len(isurfids) != (len(faces) / 3):
+                raise Exception('Invalid geom, isurfids lenght not corresponding to nfaces.')
+            else:
+                self.isurfids = array.array('i', isurfids)
+        else:
+            self.isurfids = array.array('i', range((len(faces) // 3)))  # Same as iface
+            
 #    def __repr__(self):
 #        return 'Geom(\n     {},\n     {},\n)'.format(self.verts, self.faces,)
         
@@ -160,19 +171,26 @@ class Geom():
         text = 'Geom:'
         for iface in range(int(len(self.faces)/3)):
             face = self.faces[3*iface:3*iface+3]
-            text += '\n{0}: {1[0]:.1f},{1[1]:.1f},{1[2]:.1f}, {2[0]:.1f},{2[1]:.1f},{2[2]:.1f}, {3[0]:.1f},{3[1]:.1f},{3[2]:.1f}'.format(
+            text += '\n{0}-{4}: {1[0]:.1f},{1[1]:.1f},{1[2]:.1f}, {2[0]:.1f},{2[1]:.1f},{2[2]:.1f}, {3[0]:.1f},{3[1]:.1f},{3[2]:.1f}'.format(
                     iface,
                     self.get_vert(face[0]),
                     self.get_vert(face[1]),
                     self.get_vert(face[2]),
+                    self.get_isurfid(iface),
                     )
         return text
 
     def clone(self):
         return Geom(verts=self.verts[:], faces=self.faces[:])
 
-    def get_vert(self, ivert):  # FIXME duplicated!
+    def get_vert(self, ivert):  # FIXME duplicated in functional!
         return self.verts[3*ivert:3*ivert+3]
+
+    def get_isurfid(self, iface):  # FIXME duplicated in functional!
+        try:
+            return self.isurfids[iface]
+        except IndexError:
+            return None
 
 def check_geom_sanity(igeom):
     """
@@ -318,8 +336,8 @@ def append_face(igeom, face, iface_parent=None):
     """
     # Append face
     geometry[igeom].faces.extend(face)
-    iface = get_nfaces(igeom) - 1
-    # Register child
+    iface = get_nfaces(igeom) - 1   
+    # Register children
     if iface_parent is not None:
         children = geometry[igeom].iface_to_children
         if iface_parent in children:
@@ -510,8 +528,8 @@ def from_STL(filename):
     to_STL: doctest.stl
     >>> from_STL('doctest.stl')
     Geom:
-    0: -1.0,-1.0,1.0, 1.0,-1.0,1.0, 1.0,1.0,1.0
-    1: -1.0,-1.0,1.0, 1.0,1.0,1.0, -1.0,1.0,1.0
+    0-0: -1.0,-1.0,1.0, 1.0,-1.0,1.0, 1.0,1.0,1.0
+    1-1: -1.0,-1.0,1.0, 1.0,1.0,1.0, -1.0,1.0,1.0
     """
     # Get STL mesh
     from stl import mesh
@@ -687,79 +705,48 @@ def get_new_geom_from_bsp(bsp):  # FIXME test
     """
     Return a new Geom according to bsp contents
     """
-    DEBUG = False
     igeom = bsp.igeom
-    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
+    verts = geometry[igeom].verts
     ifaces = get_ifaces(igeom)
-    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
+    bsp_ifaces = set(get_all_ifaces_from_bsp(bsp))
     selected_ifaces = []
     # Choose the best faces
-    if DEBUG:  # FIXME
-        selected_ifaces = bsp_ifaces
-    else:
-        for iface in ifaces:
-            if check_iface_export(igeom, iface, bsp_ifaces):
-                selected_ifaces.append(iface)
-                bsp_ifaces -= set(get_iface_descendants(igeom, iface))
-    # Create the new faces from only selected ifaces
+    for iface in ifaces:
+        if check_iface_export(igeom, iface, bsp_ifaces):
+            selected_ifaces.append(iface)
+            bsp_ifaces -= set((iface,))
+            bsp_ifaces -= set(get_iface_descendants(igeom, iface))
+    if bsp_ifaces: raise Exception('bsp_ifaces left!')
+#    selected_ifaces = bsp_ifaces  # FIXME
+    # Create the new faces and verts from only selected ifaces
     faces = []
-    for iface in selected_ifaces:
-        faces.extend(get_face(igeom, iface))
-    # Selected only used verts
     verts = []
-    for ivert in faces:
-        verts.extend(get_vert(igeom, ivert))
-        # FIXME correct faces indexes for new alignment FIXME FIXME FIXME FIXME 
-    return Geom(verts, faces)
+    ivert = 0
+    for iface in selected_ifaces:
+        face = get_face(igeom, iface)
+        v0 = get_vert(igeom, face[0])
+        v1 = get_vert(igeom, face[1])
+        v2 = get_vert(igeom, face[2])
+        verts.extend(v0)  # ivert
+        verts.extend(v1)  # ivert+1
+        verts.extend(v2)  # ivert+2
+        faces.extend((ivert, ivert+1, ivert+2))
+        ivert += 3
+    return Geom(verts, faces)  
 
-
-#def get_new_geom_from_bsp(bsp):  # FIXME test
-#    """
-#    Return a new Geom according to bsp contents
-#    """
-#    DEBUG = False
-#    igeom = bsp.igeom
-#    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
-#    ifaces = get_ifaces(igeom)
-#    bsp_ifaces = set(get_all_ifaces_from_bsp(bsp))
-#    selected_ifaces = []
-#    # Choose the best faces
-#    if DEBUG:  # FIXME
-#        selected_ifaces = bsp_ifaces
-#    else:
-#        for iface in ifaces:
-#            if check_iface_export(igeom, iface, bsp_ifaces):
-#                selected_ifaces.append(iface)
-#                bsp_ifaces -= set(get_iface_descendants(igeom, iface))
-#    # Create the new faces from selected ifaces
-#    # selected_ifaces = bsp_ifaces  # FIXME
-#    faces = []
-#    for iface in selected_ifaces:
-#        faces.extend(get_face(igeom, iface))
-#    return Geom(verts, faces)
-
-
-#def get_new_geom_from_bsp(bsp):
-#    igeom = bsp.igeom
-#    verts = geometry[igeom].verts  # FIXME to be cleaned of unused verts
-#    bsp_ifaces = get_all_ifaces_from_bsp(bsp)
-#    # Create the new faces from bsp ifaces
-#    faces = []
-#    for iface in bsp_ifaces:
-#        faces.extend(get_face(igeom, iface))
-#    return Geom(verts, faces)  
-    
     
 def check_iface_export(igeom, iface, bsp_ifaces):
     """
     Recursively check if the face has all its fragments of any level selected
     >>> geometry[0] = Geom([], [])
-    >>> geometry[0].faces = [0,1,2, 0,1,3, 0,3,2, 0,4,2, 4,3,2]
-    >>> geometry[0].iface_to_children = {0:[1,2], 1:[3,4]}
+    >>> geometry[0].faces = [0,1,2, 0,1,2, 0,1,2, 0,1,2, 0,1,2, 0,1,2, 0,1,2,]
+    >>> geometry[0].iface_to_children = {0:[1,2], 1:[3,4], 4:[5,6,7]}
     >>> check_iface_export(igeom=0, iface=0, bsp_ifaces=[2,3,4])
     True
     >>> check_iface_export(igeom=0, iface=0, bsp_ifaces=[2,3])
     False
+    >>> check_iface_export(igeom=0, iface=1, bsp_ifaces=[3,5,7,6])
+    True
     """
     if iface in bsp_ifaces:
         return True
@@ -877,17 +864,17 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
     ([], [], [1, 2], [3], [3, 4])
     >>> geometry[0]
     Geom:
-    0: 0.0,0.0,1.0, 0.0,0.0,-1.0, 0.0,1.0,1.0
-    1: 0.0,0.0,1.0, 0.0,0.0,0.0, 0.0,0.5,0.0
-    2: 0.0,0.0,1.0, 0.0,0.5,0.0, 0.0,1.0,1.0
-    3: 0.0,0.0,0.0, 0.0,0.0,-1.0, 0.0,0.5,0.0
+    0-0: 0.0,0.0,1.0, 0.0,0.0,-1.0, 0.0,1.0,1.0
+    1-None: 0.0,0.0,1.0, 0.0,0.0,0.0, 0.0,0.5,0.0
+    2-None: 0.0,0.0,1.0, 0.0,0.5,0.0, 0.0,1.0,1.0
+    3-None: 0.0,0.0,0.0, 0.0,0.0,-1.0, 0.0,0.5,0.0
     >>> split_iface(igeom=1, iface=0, spl_igeom=0, spl_iface=2)
     ([], [], [1], [2], [3])
     >>> geometry[1]
     Geom:
-    0: -1.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
-    1: 0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
-    2: -1.0,0.0,0.0, 0.0,0.0,0.0, 0.0,1.0,0.0
+    0-0: -1.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
+    1-None: 0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
+    2-None: -1.0,0.0,0.0, 0.0,0.0,0.0, 0.0,1.0,0.0
     >>> split_iface(igeom=1, iface=1, spl_igeom=1, spl_iface=1)  # coplanar front
     ([1], [], [], [], [])
     >>> split_iface(igeom=1, iface=1, spl_igeom=2, spl_iface=0)  # coplanar back    
@@ -1077,6 +1064,11 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
+
+    geometry[0] = from_STL(filename='icosphere_a.stl')
+    geometry[1] = from_STL(filename='icosphere_b.stl')
+    geom_union(0, 1, name='icosphere')
+
    
 #    # Get geometries
 #    print("Test cut: 1,0")
