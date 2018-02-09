@@ -137,6 +137,19 @@ class Vector(object):
                abs(self.y) < EPSILON and \
                abs(self.z) < EPSILON
 
+    def is_collinear(self, b, c): # FIXME could be vertex objects instead
+        "Return true if a, b, and c all lie on the same line."
+        # Proposed elsewhere, to correctly use epsilon FIXME FIXME
+        # area_tri = abs((c-self).cross(b-self).length())
+        # area_square = max((c-self).length() ** 2, (b-self).length() ** 2, (c-b).length() ** 2)
+        # if 2* area_tri < EPSILON * area_square: return True
+        return abs((c-self).cross(b-self).length()) < EPSILON
+    
+    def is_within(self, p, r): # FIXME can be improved for edges along axis
+        "Return true if q is between p and r (inclusive)."
+        return (p.x <= self.x <= r.x or r.x <= self.x <= p.x) and \
+               (p.y <= self.y <= r.y or r.y <= self.y <= p.y) and \
+               (p.z <= self.z <= r.z or r.z <= self.z <= p.z) 
 
 ### Geom
 
@@ -151,9 +164,9 @@ class Geom():
         # Init tmp geometry
         self.verts = array.array('f', verts)
         self.faces = array.array('i', faces)
-        # Keep a link between new ifaces and their parent
-        # Example: {1: (3, 4)} ifaces 3 and 4 are fragments of 1
-        self.iface_to_children = {}
+        # Keep a link between ifaces and their parent
+        # Example: {3: 1, 4: 1} ifaces 3 and 4 are children of 1
+        self.iface_to_parent = {}
         # Keep a reference of the original face surf_idi, surf_id index
         # Not updated, only original faces have it
         if isurfids:
@@ -305,6 +318,25 @@ def check_geom_sanity(igeom):
 #    return [faces[3*iface:3*iface+3] for iface in range(get_nfaces(igeom))]
 
 
+def get_iface_to_parent(igeom):
+    """
+    Get iface to parent dict
+    """
+    return geometry[igeom].iface_to_parent
+
+
+def get_iface_to_children(igeom):
+    """
+    Build iface_to_children dict
+    """
+    iface_to_children = {}
+    iface_to_parent = get_iface_to_parent(igeom)
+    for child, parent in iface_to_parent.items():
+        try: iface_to_children[parent].append(child)
+        except KeyError:
+            iface_to_children[parent]= [child, ]
+    return iface_to_children
+
 def get_face(igeom, iface):
     """
     Get iface face connectivity
@@ -337,33 +369,11 @@ def append_face(igeom, face, iface_parent=None):
     # Append face
     geometry[igeom].faces.extend(face)
     iface = get_nfaces(igeom) - 1   
-    # Register children
+    # Register parent
     if iface_parent is not None:
-        children = geometry[igeom].iface_to_children
-        if iface_parent in children:
-            geometry[igeom].iface_to_children[iface_parent].append(iface)
-        else:
-            geometry[igeom].iface_to_children[iface_parent] = [iface, ]
+        geometry[igeom].iface_to_parent[iface] = iface_parent
     # Return
     return iface
-
-
-def get_iface_children(igeom, iface):
-    """
-    Get iface children (not descendants)
-    >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
-    >>> iface = append_face(0, [0,2,3], 0)
-    >>> iface = append_face(0, [0,2,3], 0)
-    >>> iface = append_face(0, [0,2,3], 2)
-    >>> iface = append_face(0, [0,2,3], 3)
-    >>> get_iface_children(0, 0)
-    [1, 2]
-    >>> get_iface_children(0, 4)
-    []
-    """
-    if iface not in geometry[igeom].iface_to_children:
-        return []
-    return geometry[igeom].iface_to_children[iface]
 
 
 def get_nfaces(igeom):
@@ -700,98 +710,264 @@ class BSP():
         self.front_bsp = self.back_bsp
         self.back_bsp = tmp
 
+def merge_ifaces(igeom, iface0, iface1):
+    """
+    Merge two ifaces from igeom
+    Return new iface
+    >>> geometry[0] = Geom([-1,0,0, 0,0,0, 1,0,0, 0,1,0], [0,1,3, 1,2,3])  # 012 aligned, +z
+    >>> iface = merge_ifaces(igeom=0, iface0=0, iface1=1)
+    >>> get_face(igeom=0, iface=iface)
+    array('i', [0, 2, 3])
+    >>> geometry[0] = Geom([-1,0,0, 0,0,0, 1,0,0, 0,1,0], [0,3,1, 1,3,2])  # 012 aligned, -z
+    >>> iface = merge_ifaces(igeom=0, iface0=0, iface1=1)
+    >>> get_face(igeom=0, iface=iface)
+    array('i', [0, 3, 2])
+    >>> geometry[0] = Geom([-1,0,0, 0,-1,0, 1,0,0, 0,0,0], [0,1,3, 1,2,3])  # 032 aligned, +z
+    >>> iface = merge_ifaces(igeom=0, iface0=0, iface1=1)
+    >>> get_face(igeom=0, iface=iface)
+    array('i', [0, 1, 2])
+    >>> geometry[0] = Geom([-1,0,0, 0,-1,0, 1,0,0, 0,0,0], [0,3,1, 1,3,2])  # 032 aligned, -z
+    >>> iface = merge_ifaces(igeom=0, iface0=0, iface1=1)
+    >>> get_face(igeom=0, iface=iface)
+    array('i', [0, 2, 1])
+    >>> geometry[0] = Geom([-1,0,0, 0,-1,0, 1,0,0, 0,0,0], [3,1,0, 1,3,2])  # 032 aligned, -z, reorder
+    >>> iface = merge_ifaces(igeom=0, iface0=0, iface1=1)
+    >>> get_face(igeom=0, iface=iface)
+    array('i', [0, 2, 1])
+    >>> geometry[0] = Geom([-1,0,0, 0,-1,0, 1,0,0, 0,0,0], [3,1,0, 2,1,3])  # 032 aligned, -z, reorder
+    >>> iface = merge_ifaces(igeom=0, iface0=0, iface1=1)
+    >>> get_face(igeom=0, iface=iface)
+    array('i', [0, 2, 1])
+    """
+    # Get parent
+    iface_to_parent = get_iface_to_parent(igeom)
+    iface_parent = iface_to_parent.get(iface0, None)
+    if iface_parent != iface_to_parent.get(iface1, None):  # FIXME should be done elsewhere
+        return None
+    # calc new face and append it to geometry[igeom]
+    # update geometry[igeom].iface_to_parent
+    # Get shared and unshared vertices
+    face0 = get_face(igeom, iface0)
+    face1 = get_face(igeom, iface1)
+    shared_iverts = []
+    unshared_iverts = []
+    for ivert in face0:
+        if ivert in face1:
+            shared_iverts.append(ivert)
+        else:
+            unshared_iverts.append(ivert)
+    for ivert in face1:
+        if ivert not in face0:
+            unshared_iverts.append(ivert)
+    # Merge if possible
+    if len(shared_iverts) == 2:
+        v0 = get_vert(igeom, unshared_iverts[0])
+        v1 = get_vert(igeom, unshared_iverts[1])
+        for i, shared_ivert in enumerate(shared_iverts):
+            vu = get_vert(igeom, shared_ivert)      
+            if vu.is_within(v0, v1) and vu.is_collinear(v0, v1):
+               if i == 0:
+                   face = (unshared_iverts[0], unshared_iverts[1], shared_iverts[1])
+               else:
+                   face = (unshared_iverts[0], shared_iverts[0], unshared_iverts[1])
+               iface = append_face(igeom, face, iface_parent)
+               iface_to_parent[iface0] = iface  # FIXME
+               iface_to_parent[iface1] = iface  # FIXME
+               return iface
 
+
+def remove_duplicated_verts(igeom):
+    """
+    Remove dup verts, and relink all faces
+    >>> geometry[0] = Geom([-1,0,0, 0,0,0, 1,0,0, 0,1,0, 0,1,0], [0,1,3, 1,2,4])
+    >>> remove_duplicated_verts(igeom=0)
+    >>> get_face(0,0)
+    array('i', [0, 1, 3])
+    >>> get_face(0,1)
+    array('i', [0, 1, 3])
+    """
+    # Find unique verts and build ivert_to_ivert dict
+    selected_pyverts = []
+    ivert_to_ivert = {}
+    nverts = get_nverts(igeom)
+    for ivert in range(nverts):
+        vert = Vector(get_vert(igeom, ivert))
+        seen = False
+        for i, selected_pyvert in enumerate(selected_pyverts):
+            if (selected_pyvert - vert).isZero():
+                seen = True
+                ivert_to_ivert[ivert] = i
+                break
+        if not seen:
+            selected_pyverts.append(vert)
+            ivert_to_ivert[ivert] = len(selected_pyverts) - 1
+    print("ivert_to_ivert:",ivert_to_ivert)
+    # Update face ivert links
+    for ivert in geometry[igeom].faces:
+        new_ivert = ivert_to_ivert[ivert]
+        # FIXME append working here working here
+    
+    selected_ifaces = get_ifaces(igeom)
+    for selected_iface in selected_ifaces:
+        face = get_face(igeom, selected_iface)
+        for i, ivert in enumerate(face):
+            new_ivert = ivert_to_ivert[ivert]
+            geometry[igeom].faces[selected_iface+i] = new_ivert
+    # Build new verts
+    selected_verts = array.array('f')
+    for pyvert in selected_pyverts:
+        selected_verts.extend(pyvert)
+    geometry[igeom].verts = selected_verts
+
+    
 def get_new_geom_from_bsp(bsp):  # FIXME test
-    """
-    Return a new Geom according to bsp contents
-    >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
-    >>> bsp = BSP(igeom=0, ifaces=get_ifaces(0))
-    >>> geometry[0] = get_new_geom_from_bsp(bsp)
-    >>> get_nverts(igeom=0), get_nfaces(igeom=0)
-    (8, 12)
-    """
+#    """
+#    Return a new Geom according to bsp contents
+#    >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
+#    >>> bsp = BSP(igeom=0, ifaces=get_ifaces(0))
+#    >>> geometry[0] = get_new_geom_from_bsp(bsp)
+#    >>> get_nverts(igeom=0), get_nfaces(igeom=0)
+#    (8, 12)
+#    """
+    # Init
     igeom = bsp.igeom
-    verts = geometry[igeom].verts
-    ifaces = get_ifaces(igeom)
-    bsp_ifaces = set(get_all_ifaces_from_bsp(bsp))
-    selected_ifaces = []
-    # Choose the best faces
-    for iface in ifaces:
-        if check_iface_export(igeom, iface, bsp_ifaces):
-            selected_ifaces.append(iface)
-            bsp_ifaces -= set((iface,))
-            bsp_ifaces -= set(get_iface_descendants(igeom, iface))
-        if not bsp_ifaces:
-            break        
-    if bsp_ifaces: raise Exception('bsp_ifaces left!')
-#    selected_ifaces = bsp_ifaces  # FIXME
+    selected_ifaces = set(get_all_ifaces_from_bsp(bsp))
+    iface_to_parent = get_iface_to_parent(igeom)
+    iface_to_children = get_iface_to_children(igeom)
+#    # Choose the best faces by gruping siblings into parent
+#    print("len(selected_ifaces) before:",len(selected_ifaces))
+#    done = False
+#    while not done:
+#        done = True
+#        for iface in selected_ifaces:
+#            parent = iface_to_parent.get(iface, None)  # could be non existant
+#            if parent is None:
+#                continue
+#            siblings = set(iface_to_children[parent])
+#            if siblings and siblings <= selected_ifaces:
+#                selected_ifaces -= siblings  # remove siblings
+#                selected_ifaces.add(parent)  # and add parent instead
+#                done = False  # not finished
+#                break  # set is updated, restart of the loop needed
+#    print("len(selected_ifaces) after replacement of parents:",len(selected_ifaces))
     
-    # Create the new faces and verts from only selected ifaces
-    iverts = set()
-    # Do not repeat verts! FIXME FIXME
+#    # Merge vertices FIXME
+#    selected_pyverts = []
+#    ivert_to_ivert = {}
+#    nvert = get_nverts(igeom)
+#    print("nvert:", nvert)
+#    for ivert in range(nvert):
+#        vert = Vector(get_vert(igeom, ivert))
+#        seen = False
+#        for selected_pyvert in selected_pyverts:
+#            if (selected_pyvert - vert).isZero():
+#                seen = True
+#                break
+#        if not seen:
+#            selected_pyverts.append(vert)
+#            ivert_to_ivert[ivert] = len(selected_pyverts) - 1
+#    print("len(selected_pyverts):", len(selected_pyverts))
+#        
+#    for selected_iface in selected_ifaces:
+#        face = get_face(igeom, selected_iface)
+#        for i,ivert in enumerate(face):
+#            new_ivert = ivert_to_ivert[ivert]
+#            print("i2i:", ivert ,">", new_ivert)
+#            geometry[igeom].faces[selected_iface+i] = new_ivert
+#    
+#    selected_verts = []
+#    for pyvert in selected_pyverts:
+#        selected_verts.extend(pyvert)
+#
+#    geometry[igeom].verts = selected_verts
+    
+#    # Get iverts that deserve a check, those of faces with a parent,
+#    # not replaced by the previous step
+#    selected_ifaces_w_parent = [iface for iface in selected_ifaces if iface_to_parent.get(iface, None)]
+#    check_double_iverts = []
+#    for iface in selected_ifaces_w_parent:
+#        check_double_iverts.extend(get_face(igeom, iface))
+#    # Compare those iverts with the existing ones
+#    nverts = get_nverts(igeom)
+#    for check_double_ivert in check_double_iverts:
+#        # Get the vert coordinates
+#        check_double_vert = get_vert(igeom, check_double_ivert)
+#        # Compare those with any vert
+#        for ivert in range(nverts):
+#            if (Vector(get_vert(igeom, ivert))-Vector(check_double_vert)).isZero():
+#                # merge, check all faces for that ivert
+#                for selected_iface in selected_ifaces:
+#                    selected_face = get_face(igeom, selected_iface)
+#                    if selected_face[0] == check_double_ivert:
+#                        selected_face[0] = ivert
+#                        print("Fix ivert:", ivert, check_double_ivert )
+#                        break
+#                    elif selected_face[1] == check_double_ivert:
+#                        selected_face[1] = ivert
+#                        print("Fix ivert:", ivert, check_double_ivert )
+#                        break
+#                    elif selected_face[2] == check_double_ivert:
+#                        selected_face[2] = ivert
+#                        print("Fix ivert:", ivert, check_double_ivert )
+#                        break
+
+#    # Merge siblings FIXME put in previous routine
+#    done = False
+#    while not done:
+#        done = True
+#        for iface in selected_ifaces:
+#            parent = iface_to_parent.get(iface, None)  # could be non existant
+#            if parent is None:
+#                continue
+#            siblings = iface_to_children[parent]
+#            print("iface:", iface, "siblings:",siblings)
+#            if siblings:
+#                siblings.remove(iface)
+#                for sibling in siblings:
+#                    if sibling in selected_ifaces:
+#                        merged_iface = merge_ifaces(igeom, iface0=iface, iface1=sibling)
+#                        print("iface:", iface, "sibling:",sibling, "merged:", merged_iface)
+#                        if merged_iface:
+#                            # remove merging couple from selected_ifaces
+#                            print()
+#                            selected_ifaces.remove(iface)
+#                            selected_ifaces.remove(sibling)
+#                            # insert new iface in selected_ifaces
+#                            selected_ifaces.add(merged_iface)
+#                            # Update
+#                            iface_to_children = get_iface_to_children(igeom)
+#                            done = False
+#                            break
+#            if not done:
+#                break
+#    print("len(selected_ifaces) after merging of triangles:",len(selected_ifaces))
+                                                
+    # Solve local TJunctions FIXME or solve them globally? let's see
+    
+    # Get only selected iverts, avoid duplication
+    selected_iverts = []
     for iface in selected_ifaces:
         face = get_face(igeom, iface)
-        iverts = iverts.union((face[0], face[1], face[2]))
-    iverts = list(iverts).sort()
-    
-    # Create the new faces and verts from only selected ifaces FIXME
-    faces = []
-    verts = []
-    ivert = 0
+        selected_iverts.extend((face[0], face[1], face[2]))
+    selected_iverts = set(selected_iverts)
+    # Build the ivert to new_ivert dict, and the corresponding new_verts
+    ivert_to_ivert = {}
+    new_verts = []
+    new_ivert = 0
+    for ivert in selected_iverts:
+        vert = get_vert(igeom, ivert)
+        new_verts.extend(vert)
+        ivert_to_ivert[ivert] = new_ivert
+        new_ivert += 1
+    # Build the new_faces
+    new_faces = []
     for iface in selected_ifaces:
         face = get_face(igeom, iface)
-        v0 = get_vert(igeom, face[0])
-        v1 = get_vert(igeom, face[1])
-        v2 = get_vert(igeom, face[2])
-        verts.extend(v0)  # ivert
-        verts.extend(v1)  # ivert+1
-        verts.extend(v2)  # ivert+2
-        faces.extend((ivert, ivert+1, ivert+2))
-        ivert += 3
-    return Geom(verts, faces)  
+        new_faces.extend((ivert_to_ivert[face[0]], ivert_to_ivert[face[1]], ivert_to_ivert[face[2]]))
+    print("len(new_verts)/3 after merging of triangles:",len(new_verts)/3)
+    return Geom(new_verts, new_faces)  
 
     
-def check_iface_export(igeom, iface, bsp_ifaces):
-    """
-    Recursively check if the face has all its fragments of any level selected
-    >>> geometry[0] = Geom([], [])
-    >>> geometry[0].faces = [0,1,2, 0,1,2, 0,1,2, 0,1,2, 0,1,2, 0,1,2, 0,1,2,]
-    >>> geometry[0].iface_to_children = {0:[1,2], 1:[3,4], 4:[5,6,7]}
-    >>> check_iface_export(igeom=0, iface=0, bsp_ifaces=[2,3,4])
-    True
-    >>> check_iface_export(igeom=0, iface=0, bsp_ifaces=[2,3])
-    False
-    >>> check_iface_export(igeom=0, iface=1, bsp_ifaces=[3,5,7,6])
-    True
-    """
-    if iface in bsp_ifaces:
-        return True
-    children = get_iface_children(igeom, iface)
-    if not children:
-        return False
-    for child in children:
-        if not check_iface_export(igeom, child, bsp_ifaces):
-            return False
-    return True
-
-
-def get_iface_descendants(igeom, iface):
-    """
-    Returns all descendants of iface
-    >>> geometry[0] = Geom([], [])
-    >>> geometry[0].faces = [0,1,2, 0,1,3, 0,3,2, 0,4,2, 4,3,2]
-    >>> geometry[0].iface_to_children = {0:[1,2], 1:[3,4]}
-    >>> get_iface_descendants(0, 0)
-    [1, 2, 3, 4]
-    >>> get_iface_descendants(0, 2)
-    []
-    """
-    descendants = get_iface_children(igeom, iface)
-    for d in descendants:
-        descendants.extend(get_iface_descendants(igeom, d))
-    return descendants
-
-
 def get_all_ifaces_from_bsp(bsp):
     """
     Get recursively all ifaces from bsp and its children
@@ -1025,9 +1201,8 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
     geometry[igeom0] = get_new_geom_from_bsp(a)
     geometry[igeom1] = get_new_geom_from_bsp(b)
 
-    edges = get_edges(igeom0)
-    print(edges)
-    check_geom_sanity(igeom0)
+    # edges = get_edges(igeom0)
+    # check_geom_sanity(igeom0)
 
     # Send to STL
     to_STL(igeom0, filename='{}_a_clipped.stl'.format(name))
