@@ -18,8 +18,21 @@ sys.setrecursionlimit(10000)
 
 
 def remove_tjunctions(igeom, ifaces):  # FIXME edge loops ready!
-    pass
-
+    """
+    """
+    border_halfedges = get_border_halfedges(igeom, ifaces)
+    edge_loops = get_edge_loops(igeom, border_halfedges)
+    for edge_loop in edge_loops:
+       for ivert in edge_loop:
+           pass
+           # if ivert collinear with any other edge of the loop,
+           # add to the list of splittings of that edge
+           # get the iface from border_halfedges
+       for edge in spl_edges:
+           iface = border_halfedges[edge]
+           for ivert in spl_iverts:
+           # do the splittings all together, using the same iverts
+           # append faces, parent previous
 
 def get_new_geom_from_bsp(bsp):  # FIXME test
 #    """
