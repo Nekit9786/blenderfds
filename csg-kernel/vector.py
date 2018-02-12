@@ -129,7 +129,6 @@ class Vector(object):
                (p.y <= self.y <= r.y or r.y <= self.y <= p.y) and \
                (p.z <= self.z <= r.z or r.z <= self.z <= p.z)
 
-
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

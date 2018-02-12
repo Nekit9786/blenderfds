@@ -241,11 +241,11 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
     Split iface from igeom by spl_iface of spl_igeom if needed.
     Append new verts and new faces to geometry igeom.
     Return ifaces in the appropriate lists.
-    >>> geometry[0] = Geom([0.0,0.0,1.0, 0.0,0.0,-1.0, 0.0,1.0,1.0],[0,1,2]) # axis +x
-    >>> geometry[1] = Geom([-1.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0],[0,1,2]) # axis +z
-    >>> geometry[2] = Geom([-1.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0],[2,1,0]) # axis -z
+    >>> geometry[0] = Geom([0,0,1, 0,0,-1, 0,1,1],[0,1,2]) # axis +x
+    >>> geometry[1] = Geom([-1,0,0, 1,0,0, 0,1,0],[0,1,2]) # axis +z
+    >>> geometry[2] = Geom([-1,0,0, 1,0,0, 0,1,0],[2,1,0]) # axis -z
     >>> split_iface(igeom=0, iface=0, spl_igeom=1, spl_iface=0)
-    ([], [], [1, 2], [3], [3, 4])
+    ([], [], [1, 2], [3], {(0, 1): 3, (1, 2): 4})
     >>> geometry[0]
     Geom:
     0-0: 0.0,0.0,1.0, 0.0,0.0,-1.0, 0.0,1.0,1.0
@@ -253,16 +253,16 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
     2-None: 0.0,0.0,1.0, 0.0,0.5,0.0, 0.0,1.0,1.0
     3-None: 0.0,0.0,0.0, 0.0,0.0,-1.0, 0.0,0.5,0.0
     >>> split_iface(igeom=1, iface=0, spl_igeom=0, spl_iface=2)
-    ([], [], [1], [2], [3])
+    ([], [], [1], [2], {(0, 1): 3})
     >>> geometry[1]
     Geom:
     0-0: -1.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
     1-None: 0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
     2-None: -1.0,0.0,0.0, 0.0,0.0,0.0, 0.0,1.0,0.0
     >>> split_iface(igeom=1, iface=1, spl_igeom=1, spl_iface=1)  # coplanar front
-    ([1], [], [], [], [])
+    ([1], [], [], [], {})
     >>> split_iface(igeom=1, iface=1, spl_igeom=2, spl_iface=0)  # coplanar back
-    ([], [1], [], [], [])
+    ([], [1], [], [], {})
     """
     # Vertices and faces types, collections of ifaces
     COPLANAR = 0  # vertex or face is within EPSILON2 distance from plane
@@ -270,8 +270,11 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
     BACK = 2      # vertex or face is at the back of the plane
     SPANNING = 3  # edge is intersected
     coplanar_front, coplanar_back, front, back = [], [], [], []
-    cut_iverts = []  # collection of new iverts due to cuts
-
+    
+    # The edges to be split, eg. {(2,3): 1} with {(ivert0,ivert1): cut_ivert, ...}
+    # The opposite of the current edge is sent for easy search
+    spl_edges = {}
+    
     # Classify each point as well as the entire polygon
     # into one of the above classes.
     faceType = 0
@@ -330,8 +333,8 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
                 cut_ivert = append_vert(igeom, cut_vert)
                 front_iverts.append(cut_ivert)
                 back_iverts.append(cut_ivert)
-                # Record cut_ivert for later fixing of TJunctions FIXME
-                cut_iverts.append(cut_ivert)
+                # update spl_edges, the opposite for later search!
+                spl_edges[(vj, vi)] = cut_ivert
 
         # Add front cut faces
         if len(front_iverts) > 2:
@@ -362,7 +365,7 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
             raise Exception('Problem with back spanning:', back_iverts)
 
     # Return
-    return coplanar_front, coplanar_back, front, back, cut_iverts
+    return coplanar_front, coplanar_back, front, back, spl_edges
 
 
 def merge_ifaces(igeom, iface0, iface1):  # FIXME broken normals?
