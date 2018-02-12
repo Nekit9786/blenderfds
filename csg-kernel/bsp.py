@@ -15,7 +15,7 @@ class BSP():
     """
     def __init__(self, igeom, ifaces=None, master_bsp=None):
         self.igeom = igeom     # Referred igeom
-        self.spl_iface = None  # Reference to splitting iface
+        self.plane = None      # Reference to splitting plane
         self.ifaces = []       # Coplanar ifaces
         self.front_bsp = None  # link to child front BSP
         self.back_bsp = None   # link to child back BSP
@@ -28,29 +28,37 @@ class BSP():
         geometry[igeom].master_bsp = self.master_bsp  # FIXME this is an hack
 
     def __repr__(self):
-        return 'BSP tree of{}'.format(self._repr_tree())
+        return 'BSP tree {}'.format(self._repr_tree())
 
-    def _repr_tree(self):
+    def _repr_tree(self, back=True):
         # Get children trees
         front_tree = "None"
         if self.front_bsp:
-            front_tree = self.front_bsp._repr_tree()
+            front_tree = self.front_bsp._repr_tree(back=False)
         back_tree = "None"
         if self.back_bsp:
-            back_tree = self.back_bsp._repr_tree()
+            back_tree = self.back_bsp._repr_tree(back=True)
         # Join texts
-        text = 'igeom: {}, spl_iface: {}, ifaces: {}\n└─front_bsp: {}\n└─back_bsp:  {}'.format(
+        line = "│ "
+        if back:
+            line = "  "
+        header = 'igeom: {0}, ifaces: {1}\n'.format(
             self.igeom,
-            self.spl_iface,
+            self.ifaces,
+            )
+        text = '{5}│ plane: {1}\n{5}├─front_bsp {3}\n{5}└─back_bsp {4}'.format(
+            self.igeom,
+            self.plane,
             self.ifaces,
             front_tree,
             back_tree,
+            line,
         )
-        return textwrap.indent(text, '  ')
+        return header + textwrap.indent(text, '  ')
 
     def clone(self):
-        bsp = BSP(igeom=self.igeom)
-        bsp.spl_iface = self.spl_iface
+        bsp = BSP(igeom=self.igeom, master_bsp=self.master_bsp)
+        bsp.plane = self.plane
         bsp.ifaces = self.ifaces[:]
         if self.front_bsp:
             bsp.front_bsp = self.front_bsp.clone()
@@ -63,39 +71,51 @@ class BSP():
         Build self from ifaces
         >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
         >>> print(BSP(igeom=0, ifaces=get_ifaces(0)))
-        BSP tree of  igeom: 0, spl_iface: 0, ifaces: [0]
-          └─front_bsp:   igeom: 0, spl_iface: 1, ifaces: [1]
-            └─front_bsp: None
-            └─back_bsp:  None
-          └─back_bsp:    igeom: 0, spl_iface: 2, ifaces: [2]
-            └─front_bsp:   igeom: 0, spl_iface: 3, ifaces: [3]
-              └─front_bsp: None
-              └─back_bsp:  None
-            └─back_bsp:    igeom: 0, spl_iface: 4, ifaces: [4]
-              └─front_bsp:   igeom: 0, spl_iface: 5, ifaces: [5]
-                └─front_bsp: None
-                └─back_bsp:  None
-              └─back_bsp:    igeom: 0, spl_iface: 6, ifaces: [6]
-                └─front_bsp:   igeom: 0, spl_iface: 7, ifaces: [7]
-                  └─front_bsp: None
-                  └─back_bsp:  None
-                └─back_bsp:    igeom: 0, spl_iface: 8, ifaces: [8]
-                  └─front_bsp:   igeom: 0, spl_iface: 9, ifaces: [9]
-                    └─front_bsp: None
-                    └─back_bsp:  None
-                  └─back_bsp:    igeom: 0, spl_iface: 10, ifaces: [10]
-                    └─front_bsp:   igeom: 0, spl_iface: 11, ifaces: [11]
-                      └─front_bsp: None
-                      └─back_bsp:  None
-                    └─back_bsp:  None
+        BSP tree igeom: 0, ifaces: [0]
+            │ plane: Plane(n=Vector(-1.000, 0.000, 0.000), w=1.0)
+            ├─front_bsp igeom: 0, ifaces: [1]
+            │ │ plane: Plane(n=Vector(-1.000, 0.000, -0.000), w=1.0)
+            │ ├─front_bsp None
+            │ └─back_bsp None
+            └─back_bsp igeom: 0, ifaces: [2]
+              │ plane: Plane(n=Vector(0.000, 1.000, 0.000), w=1.0)
+              ├─front_bsp igeom: 0, ifaces: [3]
+              │ │ plane: Plane(n=Vector(0.000, 1.000, 0.000), w=1.0)
+              │ ├─front_bsp None
+              │ └─back_bsp None
+              └─back_bsp igeom: 0, ifaces: [4]
+                │ plane: Plane(n=Vector(1.000, 0.000, -0.000), w=1.0)
+                ├─front_bsp igeom: 0, ifaces: [5]
+                │ │ plane: Plane(n=Vector(1.000, 0.000, 0.000), w=1.0)
+                │ ├─front_bsp None
+                │ └─back_bsp None
+                └─back_bsp igeom: 0, ifaces: [6]
+                  │ plane: Plane(n=Vector(0.000, -1.000, 0.000), w=1.0)
+                  ├─front_bsp igeom: 0, ifaces: [7]
+                  │ │ plane: Plane(n=Vector(0.000, -1.000, 0.000), w=1.0)
+                  │ ├─front_bsp None
+                  │ └─back_bsp None
+                  └─back_bsp igeom: 0, ifaces: [8]
+                    │ plane: Plane(n=Vector(0.000, 0.000, -1.000), w=1.0)
+                    ├─front_bsp igeom: 0, ifaces: [9]
+                    │ │ plane: Plane(n=Vector(0.000, 0.000, -1.000), w=1.0)
+                    │ ├─front_bsp None
+                    │ └─back_bsp None
+                    └─back_bsp igeom: 0, ifaces: [10]
+                      │ plane: Plane(n=Vector(0.000, 0.000, 1.000), w=1.0)
+                      ├─front_bsp igeom: 0, ifaces: [11]
+                      │ │ plane: Plane(n=Vector(0.000, 0.000, 1.000), w=1.0)
+                      │ ├─front_bsp None
+                      │ └─back_bsp None
+                      └─back_bsp None
         """
         # Protect
         if not ifaces:
             return
         # Use first iface as splitting iface  # FIXME check!
         i = 0
-        if not self.spl_iface:
-            self.spl_iface = ifaces[0]
+        if not self.plane:
+            self.plane = get_plane_from_iface(self.igeom, ifaces[0])
             self.ifaces.append(ifaces[0])
             i = 1
         # Select ifaces for front and back, split them if needed.
@@ -104,42 +124,19 @@ class BSP():
         back = []
         for iface in ifaces[i:]:
             # coplanar front and back polygons go into self.polygons  # FIXME new_cut_iverts?
-            new_coplanar_front, new_coplanar_back, new_front, new_back, spl_edges = split_iface(
+            new_coplanar_front, new_coplanar_back, new_front, new_back, spl_ifaces = split_iface(
                     igeom=self.igeom,
                     iface=iface,
-                    spl_igeom=self.igeom,
-                    spl_iface=self.spl_iface,
+                    plane=self.plane,
                     )
             front.extend(new_front)
             back.extend(new_back)
             front.extend(new_coplanar_front)
             back.extend(new_coplanar_back)
             
-            # Manage spl_edges FIXME FIXME test
-            if spl_edges:
-                halfedges = get_halfedges(igeom, get_ifaces(igeom))
-                for spl_edge, spl_ivert in spl_edges.items():
-                    # Get the bordering face that is split
-                    spl_iface = halfedges[spl_edge]
-                    # Get its iverts, and find the far ivert
-                    spl_face = get_face(igeom, spl_iface)
-                    spl_face.remove(spl_edge[0])  # Remove unwanted
-                    spl_face.remove(spl_edge[1])  # Remove unwanted
-                    spl_face_ivert2 = spl_face[0]  # Get the left one
-                    # Build the two new faces
-                    new_iface0 = append_face(
-                            igeom,
-                            (spl_edge[0], spl_ivert, spl_face_ivert2),
-                            spl_iface,
-                        )                
-                    new_iface1 = append_face(
-                            igeom,
-                            (spl_ivert, spl_edge[1], spl_face_ivert2),
-                            spl_iface,
-                        )
-                    # Update bsp tree
-                    print("Update bsp tree")
-                    update_iface_in_bsp(self.master_bsp, iface, new_iface0, new_iface1)
+            # Update bsp tree
+            if spl_ifaces:
+                update_ifaces_in_bsp(self.master_bsp, spl_ifaces)
         
         # Recursively build the BSP tree and return it
         if len(front) > 0:
@@ -156,14 +153,13 @@ class BSP():
         Convert self solid space to empty space and empty space to solid space.
         >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
         >>> BSP(igeom=0, ifaces=get_ifaces(0)).invert()
-        >>> print(get_iface_plane(0, 5))
-        (Vector(-1.000, 0.000, 0.000), -1.0)
+        >>> get_face(0, 0)
+        array('i', [2, 1, 0])
         """
         igeom = self.igeom
+        # Flip plane
+        flip_plane_normal(self.plane)
         # Flip all face normals
-        if self.spl_iface not in self.ifaces:
-            # FIXME otherwise risk of double flip
-            flip_iface_normal(igeom, self.spl_iface)
         for iface in self.ifaces:
             flip_iface_normal(igeom, iface)
         if self.front_bsp:
@@ -180,48 +176,24 @@ def clip_ifaces(igeom, ifaces, clipping_bsp):  # FIXME test
     """
     Recursively remove all ifaces that are inside the clipping_bsp tree.
     """
-    if clipping_bsp.spl_iface is None:  # FIXME why? It always have it
-        return ifaces[:]
-
+    master_bsp = geometry[igeom].master_bsp
+    plane = clipping_bsp.plane
     front = []
     back = []
     for iface in ifaces:
-        new_coplanar_front, new_coplanar_back, new_front, new_back, spl_edges = split_iface(
+        new_coplanar_front, new_coplanar_back, new_front, new_back, spl_ifaces = split_iface(
                 igeom=igeom,
                 iface=iface,
-                spl_igeom=clipping_bsp.igeom,  # FIXME move out of for cycle
-                spl_iface=clipping_bsp.spl_iface,    # FIXME move out of for cycle
+                plane=plane,  # FIXME move out of for cycle
                 )
         front.extend(new_front)
         back.extend(new_back)
         front.extend(new_coplanar_front)
         back.extend(new_coplanar_back)
 
-        # Manage spl_edges FIXME FIXME test
-        if spl_edges:
-            halfedges = get_halfedges(igeom, get_ifaces(igeom))
-            for spl_edge, spl_ivert in spl_edges.items():
-                # Get the bordering face that is split
-                spl_iface = halfedges[spl_edge]
-                # Get its iverts, and find the far ivert
-                spl_face = get_face(igeom, spl_iface)
-                spl_face.remove(spl_edge[0])  # Remove unwanted
-                spl_face.remove(spl_edge[1])  # Remove unwanted
-                spl_face_ivert2 = spl_face[0]  # Get the left one
-                # Build the two new faces
-                new_iface0 = append_face(
-                        igeom,
-                        (spl_edge[0], spl_ivert, spl_face_ivert2),
-                        spl_iface,
-                    )                
-                new_iface1 = append_face(
-                        igeom,
-                        (spl_ivert, spl_edge[1], spl_face_ivert2),
-                        spl_iface,
-                    )
-                # Update bsp tree
-                print("Update bsp tree")
-                update_iface_in_bsp(geometry[igeom].master_bsp, iface, new_iface0, new_iface1)
+        # Update bsp tree
+        if spl_ifaces:
+            update_ifaces_in_bsp(master_bsp, spl_ifaces)
 
     if clipping_bsp.front_bsp:
         # recurse on branches, conserve those polygons
@@ -274,24 +246,28 @@ def get_all_ifaces_from_bsp(bsp):
         ifaces.extend(get_all_ifaces_from_bsp(bsp.front_bsp))
     if bsp.back_bsp:
         ifaces.extend(get_all_ifaces_from_bsp(bsp.back_bsp))
-    ifaces.sort()
     return ifaces
 
 
-def update_iface_in_bsp(bsp, iface, new_iface0, new_iface1):  # FIXME test
+def update_ifaces_in_bsp(bsp, spl_ifaces):  # FIXME test
+    """
+    Replace all ifaces with new_iface0 and new_iface1 in bsp tree
+    """
+    for spl_iface, new_iface in spl_ifaces.items():
+        update_iface_in_bsp(bsp, spl_iface, new_iface)
+
+
+def update_iface_in_bsp(bsp, spl_iface, new_iface):  # FIXME test
     """
     Replace iface with new_iface0 and new_iface1 in bsp tree
     """
-    if iface in bsp.ifaces:
-        bsp.ifaces.remove(iface)
-        bsp.ifaces.extend((new_iface0, new_iface1))
-    elif bsp.front_bsp:
-        update_iface_in_bsp(bsp.front_bsp, iface, new_iface0, new_iface1)
-    elif bsp.back_bsp:
-        update_iface_in_bsp(bsp.back_bsp, iface, new_iface0, new_iface1)
-    else:
-        raise Exception("iface not found!")
-
+    if spl_iface in bsp.ifaces:
+        bsp.ifaces.append(new_iface)
+        return
+    if bsp.front_bsp:
+        update_iface_in_bsp(bsp.front_bsp, spl_iface, new_iface)
+    if bsp.back_bsp:
+        update_iface_in_bsp(bsp.back_bsp, spl_iface, new_iface)
 
 # New geom
     
@@ -308,31 +284,29 @@ def get_new_geom_from_bsp(bsp):  # FIXME test
     # Init
     igeom = bsp.igeom
     selected_ifaces = set(get_all_ifaces_from_bsp(bsp))
-    iface_to_parent = get_iface_to_parent(igeom)
-    iface_to_children = get_iface_to_children(igeom)
 
-    print("len(selected_ifaces) before replacement of parents:",len(selected_ifaces))
-    # Choose the best faces by gruping siblings into parent
-    print("len(selected_ifaces) before:",len(selected_ifaces))
-    done = False
-    while not done:
-        done = True
-        for iface in selected_ifaces:
-            parent = iface_to_parent.get(iface, None)  # could be non existant
-            if parent is None:
-                continue
-            siblings = set(iface_to_children[parent])
-            if siblings and siblings <= selected_ifaces:
-                selected_ifaces -= siblings  # remove siblings
-                selected_ifaces.add(parent)  # and add parent instead
-                done = False  # not finished
-                break  # set is updated, restart of the loop needed
-    print("len(selected_ifaces) after replacement of parents:",len(selected_ifaces))
-
-    print("nverts before:",get_nverts(igeom))
-    merge_duplicated_verts(igeom)
-    print("nverts after:",get_nverts(igeom))
-
+#    print("len(selected_ifaces) before replacement of parents:",len(selected_ifaces))
+#    # Choose the best faces by gruping siblings into parent
+#    print("len(selected_ifaces) before:",len(selected_ifaces))
+#    done = False
+#    while not done:
+#        done = True
+#        for iface in selected_ifaces:
+#            parent = iface_to_parent.get(iface, None)  # could be non existant
+#            if parent is None:
+#                continue
+#            siblings = set(iface_to_children[parent])
+#            if siblings and siblings <= selected_ifaces:
+#                selected_ifaces -= siblings  # remove siblings
+#                selected_ifaces.add(parent)  # and add parent instead
+#                done = False  # not finished
+#                break  # set is updated, restart of the loop needed
+#    print("len(selected_ifaces) after replacement of parents:",len(selected_ifaces))
+#
+#    print("nverts before:",get_nverts(igeom))
+#    merge_duplicated_verts(igeom)
+#    print("nverts after:",get_nverts(igeom))
+#
 #    # Get iverts that deserve a check, those of faces with a parent,
 #    # not replaced by the previous step
 #    selected_ifaces_w_parent = [iface for iface in selected_ifaces if iface_to_parent.get(iface, None)]
@@ -442,10 +416,10 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
 
     # Clip
     clip_to(a, b)  # remove everything in a inside b
-    clip_to(b, a)  # remove everything in b inside a
-    b.invert()
-    clip_to(b, a)  # remove everything in -b inside a
-    b.invert()
+#    clip_to(b, a)  # remove everything in b inside a
+#    b.invert()
+#    clip_to(b, a)  # remove everything in -b inside a
+#    b.invert()
 
     # Create new geometry
     geometry[igeom0] = get_new_geom_from_bsp(a)
@@ -504,3 +478,7 @@ def geom_union(igeom0, igeom1, name='union'):  # FIXME
 #
 #    return geometry[igeom0]
 
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

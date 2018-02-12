@@ -9,7 +9,7 @@ Created on Sat Feb 10 17:12:27 2018
 import math
 
 EPSILON = 1e-07
-EPSILON2 = 1e-05
+EPSILON2 = 1e-07
 
 
 class Vector(object):
@@ -128,6 +128,27 @@ class Vector(object):
         return (p.x <= self.x <= r.x or r.x <= self.x <= p.x) and \
                (p.y <= self.y <= r.y or r.y <= self.y <= p.y) and \
                (p.z <= self.z <= r.z or r.z <= self.z <= p.z)
+
+
+class Plane():
+    def __init__(self, n, w):
+        self.n = Vector(n).unit()
+        self.w = w
+
+    def __repr__(self):
+        return 'Plane(n={}, w={})'.format(self.n, self.w)
+
+
+def flip_plane_normal(plane):  # FIXME test
+    """
+    Flip face normal.
+    >>> flip_plane_normal(Plane(n=(1,0,0), w=5))
+    Plane(n=Vector(-1.000, 0.000, 0.000), w=-5)
+    """
+    plane.n = -plane.n
+    plane.w = -plane.w
+    return plane
+
 
 if __name__ == "__main__":
     import doctest

@@ -6,12 +6,9 @@ Created on Sat Feb 10 17:12:27 2018
 @author: egissi
 """
 import array
-from vector import Vector
+from vector import Vector, Plane, flip_plane_normal, EPSILON, EPSILON2
 
-EPSILON = 1e-07
-EPSILON2 = 1e-05
-
-geometry = [None, None, None, None]
+geometry = [None, None, None, None, None, None, None, None]
 
 
 # Notation
@@ -33,12 +30,9 @@ geometry = [None, None, None, None]
 # iverts: [3,4,5,9,], list of indexes of selected verts
 # ivert: 7, index of a vert
 
-# isurfids: [0,1,1,1,4], list of isurfid for each face
-# isurfid: 4, index of SURF_IDV
-
 
 class Geom():
-    def __init__(self, verts, faces, isurfids=None):
+    def __init__(self, verts, faces):
         # Check lenght
         if (len(verts) % 3) != 0:
             raise Exception('Invalid geom, verts lenght not 3n.')
@@ -47,99 +41,12 @@ class Geom():
         # Init tmp geometry
         self.verts = array.array('f', verts)
         self.faces = array.array('i', faces)
-        # Keep a link between ifaces and their parent
-        # Example: {3: 1, 4: 1} ifaces 3 and 4 are children of 1
-        self.iface_to_parent = {}
-        # Keep a reference of the original face surf_idi, surf_id index
-        # Not updated, only original faces have it
-        if isurfids:
-            if len(isurfids) != (len(faces) / 3):
-                raise Exception('Invalid geom, isurfids lenght not corresponding to nfaces.')
-            else:
-                self.isurfids = array.array('i', isurfids)
-        else:  # Same as iface
-            self.isurfids = array.array('i', range((len(faces) // 3)))
-
-#    def __repr__(self):
-#        return 'Geom(\n     {},\n     {},\n)'.format(self.verts, self.faces,)
 
     def __repr__(self):
-        text = 'Geom:'
-        for iface in range(int(len(self.faces)/3)):
-            face = self.faces[3*iface:3*iface+3]
-            text += '\n{0}-{4}: {1[0]:.1f},{1[1]:.1f},{1[2]:.1f}, {2[0]:.1f},{2[1]:.1f},{2[2]:.1f}, {3[0]:.1f},{3[1]:.1f},{3[2]:.1f}'.format(
-                    iface,
-                    self.get_vert(face[0]),
-                    self.get_vert(face[1]),
-                    self.get_vert(face[2]),
-                    self.get_isurfid(iface),
-                    )
-        return text
+        return 'Geom(\n     {},\n     {},\n)'.format(self.verts, self.faces,)
 
     def clone(self):
         return Geom(verts=self.verts[:], faces=self.faces[:])
-
-    def get_vert(self, ivert):  # FIXME duplicated in functional!
-        return self.verts[3*ivert:3*ivert+3]
-
-    def get_isurfid(self, iface):  # FIXME duplicated in functional!
-        try:
-            return self.isurfids[iface]
-        except IndexError:
-            return None
-
-
-# iface parent, children
-
-
-def get_iface_to_parent(igeom):
-    """
-    Get iface to parent dict
-    >>> geometry[0] = Geom([], [0,1,3, 0,1,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4,])
-    >>> geometry[0].iface_to_parent = {2:0, 3:2, 4:2, 5:1, 6:3, 7:6, 8:3}
-    >>> get_iface_to_parent(igeom=0)
-    {2: 0, 3: 2, 4: 2, 5: 1, 6: 3, 7: 6, 8: 3}
-    """
-    return geometry[igeom].iface_to_parent
-
-
-def get_iface_to_children(igeom):
-    """
-    Build iface_to_children dict
-    >>> geometry[0] = Geom([], [0,1,3, 0,1,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4,])
-    >>> geometry[0].iface_to_parent = {2:0, 3:2, 4:2, 5:1, 6:3, 7:6, 8:3}
-    >>> get_iface_to_children(igeom=0)
-    {0: [2], 2: [3, 4], 1: [5], 3: [6, 8], 6: [7]}
-    """
-    iface_to_children = {}
-    iface_to_parent = get_iface_to_parent(igeom)
-    for child, parent in iface_to_parent.items():
-        try:
-            iface_to_children[parent].append(child)
-        except KeyError:
-            iface_to_children[parent] = [child, ]
-    return iface_to_children
-
-
-def get_iface_descendants(igeom, iface, iface_to_children=None):
-    """
-    Return all iface descendants
-    >>> geometry[0] = Geom([], [0,1,3, 0,1,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4, 1,3,4,])
-    >>> geometry[0].iface_to_parent = {2:0, 3:2, 4:2, 5:1, 6:3, 7:6, 8:3}
-    >>> get_iface_descendants(igeom=0, iface=0)
-    [2, 3, 4, 6, 8, 7]
-    """
-    # Init
-    if iface_to_children is None:
-        iface_to_children = get_iface_to_children(igeom)
-    # Children
-    children = iface_to_children.get(iface, [])
-    descendants = children[:]
-    for child in children:
-        descendants.extend(get_iface_descendants(
-                igeom, child, iface_to_children
-                ))
-    return descendants
 
 
 # faces
@@ -155,31 +62,30 @@ def get_face(igeom, iface):
     return geometry[igeom].faces[3*iface:3*iface+3]
 
 
-def set_face(igeom, iface, face):
+def update_face(igeom, iface, face):
     """
-    Set iface face connectivity
+    Update iface face connectivity
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])
-    >>> set_face(0, 1, (3,2,0))
+    >>> update_face(0, 1, (3,2,0))
+    1
     >>> get_face(0, 1)
     array('i', [3, 2, 0])
     """
     geometry[igeom].faces[3*iface:3*iface+3] = array.array('i', face)
+    return iface
 
 
-def append_face(igeom, face, iface_parent=None):
+def append_face(igeom, face):
     """
     Append a face to the Geom, register its parent, return its iface.
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
-    >>> iface = append_face(0, [0,2,3], 0)
+    >>> iface = append_face(0, [0,2,3])
     >>> get_face(0, iface)
     array('i', [0, 2, 3])
     """
     # Append face
     geometry[igeom].faces.extend(face)
     iface = get_nfaces(igeom) - 1
-    # Register parent
-    if iface_parent is not None:
-        geometry[igeom].iface_to_parent[iface] = iface_parent
     # Return
     return iface
 
@@ -204,13 +110,24 @@ def get_ifaces(igeom):
     return [i for i in range(int(len(geometry[igeom].faces)/3))]
 
 
-def get_iface_plane(igeom, iface):
+def flip_iface_normal(igeom, iface):
+    """
+    Flip face normal.
+    >>> geometry[0] = Geom([1,0,0, 0,1,0, 0,0,1,], [0,1,2, ])
+    >>> flip_iface_normal(igeom=0, iface=0)
+    >>> get_plane_from_iface(igeom=0, iface=0)
+    Plane(n=Vector(-0.577, -0.577, -0.577), w=-0.5773502691896258)
+    """
+    face = get_face(igeom, iface)
+    update_face(igeom, iface, face=(face[2], face[1], face[0]))
+
+
+def get_plane_from_iface(igeom, iface):
     """
     Get plane from iface normal and distance.
     >>> geometry[0] = Geom([1,0,0, 0,1,0, 0,0,1,], [0,1,2, ])
-    >>> n, w = get_iface_plane(0, 0)
-    >>> print('n:', n, 'w:', w)
-    n: Vector(0.577, 0.577, 0.577) w: 0.5773502691896258
+    >>> get_plane_from_iface(igeom=0, iface=0)
+    Plane(n=Vector(0.577, 0.577, 0.577), w=0.5773502691896258)
     """
     face = get_face(igeom, iface)
     a, b, c = (
@@ -218,51 +135,45 @@ def get_iface_plane(igeom, iface):
         Vector(get_vert(igeom, face[1])),
         Vector(get_vert(igeom, face[2])),
     )
-    normal = b.minus(a).cross(c.minus(a)).unit()  # plane normal vector
-    distance = normal.dot(a)  # plane distance from origin
-    return normal, distance
+    n = b.minus(a).cross(c.minus(a)).unit()  # plane normal vector
+    w = n.dot(a)  # plane distance from origin
+    return Plane(n, w)
 
 
-def flip_iface_normal(igeom, iface):
-    """
-    Flip face normal.
-    >>> geometry[0] = Geom([1,0,0, 0,1,0, 0,0,1,], [0,1,2, ])
-    >>> flip_iface_normal(igeom=0, iface=0)
-    >>> n, w = get_iface_plane(igeom=0, iface=0)
-    >>> print('n:', n, 'w:', w)
-    n: Vector(-0.577, -0.577, -0.577) w: -0.5773502691896258
-    """
-    face = get_face(igeom, iface)
-    set_face(igeom, iface, face=(face[2], face[1], face[0]))
-
-
-def split_iface(igeom, iface, spl_igeom, spl_iface):
+def split_iface(igeom, iface, plane):
     """
     Split iface from igeom by spl_iface of spl_igeom if needed.
     Append new verts and new faces to geometry igeom.
     Return ifaces in the appropriate lists.
-    >>> geometry[0] = Geom([0,0,1, 0,0,-1, 0,1,1],[0,1,2]) # axis +x
-    >>> geometry[1] = Geom([-1,0,0, 1,0,0, 0,1,0],[0,1,2]) # axis +z
-    >>> geometry[2] = Geom([-1,0,0, 1,0,0, 0,1,0],[2,1,0]) # axis -z
-    >>> split_iface(igeom=0, iface=0, spl_igeom=1, spl_iface=0)
-    ([], [], [1, 2], [3], {(0, 1): 3, (1, 2): 4})
+    >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0, -1,1,0, 1,1,0],[0,1,2, 0,2,3, 1,4,2]) # z = 0, axis +k
+    >>> split_iface(igeom=0, iface=0, plane=Plane((1,0,0),.5))  # other faces to cut
+    ([], [], [0], [3, 4], {2: 5})
     >>> geometry[0]
-    Geom:
-    0-0: 0.0,0.0,1.0, 0.0,0.0,-1.0, 0.0,1.0,1.0
-    1-None: 0.0,0.0,1.0, 0.0,0.0,0.0, 0.0,0.5,0.0
-    2-None: 0.0,0.0,1.0, 0.0,0.5,0.0, 0.0,1.0,1.0
-    3-None: 0.0,0.0,0.0, 0.0,0.0,-1.0, 0.0,0.5,0.0
-    >>> split_iface(igeom=1, iface=0, spl_igeom=0, spl_iface=2)
-    ([], [], [1], [2], {(0, 1): 3})
-    >>> geometry[1]
-    Geom:
-    0-0: -1.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
-    1-None: 0.0,0.0,0.0, 1.0,0.0,0.0, 0.0,1.0,0.0
-    2-None: -1.0,0.0,0.0, 0.0,0.0,0.0, 0.0,1.0,0.0
-    >>> split_iface(igeom=1, iface=1, spl_igeom=1, spl_iface=1)  # coplanar front
-    ([1], [], [], [], {})
-    >>> split_iface(igeom=1, iface=1, spl_igeom=2, spl_iface=0)  # coplanar back
-    ([], [1], [], [], {})
+    Geom(
+         array('f', [-1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.5, 0.5, 0.0]),
+         array('i', [5, 1, 6, 0, 2, 3, 2, 6, 4, 0, 5, 6, 0, 6, 2, 6, 1, 4]),
+    )
+    >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0, -1,1,0, 1,1,0],[0,1,2, 0,2,3, 1,4,2]) # axis +z
+    >>> split_iface(igeom=0, iface=0, plane=Plane((1,0,0),-.5))  # other faces to cut
+    ([], [], [0, 3], [4], {1: 5})
+    >>> geometry[0]
+    Geom(
+         array('f', [-1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, -0.5, 0.0, 0.0, -0.5, 0.5, 0.0]),
+         array('i', [5, 1, 2, 0, 6, 3, 1, 4, 2, 5, 2, 6, 0, 5, 6, 6, 2, 3]),
+    )
+    >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0, -1,1,0, 1,1,0],[0,1,2, 0,2,3, 1,4,2]) # axis +z
+    >>> split_iface(igeom=0, iface=0, plane=Plane((0,-1,0),-.5))  # other faces to cut
+    ([], [], [0, 3], [4], {2: 5, 1: 6})
+    >>> geometry[0]
+    Geom(
+         array('f', [-1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]),
+         array('i', [0, 1, 5, 0, 6, 3, 2, 5, 4, 0, 5, 6, 5, 2, 6, 5, 1, 4, 6, 2, 3]),
+    )
+    >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0],[0,1,2])  # axis +k
+    >>> split_iface(igeom=0, iface=0, plane=Plane((0,0,-1),0))  # copl back
+    ([], [0], [], [], {})
+    >>> split_iface(igeom=0, iface=0, plane=Plane((0,0, 1),0))  # copl front
+    ([0], [], [], [], {})
     """
     # Vertices and faces types, collections of ifaces
     COPLANAR = 0  # vertex or face is within EPSILON2 distance from plane
@@ -270,16 +181,17 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
     BACK = 2      # vertex or face is at the back of the plane
     SPANNING = 3  # edge is intersected
     coplanar_front, coplanar_back, front, back = [], [], [], []
-    
-    # The edges to be split, eg. {(2,3): 1} with {(ivert0,ivert1): cut_ivert, ...}
+
+    # The edges to be split,
+    # eg. {(2,3): 1} with {(ivert0,ivert1): cut_ivert, ...}
     # The opposite of the current edge is sent for easy search
     spl_edges = {}
-    
+
     # Classify each point as well as the entire polygon
     # into one of the above classes.
     faceType = 0
     vertexTypes = []
-    spl_normal, spl_distance = get_iface_plane(spl_igeom, spl_iface)
+    spl_normal, spl_distance = plane.n, plane.w
     face = get_face(igeom, iface)
     for ivert in face:
         # Calc the distance between the vertex and the splitting plane
@@ -297,7 +209,8 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
 
     # Put the face in the correct list, splitting it when necessary.
     if faceType == COPLANAR:
-        iface_normal, iface_w = get_iface_plane(igeom, iface)
+        iface_plane = get_plane_from_iface(igeom, iface)
+        iface_normal = iface_plane.n
         if spl_normal.dot(iface_normal) > 0:
             coplanar_front.append(iface)
         else:
@@ -337,35 +250,101 @@ def split_iface(igeom, iface, spl_igeom, spl_iface):
                 spl_edges[(vj, vi)] = cut_ivert
 
         # Add front cut faces
+        updated = False
+
         if len(front_iverts) > 2:
-            new_iface = append_face(igeom, front_iverts[0:3], iface)
-            front.append(new_iface)
-            if len(front_iverts) == 4:
+            if updated:
                 new_iface = append_face(
+                    igeom,
+                    front_iverts[0:3],
+                    )
+            else:
+                updated = True
+                new_iface = update_face(
+                    igeom,
+                    iface,
+                    front_iverts[0:3],
+                    )
+            front.append(new_iface)
+
+            if len(front_iverts) == 4:
+                if updated:
+                    new_iface = append_face(
                         igeom,
                         (front_iverts[0], front_iverts[2], front_iverts[3]),
+                        )
+                else:
+                    updated = True
+                    new_iface = update_face(
+                        igeom,
                         iface,
-                    )
+                        (front_iverts[0], front_iverts[2], front_iverts[3]),
+                        )
                 front.append(new_iface)
         else:
             raise Exception('Problem with front spanning:', front_iverts)
 
         # Add back cut faces
         if len(back_iverts) > 2:
-            new_iface = append_face(igeom, back_iverts[0:3], iface)
+            if updated:
+                new_iface = append_face(
+                    igeom,
+                    back_iverts[0:3],
+                    )
+            else:
+                updated = True
+                new_iface = update_face(
+                    igeom,
+                    iface,
+                    back_iverts[0:3],
+                    )
             back.append(new_iface)
             if len(back_iverts) == 4:
-                new_iface = append_face(
+                if updated:
+                    new_iface = append_face(
                         igeom,
                         (back_iverts[0], back_iverts[2], back_iverts[3]),
+                        )
+                else:
+                    updated = True
+                    new_iface = update_face(
+                        igeom,
                         iface,
-                    )
+                        (back_iverts[0], back_iverts[2], back_iverts[3]),
+                        )
                 back.append(new_iface)
         else:
             raise Exception('Problem with back spanning:', back_iverts)
 
+    # Manage spl_edges FIXME FIXME test
+    spl_ifaces = {}  # {iface: iface0, iface1}
+    if spl_edges:  # FIXME
+        halfedges = get_halfedges(igeom, get_ifaces(igeom))  # FIXME not all ifaces!
+        for spl_edge, spl_ivert in spl_edges.items():
+            # Get the bordering face that is split
+            spl_iface = halfedges.get(spl_edge, None)
+            if spl_iface is None:  # FIXME on a border
+                continue
+            # Get its iverts, and find the far ivert
+            spl_face = get_face(igeom, spl_iface)
+            spl_face.remove(spl_edge[0])  # Remove unwanted
+            spl_face.remove(spl_edge[1])  # Remove unwanted
+            spl_face_ivert2 = spl_face[0]  # Get the left one
+            # Build the two new faces
+            new_iface0 = update_face(
+                    igeom,
+                    spl_iface,
+                    (spl_edge[0], spl_ivert, spl_face_ivert2),
+                )
+            new_iface1 = append_face(
+                    igeom,
+                    (spl_ivert, spl_edge[1], spl_face_ivert2),
+                )
+            # Tell the caller about spl_iface1 (Only the new one!)
+            spl_ifaces[spl_iface] = new_iface1
+
     # Return
-    return coplanar_front, coplanar_back, front, back, spl_edges
+    return coplanar_front, coplanar_back, front, back, spl_ifaces
 
 
 def merge_ifaces(igeom, iface0, iface1):  # FIXME broken normals?
@@ -398,8 +377,8 @@ def merge_ifaces(igeom, iface0, iface1):  # FIXME broken normals?
     array('i', [0, 2, 1])
     """
     # Get parent
-    iface_to_parent = get_iface_to_parent(igeom)
-    iface_parent = iface_to_parent.get(iface0, None)
+#    iface_to_parent = get_iface_to_parent(igeom)
+#    iface_parent = iface_to_parent.get(iface0, None)
     # calc new face and append it to geometry[igeom]
     # update geometry[igeom].iface_to_parent
     # Get shared and unshared vertices
@@ -434,9 +413,10 @@ def merge_ifaces(igeom, iface0, iface1):  # FIXME broken normals?
                             shared_iverts[0],
                             unshared_iverts[1],
                             )
-                iface = append_face(igeom, face, iface_parent)
-                iface_to_parent[iface0] = iface  # FIXME
-                iface_to_parent[iface1] = iface  # FIXME
+                iface = append_face(igeom, face)
+#                iface = append_face(igeom, face, iface_parent)
+#                iface_to_parent[iface0] = iface  # FIXME
+#                iface_to_parent[iface1] = iface  # FIXME
                 return iface
 
 
@@ -632,7 +612,7 @@ def to_STL(igeom, filename):
             f.write('facet normal 0 0 0\n')
             f.write(' outer loop\n')
             for ivert in get_face(igeom, iface):
-                f.write('  vertex {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n'.format(
+                f.write('  vertex {v[0]:.9f} {v[1]:.9f} {v[2]:.9f}\n'.format(
                         v=get_vert(igeom, ivert)))
             f.write(' endloop\n')
             f.write('endfacet\n')
@@ -647,9 +627,10 @@ def from_STL(filename):
     >>> to_STL(0,'./test/doctest.stl')
     to_STL: ./test/doctest.stl
     >>> from_STL('./test/doctest.stl')
-    Geom:
-    0-0: -1.0,-1.0,1.0, 1.0,-1.0,1.0, 1.0,1.0,1.0
-    1-1: -1.0,-1.0,1.0, 1.0,1.0,1.0, -1.0,1.0,1.0
+    Geom(
+         array('f', [-1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0]),
+         array('i', [0, 1, 2, 0, 2, 3]),
+    )
     """
     # Get STL mesh
     from stl import mesh
@@ -776,12 +757,6 @@ def check_geom_sanity(igeom):
     >>> geometry[0] = Geom([-1,-1,0, 1,-1,0, 0,1,0, 0,0,1], [2,1,0, 0,1,3, 1,2,3, 2,0,3])  # Good tet
     >>> check_geom_sanity(0)
     True
-
-#    >>> geometry[0] = from_STL('self_intersecting.stl')
-#    >>> check_geom_sanity(0)
-#    Traceback (most recent call last):
-#    ...
-#    Exception: ('Invalid GEOM, self-intersecting:', 79, 145)
     """
     check_loose_verts(igeom)
     check_degenerate_geometry(igeom)
@@ -789,15 +764,7 @@ def check_geom_sanity(igeom):
     check_euler(igeom)
 
     # Check correct normals for a solid in fluid FIXME working here
-
     # Check self intersection  # FIXME not working
-#    ifaces = get_ifaces(igeom)
-#    bsp = build_bsp(igeom, ifaces)
-#    inverted_bsp = get_inverted_bsp(bsp)
-#    clip_to(bsp, inverted_bsp)
-#    remaining_ifaces = get_all_ifaces_from_bsp(bsp)
-#    if remaining_ifaces:
-#        raise Exception('Invalid GEOM, self-intersecting at faces:', remaining_ifaces)
 
     return True
 
