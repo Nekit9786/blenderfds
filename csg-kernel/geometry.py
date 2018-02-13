@@ -59,6 +59,8 @@ def get_face(igeom, iface):
     >>> get_face(0, 1)
     array('i', [0, 2, 3])
     """
+    if iface > get_nfaces(igeom) -1:
+        raise Exception('iface not found')
     return geometry[igeom].faces[3*iface:3*iface+3]
 
 
@@ -71,6 +73,10 @@ def update_face(igeom, iface, face):
     >>> get_face(0, 1)
     array('i', [3, 2, 0])
     """
+    if not face:
+        raise Exception('Empty face updated')
+    if iface > get_nfaces(igeom) -1:
+        raise Exception('iface not found')
     geometry[igeom].faces[3*iface:3*iface+3] = array.array('i', face)
     return iface
 
@@ -79,11 +85,13 @@ def append_face(igeom, face):
     """
     Append a face to the Geom, register its parent, return its iface.
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, ])
-    >>> iface = append_face(0, [0,2,3])
+    >>> iface = append_face(0, (0,2,3))
     >>> get_face(0, iface)
     array('i', [0, 2, 3])
     """
     # Append face
+    if not face:
+        raise Exception('Empty face appended')
     geometry[igeom].faces.extend(face)
     iface = get_nfaces(igeom) - 1
     # Return
@@ -342,7 +350,7 @@ def split_iface(igeom, iface, plane):
                 )
             # Tell the caller about spl_iface1 (Only the new one!)
             spl_ifaces[spl_iface] = new_iface1
-
+            
     # Return
     return coplanar_front, coplanar_back, front, back, spl_ifaces
 
@@ -510,10 +518,10 @@ def get_halfedges(igeom, ifaces):
     Eg: {(1,2):7]} with {(ivert0, ivert1) : iface on the left}
     according to iface0 normal up
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])  # open
-    >>> print(get_halfedges(igeom=0, ifaces=get_ifaces(igeom=0)))
+    >>> get_halfedges(igeom=0, ifaces=get_ifaces(igeom=0))
     {(0, 1): 0, (1, 2): 0, (2, 0): 0, (0, 2): 1, (2, 3): 1, (3, 0): 1}
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,3,2])  # open, unorientable
-    >>> print(get_halfedges(igeom=0, ifaces=get_ifaces(igeom=0)))
+    >>> get_halfedges(igeom=0, ifaces=get_ifaces(igeom=0))
     Traceback (most recent call last):
     ...
     Exception: ('Invalid GEOM, non-manifold or unorientable at iface:', 1)
@@ -535,7 +543,7 @@ def get_border_halfedges(igeom, ifaces):
     Eg: {(1,2):7]} with {(ivert0, ivert1): iface on the left}
     according to iface0 normal up
     >>> geometry[0] = Geom([-1,-1,1, 1,-1,1, 1,1,1, -1,1,1], [0,1,2, 0,2,3])  # open
-    >>> print(get_border_halfedges(igeom=0, ifaces=get_ifaces(igeom=0)))
+    >>> get_border_halfedges(igeom=0, ifaces=get_ifaces(igeom=0))
     {(3, 0): 1, (2, 3): 1, (1, 2): 0, (0, 1): 0}
     """
     halfedges = get_halfedges(igeom, ifaces)

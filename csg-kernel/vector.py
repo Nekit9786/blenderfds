@@ -9,7 +9,7 @@ Created on Sat Feb 10 17:12:27 2018
 import math
 
 EPSILON = 1e-07
-EPSILON2 = 1e-07
+EPSILON2 = 1e-05
 
 
 class Vector(object):

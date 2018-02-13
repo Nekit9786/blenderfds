@@ -70,7 +70,7 @@ class BSP():
         """
         Build self from ifaces
         >>> geometry[0] = Geom([-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0], [0, 1, 2, 2, 3, 0, 3, 2, 4, 4, 5, 3, 5, 4, 6, 6, 7, 5, 1, 0, 7, 7, 6, 1, 7, 0, 3, 3, 5, 7, 4, 2, 1, 1, 6, 4])  # A cube
-        >>> print(BSP(igeom=0, ifaces=get_ifaces(0)))
+        >>> BSP(igeom=0, ifaces=get_ifaces(0))
         BSP tree igeom: 0, ifaces: [0]
             │ plane: Plane(n=Vector(-1.000, 0.000, 0.000), w=1.0)
             ├─front_bsp igeom: 0, ifaces: [1]
@@ -120,6 +120,7 @@ class BSP():
             i = 1
         # Select ifaces for front and back, split them if needed.
         # front and back are lists of ifaces
+        master_bsp = self.master_bsp
         front = []
         back = []
         for iface in ifaces[i:]:
@@ -134,9 +135,18 @@ class BSP():
             front.extend(new_coplanar_front)
             back.extend(new_coplanar_back)
             
-            # Update bsp tree
-            if spl_ifaces:
-                update_ifaces_in_bsp(self.master_bsp, spl_ifaces)
+            # Update lists and bsp tree
+            for spl_iface, new_iface in spl_ifaces.items():
+                if spl_iface in ifaces:
+                    ifaces.append(new_iface)
+                elif spl_iface in front:
+                    front.append(new_iface)
+                elif spl_iface in back:
+                    back.append(new_iface)                
+                else:
+                    ret = update_iface_in_bsp(master_bsp, spl_iface, new_iface)
+                    if not ret:
+                        print("B: NOT FOUND iface:", spl_iface)
         
         # Recursively build the BSP tree and return it
         if len(front) > 0:
@@ -172,7 +182,7 @@ class BSP():
         self.back_bsp = tmp
 
 
-def clip_ifaces(igeom, ifaces, clipping_bsp):  # FIXME test
+def clip_ifaces(igeom, ifaces, clipping_bsp, other=None):  # FIXME test
     """
     Recursively remove all ifaces that are inside the clipping_bsp tree.
     """
@@ -180,7 +190,10 @@ def clip_ifaces(igeom, ifaces, clipping_bsp):  # FIXME test
     plane = clipping_bsp.plane
     front = []
     back = []
-    for iface in ifaces:
+    while ifaces:
+        iface = ifaces.pop()
+        if iface == 49:
+            print("here")
         new_coplanar_front, new_coplanar_back, new_front, new_back, spl_ifaces = split_iface(
                 igeom=igeom,
                 iface=iface,
@@ -191,18 +204,32 @@ def clip_ifaces(igeom, ifaces, clipping_bsp):  # FIXME test
         front.extend(new_coplanar_front)
         back.extend(new_coplanar_back)
 
-        # Update bsp tree
-        if spl_ifaces:
-            update_ifaces_in_bsp(master_bsp, spl_ifaces)
+        # Update lists and bsp tree
+        for spl_iface, new_iface in spl_ifaces.items():
+            if spl_iface in ifaces:
+                ifaces.append(new_iface)
+            elif spl_iface in front:
+                front.append(new_iface)
+            elif spl_iface in back:
+                back.append(new_iface)
+            elif spl_iface in other:
+                print("Found in other!", spl_iface, ">", new_iface)
+            else:
+                ret = update_iface_in_bsp(master_bsp, spl_iface, new_iface)
+                if not ret:
+                    print("NOT FOUND iface:", spl_iface, ">", new_iface)
+                    if spl_iface == 49:
+                        print("here")
+#                    raise Exception("Not found in bsp, iface:", igeom, spl_iface)
 
     if clipping_bsp.front_bsp:
         # recurse on branches, conserve those polygons
-        front = clip_ifaces(igeom, front, clipping_bsp.front_bsp)
+        front = clip_ifaces(igeom, front, clipping_bsp.front_bsp, back)
 
     if clipping_bsp.back_bsp:
         # recurse on branches, conserve those polygons
-        back = clip_ifaces(igeom, back, clipping_bsp.back_bsp)
-    else:
+        back = clip_ifaces(igeom, back, clipping_bsp.back_bsp, front)
+    else:  # FIXME this removes clipping capacity
         back = []  # but remove polygons that are back of the leaves
 
     # send all non removed polygons, for recursion
@@ -215,10 +242,10 @@ def clip_to(bsp, clipping_bsp):  # FIX name, it returns None   # FIXME test
     Remove all polygons in bsp tree that are inside the clipping_bsp tree.
     Just send all bsp ifaces to clip_ifaces().
     """
-
+    
     bsp.ifaces = clip_ifaces(
             igeom=bsp.igeom,
-            ifaces=bsp.ifaces,
+            ifaces=bsp.ifaces[:],
             clipping_bsp=clipping_bsp,
             )
 
@@ -249,25 +276,20 @@ def get_all_ifaces_from_bsp(bsp):
     return ifaces
 
 
-def update_ifaces_in_bsp(bsp, spl_ifaces):  # FIXME test
-    """
-    Replace all ifaces with new_iface0 and new_iface1 in bsp tree
-    """
-    for spl_iface, new_iface in spl_ifaces.items():
-        update_iface_in_bsp(bsp, spl_iface, new_iface)
-
-
 def update_iface_in_bsp(bsp, spl_iface, new_iface):  # FIXME test
     """
     Replace iface with new_iface0 and new_iface1 in bsp tree
     """
     if spl_iface in bsp.ifaces:
         bsp.ifaces.append(new_iface)
-        return
+        return True
+    ret_front = False
+    ret_back = False
     if bsp.front_bsp:
-        update_iface_in_bsp(bsp.front_bsp, spl_iface, new_iface)
+        ret_front = update_iface_in_bsp(bsp.front_bsp, spl_iface, new_iface)
     if bsp.back_bsp:
-        update_iface_in_bsp(bsp.back_bsp, spl_iface, new_iface)
+        ret_back = update_iface_in_bsp(bsp.back_bsp, spl_iface, new_iface)
+    return ret_front or ret_back
 
 # New geom
     
@@ -367,33 +389,40 @@ def get_new_geom_from_bsp(bsp):  # FIXME test
 #    print("len(selected_ifaces) after merging of triangles:",len(selected_ifaces))
 
     # Solve local TJunctions FIXME or solve them globally? let's see
-    print("borders:", get_border_halfedges(igeom, selected_ifaces))
+    # print("borders:", get_border_halfedges(igeom, selected_ifaces))
 
-    # Get only selected iverts, avoid duplication
-    selected_iverts = []
-    for iface in selected_ifaces:
-        face = get_face(igeom, iface)
-        selected_iverts.extend((face[0], face[1], face[2]))
-    selected_iverts = set(selected_iverts)
-    # Build the ivert to new_ivert dict, and the corresponding new_verts
-    ivert_to_ivert = {}
-    new_verts = []
-    new_ivert = 0
-    for ivert in selected_iverts:
-        vert = get_vert(igeom, ivert)
-        new_verts.extend(vert)
-        ivert_to_ivert[ivert] = new_ivert
-        new_ivert += 1
-    # Build the new_faces
+#    # Get only selected iverts, avoid duplication
+#    selected_iverts = []
+#    for iface in selected_ifaces:
+#        face = get_face(igeom, iface)
+#        selected_iverts.extend((face[0], face[1], face[2]))
+#    selected_iverts = set(selected_iverts)
+#    # Build the ivert to new_ivert dict, and the corresponding new_verts
+#    ivert_to_ivert = {}
+#    new_verts = []
+#    new_ivert = 0
+#    for ivert in selected_iverts:
+#        vert = get_vert(igeom, ivert)
+#        new_verts.extend(vert)
+#        ivert_to_ivert[ivert] = new_ivert
+#        new_ivert += 1
+#    # Build the new_faces
+#    new_faces = []
+#    for iface in selected_ifaces:
+#        face = get_face(igeom, iface)
+#        new_faces.extend((
+#                ivert_to_ivert[face[0]],
+#                ivert_to_ivert[face[1]],
+#                ivert_to_ivert[face[2]],
+#                ))
+#    print("nverts after removal of duplicates:", len(new_verts)/3)
+    
+    # The simplest builder
+    new_verts = geometry[igeom].verts
     new_faces = []
-    for iface in selected_ifaces:
-        face = get_face(igeom, iface)
-        new_faces.extend((
-                ivert_to_ivert[face[0]],
-                ivert_to_ivert[face[1]],
-                ivert_to_ivert[face[2]],
-                ))
-    print("nverts after removal of duplicates:", len(new_verts)/3)
+    for selected_iface in selected_ifaces:
+        face = get_face(igeom, selected_iface)
+        new_faces.extend(face)
     return Geom(new_verts, new_faces)
 
 
