@@ -9,8 +9,7 @@ Created on Sat Feb 10 17:12:27 2018
 import math
 import array
 
-EPSILON = 1e-07
-EPSILON2 = 1e-05
+EPSILON = 1e-07  # FIXME different EPSILON for different applications
 
 
 class Vector(object):
@@ -178,7 +177,7 @@ class Plane():
         return Plane(self.normal.clone(), self.distance)
 
     @classmethod
-    def from_points(cls, points):  # FIXME check flat face
+    def from_points(cls, points):
         """
         Get a Plane from a list of points, after checking for collinearity.
         If collinear, return a None.
@@ -204,9 +203,6 @@ class Plane():
         """
         self.normal = -self.normal
         self.distance = -self.distance
-
-
-geometry = [None, None, None, None, None, None, ]
 
 
 class Geom():
@@ -328,299 +324,158 @@ class Geom():
         """
         return Plane.from_points(self.get_polygon_verts(ipolygon))
 
-    def split_polygon(self, ipolygon, plane, coplanar_front, coplanar_back, front, back):  # FIXME
+    def split_polygon(self, ipolygon, plane, coplanar_front,
+                      coplanar_back, front, back):  # FIXME test
         """
         Split ipolygon by a plane. Put the fragments in the inline lists.
+        Add cut_ivert to bordering polygons.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
+                       3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
+                     ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0))\
+                    )  # Open clover on z=0, n=+k
+        >>> h = g.clone()
+        >>> #  y ↑ 
+        >>> #   9─8
+        >>> #   │ │
+        >>> # 4─3─2─7
+        >>> # │ │∙│ │→ x
+        >>> # 5─0─1─6
+        >>> #   │ │
+        >>> #  10-11
+        >>> coplanar_front, coplanar_back, front, back = [], [], [], []
+        >>> g.split_polygon(0, Plane((1,0,0),0), \
+                            coplanar_front, coplanar_back, front, back)
+        >>> coplanar_front, coplanar_back, front, back
+        ([], [], [0], [5])
+        >>> g
+        Geom(
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,  -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,  3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,  -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,  0.000,-1.000,0.000,  0.000,1.000,0.000),
+            [[12, 1, 2, 13], [5, 0, 3, 4], [1, 6, 7, 2], [3, 13, 2, 8, 9], [10, 11, 1, 12, 0], [0, 12, 13, 3]],
+            )
+        >>> coplanar_front, coplanar_back, front, back = [], [], [], []
+        >>> h.split_polygon(0, Plane((0,1,0),0), \
+                            coplanar_front, coplanar_back, front, back)
+        >>> coplanar_front, coplanar_back, front, back
+        ([], [], [0], [5])
+        >>> h
+        Geom(
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,  -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,  3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,  -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,  1.000,0.000,0.000,  -1.000,0.000,0.000),
+            [[12, 2, 3, 13], [5, 0, 13, 3, 4], [1, 6, 7, 2, 12], [3, 2, 8, 9], [10, 11, 1, 0], [0, 1, 12, 13]],
+            )
+        >>> coplanar_front, coplanar_back, front, back = [], [], [], []
+        >>> g.split_polygon(0, Plane((0,0,1),0), \
+                            coplanar_front, coplanar_back, front, back)
+        >>> coplanar_front, coplanar_back, front, back
+        ([0], [], [], [])
+        >>> coplanar_front, coplanar_back, front, back = [], [], [], []
+        >>> g.split_polygon(0, Plane((0,0,-1),0), \
+                            coplanar_front, coplanar_back, front, back)
+        >>> coplanar_front, coplanar_back, front, back
+        ([], [0], [], [])
         """
-        COPLANAR = 0 # vertex of polygon within EPSILON distance from plane
-        FRONT = 1    # vertex of polygon in front of the plane
-        BACK = 2     # vertex of polygon at the back of the plane
-        SPANNING = 3 # spanning polygon
-        
+        # Init
+        COPLANAR = 0  # vertex of polygon within EPSILON distance from plane
+        FRONT = 1     # vertex of polygon in front of the plane
+        BACK = 2      # vertex of polygon at the back of the plane
+        SPANNING = 3  # spanning polygon
+
         polygon = self.get_polygon(ipolygon)
-        polygon_verts = self.get_polygon_verts(ipolygon)
         polygon_type = 0
-        ivert_types = []       
+        ivert_types = []
         polygon_nverts = len(polygon)
 
-        # Classify iverts types
-        for i in range(polygon_nverts):
-            distance = plane.normal.dot(polygon_verts[i]) - plane.distance
-            ivert_type = -1
-            if distance < -EPSILON: 
-                ivert_type = BACK
-            elif distance > EPSILON: 
-                ivert_type = FRONT
-            else: 
-                ivert_type = COPLANAR
-            polygon_type |= ivert_type
-            ivert_types.append(ivert_type)
-    
-        # Classify the polygon and put it in the correct list
-        if polygon_type == COPLANAR:
-            polygon_plane = self.get_plane_of_polygon(ipolygon)          
-            if plane.normal.dot(polygon_plane.normal) > 0:
-                coplanar_front.append(polygon)
-            else:
-                coplanar_back.append(polygon)
-        elif polygon_type == FRONT:
-            front.append(polygon)
-        elif polygon_type == BACK:
-            back.append(polygon)
-        elif polygon_type == SPANNING:  # FIXME FIXME arrivato fino a qui!
-            f = []
-            b = []
-            for i in range(polygon_nverts):
-                j = (i+1) % polygon_nverts
-                ti = ivert_types[i]
-                tj = ivert_types[j]
-                vi = polygon_verts[i]
-                vj = polygon_verts[j]
-                if ti != BACK: 
-                    f.append(vi)
-                if ti != FRONT:
-                    if ti != BACK: 
-                        b.append(vi.clone())
-                    else:
-                        b.append(vi)
-                if (ti | tj) == SPANNING:
-                    # interpolation weight at the intersection point
-                    t = (plane.distance - plane.normal.dot(vi)) / plane.normal.dot(vj.minus(vi))
-                    # intersection point on the plane
-                    v = vi.interpolate(vj, t)
-                    f.append(v)
-                    b.append(v.clone())
-            if len(f) >= 3: 
-                front.append(Polygon(f, polygon.shared))
-            if len(b) >= 3: 
-                back.append(Polygon(b, polygon.shared))
-
-
-
-
-    def split_iface(igeom, iface, plane):
-        """
-        Split iface from igeom by spl_iface of spl_igeom if needed.
-        Append new verts and new faces to geometry igeom.
-        Return ifaces in the appropriate lists.
-        >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0, -1,1,0, 1,1,0],[0,1,2, 0,2,3, 1,4,2]) # z = 0, axis +k
-        >>> split_iface(igeom=0, iface=0, plane=Plane((1,0,0),.5))  # other faces to cut
-        ([], [], [0], [3, 4], {2: 5})
-        >>> geometry[0]
-        Geom(
-             array('f', [-1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.5, 0.5, 0.0]),
-             array('i', [5, 1, 6, 0, 2, 3, 2, 6, 4, 0, 5, 6, 0, 6, 2, 6, 1, 4]),
-        )
-        >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0, -1,1,0, 1,1,0],[0,1,2, 0,2,3, 1,4,2]) # axis +z
-        >>> split_iface(igeom=0, iface=0, plane=Plane((1,0,0),-.5))  # other faces to cut
-        ([], [], [0, 3], [4], {1: 5})
-        >>> geometry[0]
-        Geom(
-             array('f', [-1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, -0.5, 0.0, 0.0, -0.5, 0.5, 0.0]),
-             array('i', [5, 1, 2, 0, 6, 3, 1, 4, 2, 5, 2, 6, 0, 5, 6, 6, 2, 3]),
-        )
-        >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0, -1,1,0, 1,1,0],[0,1,2, 0,2,3, 1,4,2]) # axis +z
-        >>> split_iface(igeom=0, iface=0, plane=Plane((0,-1,0),-.5))  # other faces to cut
-        ([], [], [0, 3], [4], {2: 5, 1: 6})
-        >>> geometry[0]
-        Geom(
-             array('f', [-1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]),
-             array('i', [0, 1, 5, 0, 6, 3, 2, 5, 4, 0, 5, 6, 5, 2, 6, 5, 1, 4, 6, 2, 3]),
-        )
-        >>> geometry[0] = Geom([-1,0,0, 1,0,0, 0,1,0],[0,1,2])  # axis +k
-        >>> split_iface(igeom=0, iface=0, plane=Plane((0,0,-1),0))  # copl back
-        ([], [0], [], [], {})
-        >>> split_iface(igeom=0, iface=0, plane=Plane((0,0, 1),0))  # copl front
-        ([0], [], [], [], {})
-        """
-        # Vertices and faces types, collections of ifaces
-        COPLANAR = 0  # vertex or face is within EPSILON2 distance from plane
-        FRONT = 1     # vertex or face is in front of the plane
-        BACK = 2      # vertex or face is at the back of the plane
-        SPANNING = 3  # edge is intersected
-        coplanar_front, coplanar_back, front, back = [], [], [], []
-    
         # The edges to be split,
         # eg. {(2,3): 1} with {(ivert0,ivert1): cut_ivert, ...}
-        # The opposite of the current edge is sent for easy search
+        # The opposite of the split edge is sent for easier search
         spl_edges = {}
-    
-        # Classify each point as well as the entire polygon
-        # into one of the above classes.
-        faceType = 0
-        vertexTypes = []
-        spl_normal, spl_distance = plane.n, plane.w
-        face = get_face(igeom, iface)
-        for ivert in face:
-            # Calc the distance between the vertex and the splitting plane
-            # then classify the vertex, and update classification of the face
-            vert = get_vert(igeom, ivert)
-            distance = spl_normal.dot(vert) - spl_distance
-            if distance < -EPSILON2:
-                vertexType = BACK
-            elif distance > EPSILON2:
-                vertexType = FRONT
+
+        # Calc the distance between the ivert and the splitting plane
+        # then classify the ivert, and update classification of the face
+        for ivert in polygon:
+            # Classify ivert using vert-plane distance
+            distance = plane.normal.dot(self.get_vert(ivert)) - plane.distance
+            ivert_type = -1
+            if distance < -EPSILON:
+                ivert_type = BACK
+            elif distance > EPSILON:
+                ivert_type = FRONT
             else:
-                vertexType = COPLANAR
-            faceType |= vertexType
-            vertexTypes.append(vertexType)
-    
-        # Put the face in the correct list, splitting it when necessary.
-        if faceType == COPLANAR:
-            iface_plane = get_plane_from_iface(igeom, iface)
-            iface_normal = iface_plane.n
-            if spl_normal.dot(iface_normal) > 0:
-                coplanar_front.append(iface)
+                ivert_type = COPLANAR
+            # Register ivert classification
+            ivert_types.append(ivert_type)
+            # Update polygon classification
+            polygon_type |= ivert_type
+
+        # Put the polygon in the correct list
+        if polygon_type == COPLANAR:
+            # Same or opposite normal?
+            polygon_normal = self.get_plane_of_polygon(ipolygon).normal
+            if plane.normal.dot(polygon_normal) > 0:
+                coplanar_front.append(ipolygon)
             else:
-                coplanar_back.append(iface)
-        elif faceType == FRONT:
-            front.append(iface)
-        elif faceType == BACK:
-            back.append(iface)
-        elif faceType == SPANNING:  # the face is spanning, so cut it
-            front_iverts, back_iverts = [], []  # front vertices, back vertices
-            for i in range(3):
-                j = (i+1) % 3
-                ti = vertexTypes[i]  # can be BACK, COPLANAR, FRONT
-                tj = vertexTypes[j]
-                vi = face[i]
-                vj = face[j]
-                # the edge is on one side or spanning?
-                if ti != BACK:
-                    front_iverts.append(vi)
-                if ti != FRONT:
-                    if ti != BACK:
-                        back_iverts.append(vi)
+                coplanar_back.append(ipolygon)
+        elif polygon_type == FRONT:
+            front.append(ipolygon)
+        elif polygon_type == BACK:
+            back.append(ipolygon)
+        elif polygon_type == SPANNING:
+            front_iverts = []
+            back_iverts = []
+            for i, ivert0 in enumerate(polygon):
+                # Get the edge ivert0-ivert1
+                j = (i+1) % polygon_nverts
+                ivert1 = polygon[j]
+                ivert0_type = ivert_types[i]
+                ivert1_type = ivert_types[j]
+                # Put ivert0 in the right lists
+                # to build the new edge
+                if ivert0_type != BACK:
+                    front_iverts.append(ivert0)
+                if ivert0_type != FRONT:
+                    if ivert0_type != BACK:
+                        back_iverts.append(ivert0)
                     else:
-                        back_iverts.append(vi)
-                if (ti | tj) == SPANNING:
-                    # interpolation weight at the intersection point
-                    vi_vert = get_vert(igeom, vi)
-                    vj_vert = get_vert(igeom, vj)
-                    t = (spl_distance - spl_normal.dot(vi_vert)) \
-                        / spl_normal.dot(vj_vert.minus(vi_vert))
-                    # intersection point on the plane
-                    cut_vert = vi_vert.lerp(vj_vert, t)
-                    cut_ivert = append_vert(igeom, cut_vert)
+                        back_iverts.append(ivert0)
+                if (ivert0_type | ivert1_type) == SPANNING:
+                    # The edge is spanning, calc new vert
+                    vert0 = self.get_vert(ivert0)
+                    vert1 = self.get_vert(ivert1)
+                    t = (plane.distance - plane.normal.dot(vert0)) \
+                        / plane.normal.dot(vert1 - vert0)
+                    cut_vert = vert0.lerp(vert1, t)
+                    cut_ivert = self.append_vert(cut_vert)
+                    # Register the split for domino to bordering polygons
+                    spl_edges[(ivert1, ivert0)] = cut_ivert
+                    # Append the new_vert to the right list
                     front_iverts.append(cut_ivert)
                     back_iverts.append(cut_ivert)
-                    # update spl_edges, the opposite for later search!
-                    spl_edges[(vj, vi)] = cut_ivert
-    
-            # Add front cut faces
+
+            # Update and append new polygons
             updated = False
-    
-            if len(front_iverts) > 2:
+            if len(front_iverts) >= 3:
+                updated = True
+                ipolygon = self.update_polygon(ipolygon, front_iverts)
+                front.append(ipolygon)
+            if len(back_iverts) >= 3:
                 if updated:
-                    new_iface = append_face(
-                        igeom,
-                        front_iverts[0:3],
-                        )
+                    ipolygon = self.append_polygon(back_iverts)
                 else:
                     updated = True
-                    new_iface = update_face(
-                        igeom,
-                        iface,
-                        front_iverts[0:3],
-                        )
-                front.append(new_iface)
-    
-                if len(front_iverts) == 4:
-                    if updated:
-                        new_iface = append_face(
-                            igeom,
-                            (front_iverts[0], front_iverts[2], front_iverts[3]),
-                            )
-                    else:
-                        updated = True
-                        new_iface = update_face(
-                            igeom,
-                            iface,
-                            (front_iverts[0], front_iverts[2], front_iverts[3]),
-                            )
-                    front.append(new_iface)
-            else:
-                raise Exception('Problem with front spanning:', front_iverts)
-    
-            # Add back cut faces
-            if len(back_iverts) > 2:
-                if updated:
-                    new_iface = append_face(
-                        igeom,
-                        back_iverts[0:3],
-                        )
-                else:
-                    updated = True
-                    new_iface = update_face(
-                        igeom,
-                        iface,
-                        back_iverts[0:3],
-                        )
-                back.append(new_iface)
-                if len(back_iverts) == 4:
-                    if updated:
-                        new_iface = append_face(
-                            igeom,
-                            (back_iverts[0], back_iverts[2], back_iverts[3]),
-                            )
-                    else:
-                        updated = True
-                        new_iface = update_face(
-                            igeom,
-                            iface,
-                            (back_iverts[0], back_iverts[2], back_iverts[3]),
-                            )
-                    back.append(new_iface)
-            else:
-                raise Exception('Problem with back spanning:', back_iverts)
-    
-        # Manage spl_edges FIXME FIXME test
-        spl_ifaces = {}  # {iface: iface0, iface1}
-        if spl_edges:  # FIXME
-            halfedges = get_halfedges(igeom, get_ifaces(igeom))  # FIXME not all ifaces!
-            for spl_edge, spl_ivert in spl_edges.items():
-                # Get the bordering face that is split
-                spl_iface = halfedges.get(spl_edge, None)
-                if spl_iface is None:  # FIXME on a border
+                    ipolygon = self.update_polygon(ipolygon, back_iverts)
+                back.append(ipolygon)
+
+            # Add cut_vert to bordering polygons
+            halfedges = self.get_halfedges()
+            for spl_edge, cut_ivert in spl_edges.items():
+                # Get the bordering polygon that is split by cut_ivert
+                spl_ipolygon = halfedges.get(spl_edge, None)
+                if spl_ipolygon is None:  # there is a border
                     continue
-                # Get its iverts, and find the far ivert
-                spl_face = get_face(igeom, spl_iface)
-                spl_face.remove(spl_edge[0])  # Remove unwanted
-                spl_face.remove(spl_edge[1])  # Remove unwanted
-                spl_face_ivert2 = spl_face[0]  # Get the left one
-                # Build the two new faces
-                new_iface0 = update_face(
-                        igeom,
-                        spl_iface,
-                        (spl_edge[0], spl_ivert, spl_face_ivert2),
-                    )
-                new_iface1 = append_face(
-                        igeom,
-                        (spl_ivert, spl_edge[1], spl_face_ivert2),
-                    )
-                # Tell the caller about spl_iface1 (Only the new one!)
-                spl_ifaces[spl_iface] = new_iface1
-                
-        # Return
-        return coplanar_front, coplanar_back, front, back, spl_ifaces
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                # Calc and update the bordering polygon
+                spl_polygon = self.get_polygon(spl_ipolygon)
+                i = spl_polygon.index(spl_edge[0])  # find right edge
+                spl_polygon.insert(i+1, cut_ivert)  # inject cut_ivert
+                self.update_polygon(spl_ipolygon, spl_polygon)
 
     def get_vert(self, ivert):
         """
@@ -886,8 +741,8 @@ class Geom():
     def check_is_solid(self):
         """
         Check surface:
-        - 2-manifold and closed, each edge should join two faces, no more no less
-        - orientable, adjoining faces should have normals in the same directions
+        - 2-manifold and closed, each edge should join two faces,
+        - orientable, adjoining faces should have same normals
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((0,1,3), (1,2,3), (2,0,3)) )  # Open tet
         >>> g.check_is_solid()
@@ -929,9 +784,10 @@ class Geom():
     def check_geom_sanity(self):
         """
         Check geometry sanity
-    
+
         If the mesh is correct and encloses a volume, this can be checked with
-        prior tests: checking orientability, non-borders, non-self-intersecting.
+        prior tests: checking orientability, non-borders,
+        non-self-intersecting.
         After that we can calculate its topological features and check if
         Euler's formula  C+V=A+2(S-H) is satisfied.
         If the mesh is not correct, many geometric algorithms will fail.
@@ -946,31 +802,10 @@ class Geom():
         self.check_loose_verts()
         self.check_degenerate_geometry()
         self.check_is_solid()
-#        self.check_euler()  
+#        self.check_euler()
+#        self.check_flat_polygons()
         # Check correct normals for a solid in fluid FIXME working here
         # Check self intersection  # FIXME not working
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
