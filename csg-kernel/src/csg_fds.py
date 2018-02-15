@@ -653,22 +653,28 @@ class Geom():
                 border_halfedges[halfedge] = ipolygon
         return border_halfedges
 
-    def _earclip_of_polygon(self, polygon):
+    def _earclip_of_polygon(self, polygon, start):
         polygon_nverts = len(polygon)
+        # Special cases
         if polygon_nverts == 3:
-            return polygon, [polygon, ]
-        for i in range(polygon_nverts):
-            ivert0 = polygon[(i-1) % polygon_nverts]
-            ivert1 = polygon[i]
-            ivert2 = polygon[(i+1) % polygon_nverts]
+            polygon_nverts == 2
+        elif polygon_nverts == 4:
+            polygon_nverts == 3
+        # Get the first good ear
+        for i in range(polygon_nverts-1):
+            ivert0 = polygon[(start+i) % polygon_nverts]
+            ivert1 = polygon[(start+i+1) % polygon_nverts]
+            ivert2 = polygon[(start+i+2) % polygon_nverts]
             a = self.get_vert(ivert0)
             b = self.get_vert(ivert1)
             c = self.get_vert(ivert2)
-            cross = b.minus(a).cross(c.minus(a))
+            b_a, c_b, c_a = b.minus(a), c.minus(b), c.minus(a)
+            cross = b_a.cross(c_a)
+            length = b_a.length() + c_b.length() + c_a.length()
             if cross.length() > 0.:
-                del(polygon[i])
-                return polygon, (ivert0, ivert1, ivert2)
-        raise Exception('Geom.get_tris_of_polygon(): Triangulation impossible, polygon verts:', polygon)
+                del(polygon[(start+i+1) % polygon_nverts])
+                return polygon, (ivert0, ivert1, ivert2), length
+        return polygon, None, 0.
 
     def get_tris_of_polygon(self, ipolygon):
         """
@@ -676,13 +682,13 @@ class Geom():
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 1,1,0, 0,1,0), \
                      ((0,1,2,3,4,5), ))  # Polyhedra, 6 edges, 3 collinear
         >>> g.get_tris_of_polygon(ipolygon=0)
-        [(4, 5, 0), (4, 0, 1), (4, 1, 2), (4, 2, 3)]
+        [(5, 0, 1), (5, 1, 2), (5, 2, 3), [3, 4, 5]]
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0), \
                      ((0,1,2,3,), ))    # Zero area polyhedra
         >>> g.get_tris_of_polygon(ipolygon=0)
         Traceback (most recent call last):
         ...
-        Exception: ('Geom.get_tris_of_polygon(): Zero area or edge, ipolygon:', 0)
+        Exception: ('Geom.get_tris_of_polygon(): Triangulation impossible, polygon:', [0, 1, 2, 3])
         >>> g = Geom((0,0,0, 1,0,0, 1,0,0, 3,1,0), \
                      ((0,1,2,3,), ))    # Zero lenght edge polyhedra
         >>> g.get_tris_of_polygon(ipolygon=0)
@@ -692,15 +698,28 @@ class Geom():
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 3,1,0, 3,2,0, 3,3,0), \
                      ((0,1,2,3,4,5,6), ))  # Polyhedra, 7 edges, alignments
         >>> g.get_tris_of_polygon(ipolygon=0)  # Alignments, should work
-        Test
+        Traceback (most recent call last):
+        ...
+        Exception: ('Geom.get_tris_of_polygon(): Triangulation impossible, polygon:', [3, 4, 5, 6])
         """
-        polygon = self.get_polygon(ipolygon)[:]  # send a copy
+        polygon = self.get_polygon(ipolygon)[:]  # work on a copy
+        # Short cut case
+        polygon_nverts = len(polygon)
+        if polygon_nverts == 3:
+            return polygon[:]
+        # Search for triangulation
         tris = []
-        while len(polygon) > 2:
-            print('Poly:',polygon)
-            polygon, tri = self._earclip_of_polygon(polygon)
-            tris.append(tri)
-        return tris
+        start = 0
+        while len(polygon) > 2 and len(polygon) - 1 > start:
+            polygon, tri, length = self._earclip_of_polygon(polygon, start)
+            if tri:
+                start = 0
+                tris.append(tri)
+            else:
+                start += 1
+        if tris:
+            return tris
+        raise Exception('Geom.get_tris_of_polygon(): Triangulation impossible, polygon:', polygon)
 
     # STL
 
