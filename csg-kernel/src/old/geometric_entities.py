@@ -104,14 +104,14 @@ class Vector(object):
     def __iter__(self):
         return iter((self.x, self.y, self.z))
 
+    def __hash__(self):
+        return hash((self.x, self.y, self.z))
+
     def __eq__(self, other):  # FIXME what isclose?
         return \
             math.isclose(self.x, other.x, rel_tol=EPSILON) and \
             math.isclose(self.y, other.y, rel_tol=EPSILON) and \
             math.isclose(self.z, other.z, rel_tol=EPSILON)
-
-    def __hash__(self):
-        return hash((self.x, self.y, self.z))
 
     def is_zero(self):
         return abs(self.x) < EPSILON and \
@@ -206,15 +206,19 @@ class Plane():
 
 
 class Geom():
-    def __init__(self, verts=None, polygons=None):
+    """
+    Representation of a polygonal geometry
+    """
+    def __init__(self, verts=None, polygons=None, hid=None):
+        self.hid = hid  # Geom name
         if verts is None:
             verts = ()
         if polygons is None:
             polygons = ((), )
         try:
-            # [1.,2.,3., 2.,3.,4., ...]
+            # Array of vertices coordinates, eg. [1.,2.,3., 2.,3.,4., ...]
             self.verts = array.array('f', verts)
-            # [[0,1,2,4], [1,2,3], ...]
+            # List of list of polygon connectivities, eg. [[0,1,2,4], ...]
             self.polygons = [list(p[:]) for p in polygons]
         except TypeError:
             raise Exception('Bad Geom() at init')
@@ -240,6 +244,34 @@ class Geom():
                 polygons=[p[:] for p in self.polygons],
                 )
 
+    def append(self, geom):
+        """
+        Append other geom to self.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
+        >>> h = Geom((-1,-1,2, 1,-1,2, 0,1,2, 0,0,1), \
+                     ((0,1,2), (3,1,0), (3,2,1), (3,0,2)) )  # but upside-down
+        >>> g.append(h); g
+        [0, 1, 2, 3, 4, 5, 6, 7]
+        Geom(
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,  0.000,0.000,1.000,  -1.000,-1.000,2.000,  1.000,-1.000,2.000,  0.000,1.000,2.000),
+            [[2, 1, 0], [0, 1, 3], [1, 2, 3], [2, 0, 3], [4, 5, 6], [3, 5, 4], [3, 6, 5], [3, 4, 6]],
+            )
+        """
+        # Extend verts
+        original_nverts = self.get_nverts()
+        self.verts.extend(geom.verts)
+        # Extend polygons
+        original_npolygons = self.get_npolygons()
+        self.polygons.extend(geom.polygons)
+        # Relink polygons to new iverts
+        for i, polygon in enumerate(self.polygons[original_npolygons:]):
+            for j, _ in enumerate(polygon):
+                polygon[j] += original_nverts
+        # Merge duplicate verts
+        self.merge_duplicated_verts()
+        return self.get_ipolygons()
+        
     def flip(self):
         """
         Flip self polygons normals.
@@ -325,7 +357,7 @@ class Geom():
         return Plane.from_points(self.get_polygon_verts(ipolygon))
 
     def split_polygon(self, ipolygon, plane, coplanar_front,
-                      coplanar_back, front, back):  # FIXME test
+                      coplanar_back, front, back):
         """
         Split ipolygon by a plane. Put the fragments in the inline lists.
         Add cut_ivert to bordering polygons.
@@ -334,7 +366,7 @@ class Geom():
                      ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0))\
                     )  # Open clover on z=0, n=+k
         >>> h = g.clone()
-        >>> #  y ↑ 
+        >>> #  y ↑
         >>> #   9─8
         >>> #   │ │
         >>> # 4─3─2─7
@@ -518,7 +550,6 @@ class Geom():
         """
         return [i for i in range(int(len(self.verts)/3))]
 
-
     def merge_duplicated_verts(self):
         """
         Remove dup verts, and relink all polygons. No mod of polygons.
@@ -556,7 +587,7 @@ class Geom():
             verts.extend(pyvert)
         self.verts = verts
 
-    # edges
+    # Edges
 
     def get_halfedges(self, ipolygons=None):
         """
@@ -779,8 +810,7 @@ class Geom():
 #    chi = nverts - nedges + nfaces
 #    if chi not in range(2, 100, 2):
 #        raise Exception('Invalid GEOM, chi in Euler formula is:', chi)
-#
-#
+
     def check_geom_sanity(self):
         """
         Check geometry sanity
@@ -807,6 +837,37 @@ class Geom():
         # Check correct normals for a solid in fluid FIXME working here
         # Check self intersection  # FIXME not working
 
+    # Boolean
+    
+    def union(self, geom):
+        """
+        Update current geom to represent union with geom.
+        """
+        # Create abd build BSP trees
+        a = BSPNode(self)
+        a.build()
+        b = BSPNode(geom)
+        b.build()
+        
+        # Remove each interior
+        a.clip_to(b)
+        b.clip_to(a)
+        
+        # Remove shared coplanars
+        b.invert()
+        b.clip_to(a)
+        b.invert()
+
+        # Join trees and geometries
+        a.append(b)
+
+        # Sync polygons from bsp tree to self
+        new_polygons = []
+        for ipolygon in a.get_all_ipolygons():
+            new_polygons.append(self.get_polygon(ipolygon))
+        self.polygons = new_polygons
+        
+        # Repair the mesh FIXME
 
 if __name__ == "__main__":
     import doctest
