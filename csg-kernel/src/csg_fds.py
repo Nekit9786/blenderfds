@@ -9,12 +9,14 @@ Created on Sat Feb 10 17:12:27 2018
 import math
 import array
 import textwrap
+import random
 
 EPSILON = 1e-6  # FIXME different EPSILON for different applications
+EPSILON_CUT = 1e-06
 
 
 class Vector(object):
-    def __init__(self, *args):  # FIXME simplify
+    def __init__(self, *args):
         self.x, self.y, self.z = 0., 0., 0.
         if len(args) == 3:  # Vector(1,2,3)
             self.x, self.y, self.z = args[0], args[1], args[2]
@@ -178,7 +180,7 @@ class Plane():
         self.distance = distance  # distance from (0, 0, 0)
 
     def __repr__(self):
-        return 'Plane(normal={}, distance={})'.format(
+        return 'Plane(normal={}, distance={:.3f})'.format(
                 self.normal, self.distance
                 )
 
@@ -189,29 +191,36 @@ class Plane():
     def from_points(cls, points):
         """
         Get a Plane from a list of points, after checking for collinearity.
+        Robust algorithm, good for slightly concave polygons.
         If collinear, return a None.
-        >>> Plane.from_points(((0,0,0,),(1,0,0),(2,0,0),(3,0,1)))
-        Plane(normal=Vector(0.000, -1.000, 0.000), distance=0)
-        >>> Plane.from_points(((0,0,0,),(1,0,0),(2,0,0),(3,0,0)))
+        >>> Plane.from_points(((0,0,5,),(1,0,5),(2,0,5),(0,1,5)))   # Convex
+        Plane(normal=Vector(0.000, 0.000, 1.000), distance=5.000)
+        >>> Plane.from_points(((0,0,5,),(1,.1,5),(2,0,5),(0,1,5)))  # Concave
+        Plane(normal=Vector(0.000, 0.000, 1.000), distance=5.000)
+        >>> Plane.from_points(((1,0,0,),(0,1,0),(1,0,1),))          # Inclined
+        Plane(normal=Vector(0.707, 0.707, 0.000), distance=0.707)
+        >>> Plane.from_points(((0,0,0,),(1,0,0),(2,0,0),(3,0,0)))   # Collinear
         Traceback (most recent call last):
         ...
         Exception: ('Plane.from_points(): Could not find a plane, points:', ((0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0)))
         """
         len_points = len(points)
+        tot_normal = Vector()
         for i, a in enumerate(points):
             a = Vector(a)
             b = Vector(points[(i + 1) % len_points])
             c = Vector(points[(i + 2) % len_points])
-            normal = b.minus(a).cross(c.minus(a))
-            if not normal.is_zero():
-                return Plane(normal.unit(), normal.dot(a))
-        raise Exception('Plane.from_points(): Could not find a plane, points:', points)
+            tot_normal += b.minus(a).cross(c.minus(a))
+        if tot_normal.is_zero():
+            raise Exception('Plane.from_points(): Could not find a plane, points:', points)
+        normal = tot_normal.unit()
+        return Plane(normal, a.dot(normal))
 
     def flip(self):
         """
         Flip self normal.
         >>> p = Plane(normal=(1,0,0), distance=5); p.flip() ; p
-        Plane(normal=Vector(-1.000, -0.000, -0.000), distance=-5)
+        Plane(normal=Vector(-1.000, -0.000, -0.000), distance=-5.000)
         """
         self.normal = -self.normal
         self.distance = -self.distance
@@ -221,7 +230,7 @@ class Geom():
     """
     Representation of a polygonal geometry
     """
-    def __init__(self, verts=None, polygons=None, hid=None):
+    def __init__(self, verts=None, polygons=None, surfids=None, hid=None):
         self.hid = hid  # Geom name
         if verts is None:
             verts = ()
@@ -232,8 +241,16 @@ class Geom():
             self.verts = array.array('f', verts)
             # List of list of polygon connectivities, eg. [[0,1,2,4], ...]
             self.polygons = [list(p[:]) for p in polygons]
+            # List of polygon surfid indexes, eg. [0,0,1,2,5, ...]
         except TypeError:
             raise Exception('Geom.__init__(): Bad Geom(), hid:', hid)
+        # Set surfids
+        if surfids is None:
+            self.surfids = [random.randint(1, 3) for polygon in self.polygons]
+        else:
+            self.surfids = list(surfids)
+        if len(self.surfids) != len(self.polygons):
+            raise Exception('Geom.__init__(): Bad surfids in Geom(), hid:', hid)
 
     def __repr__(self):
         """
@@ -280,21 +297,36 @@ class Geom():
         for i, polygon in enumerate(self.polygons[original_npolygons:]):
             for j, _ in enumerate(polygon):
                 polygon[j] += original_nverts
+        # Extend surfids
+        self.surfids.extend(geom.surfids)
         # Merge duplicate verts
         self.merge_duplicated_verts()
         return self.get_ipolygons()
+        # Merge borders FIXME FIXME
 
     def flip(self):
         """
-        Flip self polygons normals.
+        Flip all polygon normals.
         >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), ); g.flip(); g
         Geom(
             (),
             [[3, 2, 1], [4, 3, 2, 1], [5, 4, 3, 2, 1]],
             )
         """
-        for p in self.polygons:
-            p.reverse()
+        for polygon in self.polygons:
+            polygon.reverse()
+
+    def flip_polygons(self, ipolygons):  # FIXME used?
+        """
+        Flip polygon normals.
+        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), ); g.flip_polygons((1,2)); g
+        Geom(
+            (),
+            [[1, 2, 3], [4, 3, 2, 1], [5, 4, 3, 2, 1]],
+            )
+        """
+        for ipolygon in ipolygons:
+            self.polygons[ipolygon].reverse()
 
     def get_polygon(self, ipolygon):
         """
@@ -314,6 +346,14 @@ class Geom():
         """
         return [self.get_vert(ivert) for ivert in self.get_polygon(ipolygon)]
 
+    def get_polygon_surfid(self, ipolygon):
+        """
+        Get ipolygon surfid.
+        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), (0,1,2)); g.get_polygon_surfid(1)
+        1
+        """
+        return self.surfids[ipolygon]
+
     def update_polygon(self, ipolygon, polygon):
         """
         Update ipolygon connectivity.
@@ -326,16 +366,18 @@ class Geom():
         self.polygons[ipolygon] = list(polygon)
         return ipolygon
 
-    def append_polygon(self, polygon):
+    def append_polygon(self, polygon, surfid):
         """
         Append a polygon.
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.append_polygon((0,0,0)); g.get_polygon(4)
+        >>> g.append_polygon((0,0,0), 1); g.get_polygon(4); g.get_polygon_surfid(4)
         4
         [0, 0, 0]
+        1
         """
         self.polygons.append(list(polygon))
+        self.surfids.append(surfid)
         ipolygon = self.get_npolygons() - 1
         return ipolygon
 
@@ -364,7 +406,7 @@ class Geom():
         Get plane containing ipolygon.
         >>> g = Geom((0,0,1, 1,0,1, 2,0,1, 0,1,1,), ((0,1,2,3), ))
         >>> g.get_plane_of_polygon(0)
-        Plane(normal=Vector(0.000, -0.000, 1.000), distance=1.0)
+        Plane(normal=Vector(0.000, 0.000, 1.000), distance=1.000)
         """
         return Plane.from_points(self.get_polygon_verts(ipolygon))
 
@@ -375,7 +417,8 @@ class Geom():
         Add cut_ivert to bordering polygons.
         >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
                        3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
-                     ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0))\
+                     ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0)),\
+                     (0,1,2,3,4), \
                     )  # Open clover on z=0, n=+k
         >>> h = g.clone()
         >>> #  y ↑
@@ -391,6 +434,8 @@ class Geom():
                             coplanar_front, coplanar_back, front, back)
         >>> coplanar_front, coplanar_back, front, back
         ([], [], [0], [5])
+        >>> g.to_OBJ('../test/clover.obj')
+        to_OBJ: ../test/clover.obj
         >>> g
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,  -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,  3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,  -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,  0.000,-1.000,0.000,  0.000,1.000,0.000),
@@ -418,7 +463,7 @@ class Geom():
         ([], [0], [], [])
         """
         # Init
-        COPLANAR = 0  # vertex of polygon within EPSILON distance from plane
+        COPLANAR = 0  # vertex of polygon within EPSILON_CUT distance from plane
         FRONT = 1     # vertex of polygon in front of the plane
         BACK = 2      # vertex of polygon at the back of the plane
         SPANNING = 3  # spanning polygon
@@ -427,6 +472,7 @@ class Geom():
         polygon_type = 0
         ivert_types = []
         polygon_nverts = len(polygon)
+        surfid = self.get_polygon_surfid(ipolygon)
 
         # The edges to be split,
         # eg. {(2,3): 1} with {(ivert0,ivert1): cut_ivert, ...}
@@ -439,9 +485,9 @@ class Geom():
             # Classify ivert using vert-plane distance
             distance = plane.normal.dot(self.get_vert(ivert)) - plane.distance
             ivert_type = -1
-            if distance < -EPSILON * plane.distance:  # FIXME
+            if distance < -EPSILON_CUT * abs(plane.distance):  # FIXME
                 ivert_type = BACK
-            elif distance > EPSILON * plane.distance:  # FIXME
+            elif distance > EPSILON_CUT * abs(plane.distance):  # FIXME
                 ivert_type = FRONT
             else:
                 ivert_type = COPLANAR
@@ -498,15 +544,16 @@ class Geom():
             updated = False
             if len(front_iverts) >= 3:
                 updated = True
-                ipolygon = self.update_polygon(ipolygon, front_iverts)
-                front.append(ipolygon)
+                new_ipolygon = self.update_polygon(ipolygon, front_iverts)
+                front.append(new_ipolygon)
+
             if len(back_iverts) >= 3:
                 if updated:
-                    ipolygon = self.append_polygon(back_iverts)
+                    new_ipolygon = self.append_polygon(back_iverts, surfid)
                 else:
                     updated = True
-                    ipolygon = self.update_polygon(ipolygon, back_iverts)
-                back.append(ipolygon)
+                    new_ipolygon = self.update_polygon(ipolygon, back_iverts)
+                back.append(new_ipolygon)
 
             # Add cut_vert to bordering polygons
             halfedges = self.get_halfedges()
@@ -568,12 +615,14 @@ class Geom():
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1, 0,1,0, 0,1,0, 1,-1,0, 1,-1,0,), \
                      ((2,6,0), (0,1,3), (7,4,3), (5,0,3)) )  # Dup verts, 8>4
         >>> g.merge_duplicated_verts(); g
+        4
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,  0.000,0.000,1.000),
             [[2, 1, 0], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
             )
         """
         # Find unique verts and build ivert_to_ivert dict
+        original_nverts = self.get_nverts()
         unique_pyverts = []
         ivert_to_ivert = {}
         nverts = self.get_nverts()
@@ -598,6 +647,7 @@ class Geom():
         for pyvert in unique_pyverts:
             verts.extend(pyvert)
         self.verts = verts
+        return original_nverts - self.get_nverts()
 
     # Edges
 
@@ -653,81 +703,76 @@ class Geom():
                 border_halfedges[halfedge] = ipolygon
         return border_halfedges
 
-    def _earclip_of_polygon(self, polygon, start):
+    def _get_earclip_of_polygon(self, polygon, normal):
         polygon_nverts = len(polygon)
-        # Special cases
-        if polygon_nverts == 3:
-            polygon_nverts == 2
-        elif polygon_nverts == 4:
-            polygon_nverts == 3
         # Get the first good ear
         for i in range(polygon_nverts-1):
-            ivert0 = polygon[(start+i) % polygon_nverts]
-            ivert1 = polygon[(start+i+1) % polygon_nverts]
-            ivert2 = polygon[(start+i+2) % polygon_nverts]
+            ivert0 = polygon[(i) % polygon_nverts]
+            ivert1 = polygon[(i+1) % polygon_nverts]
+            ivert2 = polygon[(i+2) % polygon_nverts]
             a = self.get_vert(ivert0)
             b = self.get_vert(ivert1)
             c = self.get_vert(ivert2)
             b_a, c_b, c_a = b.minus(a), c.minus(b), c.minus(a)
             cross = b_a.cross(c_a)
-            length = b_a.length() + c_b.length() + c_a.length()
-            if cross.length() > 0.:
-                del(polygon[(start+i+1) % polygon_nverts])
-                return polygon, (ivert0, ivert1, ivert2), length
-        return polygon, None, 0.
+            if cross.dot(normal) > 0.:
+                del(polygon[(i+1) % polygon_nverts])
+                return polygon, (ivert0, ivert1, ivert2)
+        raise Exception('Geom.get_tris_of_polygon(): Triangulation impossible, tri:', a,b,c)
+
+    def _get_tris_of_polygon(self, ipolygon):
+        # Protect the original polygon
+        polygon = self.get_polygon(ipolygon)[:]
+        polygon_nverts = len(polygon)
+        # Short cut
+        if polygon_nverts == 3:
+            return [tuple(polygon), ]
+        # Get the polygon overall normal
+        normal = self.get_plane_of_polygon(ipolygon).normal
+        # Search for triangulation
+        tris = []
+        while len(polygon) > 2:
+            polygon, tri = self._get_earclip_of_polygon(polygon, normal)
+            tris.append(tri)
+        return tris
 
     def get_tris_of_polygon(self, ipolygon):
         """
         Triangulate ipolygon with no zero-area tris
+        >>> g = Geom((0,0,0, 1,0,0, 0,1,0), \
+                     ((0,1,2), ))           # Simple triangle
+        >>> g.get_tris_of_polygon(ipolygon=0)
+        [(0, 1, 2)]
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 1,1,0, 0,1,0), \
-                     ((0,1,2,3,4,5), ))  # Polyhedra, 6 edges, 3 collinear
+                     ((0,1,2,3,4,5), ))      # Polyhedra, 6 edges, 3 collinear
         >>> g.get_tris_of_polygon(ipolygon=0)
-        [(5, 0, 1), (5, 1, 2), (5, 2, 3), [3, 4, 5]]
+        [(2, 3, 4), (1, 2, 4), (0, 1, 4), (0, 4, 5)]
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0), \
-                     ((0,1,2,3,), ))    # Zero area polyhedra
+                     ((0,1,2,3,), ))         # Zero area polyhedra
         >>> g.get_tris_of_polygon(ipolygon=0)
         Traceback (most recent call last):
         ...
-        Exception: ('Geom.get_tris_of_polygon(): Triangulation impossible, polygon:', [0, 1, 2, 3])
+        Exception: ('Plane.from_points(): Could not find a plane, points:', [Vector(0.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000), Vector(2.000, 0.000, 0.000), Vector(3.000, 0.000, 0.000)])
         >>> g = Geom((0,0,0, 1,0,0, 1,0,0, 3,1,0), \
-                     ((0,1,2,3,), ))    # Zero lenght edge polyhedra
+                     ((0,1,2,3,), ))         # Zero lenght edge polyhedra
         >>> g.get_tris_of_polygon(ipolygon=0)
         Traceback (most recent call last):
         ...
-        Exception: ('Geom.get_tris_of_polygon(): Zero area or edge, ipolygon:', 0)
+        Exception: ('Geom.get_tris_of_polygon(): Triangulation impossible, tri:', Vector(1.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000), Vector(0.000, 0.000, 0.000))
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 3,1,0, 3,2,0, 3,3,0), \
-                     ((0,1,2,3,4,5,6), ))  # Polyhedra, 7 edges, alignments
+                     ((0,1,2,3,4,5,6), ))    # Polyhedra, 7 edges, alignments
         >>> g.get_tris_of_polygon(ipolygon=0)  # Alignments, should work
-        Traceback (most recent call last):
-        ...
-        Exception: ('Geom.get_tris_of_polygon(): Triangulation impossible, polygon:', [3, 4, 5, 6])
+        [(2, 3, 4), (1, 2, 4), (0, 1, 4), (0, 4, 5), (0, 5, 6)]
         """
-        polygon = self.get_polygon(ipolygon)[:]  # work on a copy
-        # Short cut case
-        polygon_nverts = len(polygon)
-        if polygon_nverts == 3:
-            return polygon[:]
-        # Search for triangulation
-        tris = []
-        start = 0
-        while len(polygon) > 2 and len(polygon) - 1 > start:
-            polygon, tri, length = self._earclip_of_polygon(polygon, start)
-            if tri:
-                start = 0
-                tris.append(tri)
-            else:
-                start += 1
-        if tris:
-            return tris
-        raise Exception('Geom.get_tris_of_polygon(): Triangulation impossible, polygon:', polygon)
+        return self._get_tris_of_polygon(ipolygon)
 
-    # STL
+    # STL/OBJ
 
     def to_STL(self, filename):
         """
         Write self to STL file
         >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
-                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0,\
+                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0, \
                        1.0, -1.0, -1.0,   1.0, -1.0, 1.0), \
                     ((0,1,2,3), (7,6,5,4), (1,7,4,2), \
                      (0,3,5,6), (1,0,6,7), (2,4,5,3)) )  # A good cube
@@ -735,9 +780,11 @@ class Geom():
         to_STL: ../test/doctest.stl
         >>> Geom.from_STL('../test/doctest.stl')
         Geom(
-            (-1.000,1.000,-1.000,  -1.000,-1.000,-1.000,  -1.000,-1.000,1.000,  -1.000,1.000,1.000,  1.000,1.000,1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,  1.000,1.000,-1.000),
-            [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [3, 2, 5], [3, 5, 4], [6, 1, 0], [6, 0, 7], [5, 2, 1], [5, 1, 6], [0, 3, 4], [0, 4, 7]],
+            (-1.000,-1.000,-1.000,  -1.000,-1.000,1.000,  -1.000,1.000,1.000,  -1.000,1.000,-1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,  1.000,1.000,-1.000,  1.000,1.000,1.000),
+            [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [1, 4, 7], [1, 7, 2], [0, 3, 6], [0, 6, 5], [1, 0, 5], [1, 5, 4], [2, 7, 6], [2, 6, 3]],
             )
+        >>> g.to_STL('../test/doctest.stl')
+        to_STL: ../test/doctest.stl
         """
         with open(filename, 'w') as f:
             f.write('solid name\n')
@@ -754,8 +801,70 @@ class Geom():
             f.write('endsolid name\n')
         print('to_STL:', filename)
 
+    def to_OBJ(self, filepath):
+        """
+        Write self to OBJ file
+        >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
+                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0, \
+                       1.0, -1.0, -1.0,   1.0, -1.0, 1.0), \
+                    ((0,1,2,3), (7,6,5,4), (1,7,4,2), \
+                     (0,3,5,6), (1,0,6,7), (2,4,5,3)),\
+                     (0, 0, 1, 1, 2, 2,))  # A good cube w surfid
+        >>> g.to_OBJ('../test/doctest.obj')
+        to_OBJ: ../test/doctest.obj
+        """
+        import os
+        path, filename = os.path.split(filepath)
+        # Arrange polygons by surfid
+        polygons = self.polygons[:]
+        surfid_to_polygons = {}
+        for ipolygon, polygon in enumerate(polygons):
+            surfid = self.get_polygon_surfid(ipolygon)
+            try:
+                surfid_to_polygons[surfid].append(polygon)
+            except KeyError:
+                surfid_to_polygons[surfid] = [polygon, ]
+        # Write geometry
+        with open(filepath, 'w') as f:
+            f.write('# Reference to materials\n')
+            f.write('mtllib {}.mtl\n'.format(filename))
+            f.write('# List of vertices x,y,z\n')
+            for ivert in self.get_iverts():
+                vert = self.get_vert(ivert)
+                new_vert = (vert[0], vert[2], -vert[1])
+                f.write('v {0[0]} {0[1]} {0[2]}\n'.format(new_vert))
+            f.write('# List of polygons by material (surfid)\n')
+            for surfid in surfid_to_polygons:
+                f.write('usemtl {}\n'.format(surfid))
+                for polygon in surfid_to_polygons[surfid]:
+                    str_polygon = ' '.join([str(ivert+1) for ivert in polygon])
+                    f.write('f {}\n'.format(str_polygon))
+            f.write('# End\n')
+        # Write predefined materials
+        with open('{}/{}.mtl'.format(path, filename), 'w') as f:
+            f.write(
+                    """
+                    # Materials
+                    newmtl 0
+                    Kd 0.6 0.0 0.0
+                    newmtl 1
+                    Kd 0.6 0.6 0.6
+                    newmtl 2
+                    Kd 0.0 0.6 0.0
+                    newmtl 3
+                    Kd 0.0 0.0 0.6
+                    newmtl 4
+                    Kd 0.0 0.6 0.6
+                    newmtl 5
+                    Kd 0.6 0.0 0.6
+                    newmtl 6
+                    Kd 0.6 0.6 0.0
+                    """
+                    )
+        print('to_OBJ:', filepath)
+
     @classmethod
-    def from_STL(cls, filename):
+    def from_STL(cls, filename, surfid=0):
         """
         Get new Geom from STL file
         Doctest in Geom.to_STL()
@@ -763,7 +872,7 @@ class Geom():
         # Get STL mesh
         from stl import mesh
         mesh = mesh.Mesh.from_file(filename)
-        verts, polygons, py_verts = [], [], []
+        verts, polygons, surfids, py_verts = [], [], [], []
         for iface, p in enumerate(mesh.points):
             # p is [-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0]
             verts.extend(p)
@@ -771,7 +880,8 @@ class Geom():
             py_verts.append((p[0], p[1], p[2]))
             py_verts.append((p[3], p[4], p[5]))
             py_verts.append((p[6], p[7], p[8]))
-        g = Geom(verts, polygons)
+            surfids.append(surfid)
+        g = Geom(verts, polygons, surfids)
         g.merge_duplicated_verts()
         g.check_geom_sanity()
         return g
@@ -798,6 +908,9 @@ class Geom():
             raise Exception("Geom.check_loose_verts(): Invalid GEOM, loose verts.")
 
     def check_degenerate_geometry(self):
+        """
+        FIXME
+        """
         for ipolygon in range(self.get_npolygons()):
             self.get_tris_of_polygon(ipolygon)
 
@@ -871,35 +984,11 @@ class Geom():
 
     # Boolean
 
-    def union(self, geom):
+    def union(self, geom):  # FIXME
         """
         Update current geom to represent union with geom.
         """
-        # Create abd build BSP trees
-        a = BSPNode(self)
-        a.build()
-        b = BSPNode(geom)
-        b.build()
-
-        # Remove each interior
-        a.clip_to(b)
-        b.clip_to(a)
-
-        # Remove shared coplanars
-        b.invert()
-        b.clip_to(a)
-        b.invert()
-
-        # Join trees and geometries
-        a.append(b)
-
-        # Sync polygons from bsp tree to self
-        new_polygons = []
-        for ipolygon in a.get_all_ipolygons():
-            new_polygons.append(self.get_polygon(ipolygon))
-        self.polygons = new_polygons
-
-        # Repair the mesh FIXME
+        pass
 
 # BSP tree
 
@@ -910,18 +999,65 @@ class BSPNode(object):
                  ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
     >>> n = BSPNode(geom=g); n.build(); n
     BSP tree - geom hid: None, ipolygons: [0]
-        │ plane: Plane(normal=Vector(0.000, -0.000, -1.000), distance=0.0)
+        │ plane: Plane(normal=Vector(0.000, 0.000, -1.000), distance=-0.000)
         ├─front_node: None
         └─back_node: geom hid: None, ipolygons: [1]
-          │ plane: Plane(normal=Vector(0.000, -0.707, 0.707), distance=2.0)
+          │ plane: Plane(normal=Vector(0.000, -0.707, 0.707), distance=0.707)
           ├─front_node: None
           └─back_node: geom hid: None, ipolygons: [2]
-            │ plane: Plane(normal=Vector(0.816, 0.408, 0.408), distance=1.0)
+            │ plane: Plane(normal=Vector(0.816, 0.408, 0.408), distance=0.408)
             ├─front_node: None
             └─back_node: geom hid: None, ipolygons: [3]
-              │ plane: Plane(normal=Vector(-0.816, 0.408, 0.408), distance=1.0)
+              │ plane: Plane(normal=Vector(-0.816, 0.408, 0.408), distance=0.408)
               ├─front_node: None
               └─back_node: None
+    >>> g = Geom((0,1,0, 1,1,0, 1,2,0, -1,2,0, -1,-2,0, 1,-2,0, 1,-1,0, 0,-1,0,\
+                  0,1,1, 1,1,1, 1,2,1, -1,2,1, -1,-2,1, 1,-2,1, 1,-1,1, 0,-1,1,\
+                  ), \
+                 ((3,2,1,0), (7,4,3,0), (7,6,5,4), \
+                  (8,9,10,11), (8,11,12,15), (12,13,14,15), \
+                  (12,11,3,4), (7,0,8,15), (9,8,0,1), (6,7,15,14), (11,10,2,3), (13,12,4,5), (1,2,10,9), (5,6,14,13), \
+                  ) )  # Good concave C shape
+    >>> n = BSPNode(geom=g); n.build(); n
+    BSP tree - geom hid: None, ipolygons: [0, 1, 2]
+        │ plane: Plane(normal=Vector(0.000, 0.000, -1.000), distance=0.000)
+        ├─front_node: None
+        └─back_node: geom hid: None, ipolygons: [3, 4, 5]
+          │ plane: Plane(normal=Vector(0.000, 0.000, 1.000), distance=1.000)
+          ├─front_node: None
+          └─back_node: geom hid: None, ipolygons: [6]
+            │ plane: Plane(normal=Vector(-1.000, 0.000, 0.000), distance=1.000)
+            ├─front_node: None
+            └─back_node: geom hid: None, ipolygons: [7]
+              │ plane: Plane(normal=Vector(1.000, 0.000, 0.000), distance=0.000)
+              ├─front_node: geom hid: None, ipolygons: [8]
+              │ │ plane: Plane(normal=Vector(0.000, -1.000, 0.000), distance=-1.000)
+              │ ├─front_node: geom hid: None, ipolygons: [9]
+                │ │ plane: Plane(normal=Vector(0.000, 1.000, 0.000), distance=-1.000)
+                │ ├─front_node: None
+                │ └─back_node: geom hid: None, ipolygons: [11]
+                    │ plane: Plane(normal=Vector(0.000, -1.000, 0.000), distance=2.000)
+                    ├─front_node: None
+                    └─back_node: geom hid: None, ipolygons: [13]
+                      │ plane: Plane(normal=Vector(1.000, 0.000, 0.000), distance=1.000)
+                      ├─front_node: None
+                      └─back_node: None
+              │ └─back_node: geom hid: None, ipolygons: [10]
+                  │ plane: Plane(normal=Vector(0.000, 1.000, 0.000), distance=2.000)
+                  ├─front_node: None
+                  └─back_node: geom hid: None, ipolygons: [12]
+                    │ plane: Plane(normal=Vector(1.000, 0.000, 0.000), distance=1.000)
+                    ├─front_node: None
+                    └─back_node: None
+              └─back_node: geom hid: None, ipolygons: [14]
+                │ plane: Plane(normal=Vector(0.000, 1.000, 0.000), distance=2.000)
+                ├─front_node: None
+                └─back_node: geom hid: None, ipolygons: [15]
+                  │ plane: Plane(normal=Vector(0.000, -1.000, 0.000), distance=2.000)
+                  ├─front_node: None
+                  └─back_node: None
+    >>> g.to_OBJ('../test/c-shape2.obj')
+    to_OBJ: ../test/c-shape2.obj
     """
     def __init__(self, geom):
         # Tree
@@ -970,22 +1106,28 @@ class BSPNode(object):
         node.ipolygons = self.ipolygons[:]
         return node
 
-    def invert(self):
+    def _invert_node(self):
         """
-        Swap solid space and empty space.
+        FIXME
         """
         # Flip normals
-        self.geom.flip()
         self.plane.flip()
         # Invert tree
         if self.front_node:
-            self.front_node.invert()
+            self.front_node._invert_node()
         if self.back_node:
-            self.back_node.invert()
+            self.back_node._invert_node()
         # Swap front and back nodes
         temp = self.front_node
         self.front_node = self.back_node
         self.back_node = temp
+
+    def invert(self):
+        """
+        Swap solid space and empty space.
+        """
+        self.geom.flip()  # Invert geometry, once for all
+        self._invert_node()  # Invert bsp tree
 
     def clip_polygons(self, geom, ipolygons):
         """
@@ -1088,41 +1230,92 @@ class BSPNode(object):
         """
         geom = self.geom
         new_polygons = []
+        new_surfids = []
         for ipolygon in self.get_all_ipolygons():
             new_polygons.append(geom.get_polygon(ipolygon))
+            new_surfids.append(geom.get_polygon_surfid(ipolygon))
         geom.polygons = new_polygons
+        geom.surfids = new_surfids
 
+    def _merge_coplanar_polygons(self, halfedge, ipolygon0, ipolygon1):
+        # Merge, no check for convexity
+        polygon0 = self.geom.get_polygon(ipolygon0)
+        polygon1 = self.geom.get_polygon(ipolygon1)
+        i0e0 = polygon0.index(halfedge[0])  # FIXME to be solved
+        i0e1 = polygon0.index(halfedge[1])
+        i1e0 = polygon1.index(halfedge[0])
+        i1e1 = polygon1.index(halfedge[1])
+        new_polygon = polygon0[:i00+1] + polygon1[i1+2:] + polygon1[:i1] + polygon0[i0+1:]
+        self.geom.update_polygon(ipolygon0, new_polygon)
+        self.ipolygons.remove(ipolygon1)
+
+    def _merge_polygon_to_concave(self):
+        done = False
+        while not done:
+            halfedges = self.geom.get_halfedges(self.ipolygons[:])
+            for halfedge, ipolygon0 in halfedges.items():
+                done = True
+                opposite = halfedge[1], halfedge[0]
+                try:
+                    # Has a merging candidate?
+                    ipolygon1 = halfedges[opposite]
+                except KeyError:
+                    pass
+                else:
+                    # Same surfid?
+                    surfid = self.geom.get_polygon_surfid(ipolygon0)
+                    if surfid == self.geom.get_polygon_surfid(ipolygon1):
+                        self._merge_coplanar_polygons(halfedge, ipolygon0, ipolygon1)
+                        done = False
+                        break
+
+    def merge_polygons_to_concave(self):
+        """
+        Merge coplanar polygons with same surfid to concave polygons
+        """
+        self._merge_polygon_to_concave()
+#        if self.front_node: FIXME
+#            self.front_node._merge_polygon_to_concave()
+#        if self.back_node:
+#            self.back_node._merge_polygon_to_concave()
 
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-#    name = "concave"
-#
-#    g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name))
-#    h = Geom.from_STL(filename='../test/{0}/{0}_b.stl'.format(name))
-#
-#    # Create and build BSP trees
-#    a = BSPNode(g)
-#    a.build()
-#
-#    b = BSPNode(h)
-#    b.build()
-#
-#    # Remove each interior
-#    a.clip_to(b)
-#    b.clip_to(a)
-#
-#    # Remove shared coplanars
-#    b.invert()
-#    b.clip_to(a)
-#    b.invert()
-#
-#    # Sync
-#    a.sync_geom()
-#    b.sync_geom()
-#
-#    # Join trees and geometries
-#    # a.append(b)
-#
-#    g.to_STL(filename='../test/{0}/{0}_union.stl'.format(name))
+    name = "icosphere"
+
+    g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name), surfid=0)
+    h = Geom.from_STL(filename='../test/{0}/{0}_b.stl'.format(name), surfid=1)
+
+    # Create and build BSP trees
+    a = BSPNode(g)
+    a.build()
+
+    b = BSPNode(h)
+    b.build()
+
+    # Remove each interior
+    a.clip_to(b)
+    b.clip_to(a)
+
+    # Remove shared coplanars
+    b.invert()
+    b.clip_to(a)
+    b.invert()
+
+    # Merge coplanar polygons
+    a.merge_polygons_to_concave()
+
+    # Sync
+    a.sync_geom()
+    b.sync_geom()
+
+    # Merge borders FIXME
+
+    # Join flat faces, same surfid
+
+    # Join trees and geometries
+    a.append(b)
+
+    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
