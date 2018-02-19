@@ -148,7 +148,6 @@ class Vector(object):
 #            return True
 #        return False
 
-
     def is_within(self, p, r):
         """
         Return true if q is between p and r (inclusive).
@@ -199,10 +198,12 @@ class Plane():
         Plane(normal=Vector(0.000, 0.000, 1.000), distance=5.000)
         >>> Plane.from_points(((1,0,0,),(0,1,0),(1,0,1),))          # Inclined
         Plane(normal=Vector(0.707, 0.707, 0.000), distance=0.707)
-        >>> Plane.from_points(((0,0,0,),(1,0,0),(2,0,0),(3,0,0)))   # Collinear
+        >>> Plane.from_points(((0,0,0,),(1,0,0),(2,0,0),(3,0,0))) \
+            # Collinear # doctest: +NORMALIZE_WHITESPACE
         Traceback (most recent call last):
         ...
-        Exception: ('Plane.from_points(): Could not find a plane, points:', ((0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0)))
+        Exception: ('Could not find a plane, points:',
+                    ((0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0)))
         """
         len_points = len(points)
         tot_normal = Vector()
@@ -212,7 +213,7 @@ class Plane():
             c = Vector(points[(i + 2) % len_points])
             tot_normal += b.minus(a).cross(c.minus(a))
         if tot_normal.is_zero():
-            raise Exception('Plane.from_points(): Could not find a plane, points:', points)
+            raise Exception('Could not find a plane, points:', points)
         normal = tot_normal.unit()
         return Plane(normal, a.dot(normal))
 
@@ -243,14 +244,14 @@ class Geom():
             self.polygons = [list(p[:]) for p in polygons]
             # List of polygon surfid indexes, eg. [0,0,1,2,5, ...]
         except TypeError:
-            raise Exception('Geom.__init__(): Bad Geom(), hid:', hid)
+            raise Exception('Bad Geom(), hid:', hid)
         # Set surfids
         if surfids is None:
             self.surfids = [random.randint(1, 3) for polygon in self.polygons]
         else:
             self.surfids = list(surfids)
         if len(self.surfids) != len(self.polygons):
-            raise Exception('Geom.__init__(): Bad surfids in Geom(), hid:', hid)
+            raise Exception('Bad surfids in Geom(), hid:', hid)
 
     def __repr__(self):
         """
@@ -280,11 +281,14 @@ class Geom():
                      ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
         >>> h = Geom((-1,-1,2, 1,-1,2, 0,1,2, 0,0,1), \
                      ((0,1,2), (3,1,0), (3,2,1), (3,0,2)) )  # but upside-down
-        >>> g.append(h); g
+        >>> g.append(h); g  # doctest: +NORMALIZE_WHITESPACE
         [0, 1, 2, 3, 4, 5, 6, 7]
         Geom(
-            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,  0.000,0.000,1.000,  -1.000,-1.000,2.000,  1.000,-1.000,2.000,  0.000,1.000,2.000),
-            [[2, 1, 0], [0, 1, 3], [1, 2, 3], [2, 0, 3], [4, 5, 6], [3, 5, 4], [3, 6, 5], [3, 4, 6]],
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,
+            0.000,0.000,1.000,  -1.000,-1.000,2.000,  1.000,-1.000,2.000,
+            0.000,1.000,2.000),
+            [[2, 1, 0], [0, 1, 3], [1, 2, 3], [2, 0, 3], [4, 5, 6],
+            [3, 5, 4], [3, 6, 5], [3, 4, 6]],
             )
         """
         # Extend verts
@@ -316,18 +320,6 @@ class Geom():
         for polygon in self.polygons:
             polygon.reverse()
 
-    def flip_polygons(self, ipolygons):  # FIXME used?
-        """
-        Flip polygon normals.
-        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), ); g.flip_polygons((1,2)); g
-        Geom(
-            (),
-            [[1, 2, 3], [4, 3, 2, 1], [5, 4, 3, 2, 1]],
-            )
-        """
-        for ipolygon in ipolygons:
-            self.polygons[ipolygon].reverse()
-
     def get_polygon(self, ipolygon):
         """
         Get ipolygon connectivity.
@@ -341,15 +333,17 @@ class Geom():
         Get ipolygon verts.
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.get_polygon_verts(0)
-        [Vector(0.000, 1.000, 0.000), Vector(1.000, -1.000, 0.000), Vector(-1.000, -1.000, 0.000)]
+        >>> g.get_polygon_verts(0)  # doctest: +NORMALIZE_WHITESPACE
+        [Vector(0.000, 1.000, 0.000), Vector(1.000, -1.000, 0.000),
+         Vector(-1.000, -1.000, 0.000)]
         """
         return [self.get_vert(ivert) for ivert in self.get_polygon(ipolygon)]
 
     def get_polygon_surfid(self, ipolygon):
         """
         Get ipolygon surfid.
-        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), (0,1,2)); g.get_polygon_surfid(1)
+        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), (0,1,2))
+        >>> g.get_polygon_surfid(1)
         1
         """
         return self.surfids[ipolygon]
@@ -371,9 +365,10 @@ class Geom():
         Append a polygon.
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.append_polygon((0,0,0), 1); g.get_polygon(4); g.get_polygon_surfid(4)
+        >>> g.append_polygon((0,0,0), 1); g.get_polygon(4)
         4
         [0, 0, 0]
+        >>> g.get_polygon_surfid(4)
         1
         """
         self.polygons.append(list(polygon))
@@ -417,8 +412,8 @@ class Geom():
         Add cut_ivert to bordering polygons.
         >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
                        3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
-                     ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0)),\
-                     (0,1,2,3,4), \
+                     ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9),\
+                     (10,11,1,0)), (0,1,2,3,4), \
                     )  # Open clover on z=0, n=+k
         >>> h = g.clone()
         >>> #  y ↑
@@ -436,20 +431,30 @@ class Geom():
         ([], [], [0], [5])
         >>> g.to_OBJ('../test/clover.obj')
         to_OBJ: ../test/clover.obj
-        >>> g
+        >>> g  # doctest: +NORMALIZE_WHITESPACE
         Geom(
-            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,  -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,  3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,  -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,  0.000,-1.000,0.000,  0.000,1.000,0.000),
-            [[12, 1, 2, 13], [5, 0, 3, 4], [1, 6, 7, 2], [3, 13, 2, 8, 9], [10, 11, 1, 12, 0], [0, 12, 13, 3]],
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,
+             -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,
+             3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,
+             -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,
+             0.000,-1.000,0.000,  0.000,1.000,0.000),
+            [[12, 1, 2, 13], [5, 0, 3, 4], [1, 6, 7, 2], [3, 13, 2, 8, 9],
+            [10, 11, 1, 12, 0], [0, 12, 13, 3]],
             )
         >>> coplanar_front, coplanar_back, front, back = [], [], [], []
         >>> h.split_polygon(0, Plane((0,1,0),0), \
                             coplanar_front, coplanar_back, front, back)
         >>> coplanar_front, coplanar_back, front, back
         ([], [], [0], [5])
-        >>> h
+        >>> h  # doctest: +NORMALIZE_WHITESPACE
         Geom(
-            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,  -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,  3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,  -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,  1.000,0.000,0.000,  -1.000,0.000,0.000),
-            [[12, 2, 3, 13], [5, 0, 13, 3, 4], [1, 6, 7, 2, 12], [3, 2, 8, 9], [10, 11, 1, 0], [0, 1, 12, 13]],
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,
+            -1.000,1.000,0.000,  -3.000,1.000,0.000,  -3.000,-1.000,0.000,
+            3.000,-1.000,0.000,  3.000,1.000,0.000,  1.000,3.000,0.000,
+            -1.000,3.000,0.000,  -1.000,-3.000,0.000,  1.000,-3.000,0.000,
+            1.000,0.000,0.000,  -1.000,0.000,0.000),
+            [[12, 2, 3, 13], [5, 0, 13, 3, 4], [1, 6, 7, 2, 12], [3, 2, 8, 9],
+            [10, 11, 1, 0], [0, 1, 12, 13]],
             )
         >>> coplanar_front, coplanar_back, front, back = [], [], [], []
         >>> g.split_polygon(0, Plane((0,0,1),0), \
@@ -463,7 +468,7 @@ class Geom():
         ([], [0], [], [])
         """
         # Init
-        COPLANAR = 0  # vertex of polygon within EPSILON_CUT distance from plane
+        COPLANAR = 0  # vertex of polygon in EPSILON_CUT distance f plane
         FRONT = 1     # vertex of polygon in front of the plane
         BACK = 2      # vertex of polygon at the back of the plane
         SPANNING = 3  # spanning polygon
@@ -612,12 +617,14 @@ class Geom():
     def merge_duplicated_verts(self):
         """
         Remove dup verts, and relink all polygons. No mod of polygons.
-        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1, 0,1,0, 0,1,0, 1,-1,0, 1,-1,0,), \
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1, 0,1,0, 0,1,0, \
+                      1,-1,0, 1,-1,0,), \
                      ((2,6,0), (0,1,3), (7,4,3), (5,0,3)) )  # Dup verts, 8>4
-        >>> g.merge_duplicated_verts(); g
+        >>> g.merge_duplicated_verts(); g  # doctest: +NORMALIZE_WHITESPACE
         4
         Geom(
-            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,  0.000,0.000,1.000),
+            (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,
+             0.000,0.000,1.000),
             [[2, 1, 0], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
             )
         """
@@ -658,16 +665,18 @@ class Geom():
         according to iface0 normal up
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.get_halfedges(ipolygons=None)
-        {(2, 1): 0, (1, 0): 0, (0, 2): 0, (0, 1): 1, (1, 3): 1, (3, 0): 1, (1, 2): 2, (2, 3): 2, (3, 1): 2, (2, 0): 3, (0, 3): 3, (3, 2): 3}
-        >>> g.get_halfedges(ipolygons=(1,2,3))
-        {(0, 1): 1, (1, 3): 1, (3, 0): 1, (1, 2): 2, (2, 3): 2, (3, 1): 2, (2, 0): 3, (0, 3): 3, (3, 2): 3}
+        >>> g.get_halfedges(ipolygons=None) # doctest: +NORMALIZE_WHITESPACE
+        {(2, 1): 0, (1, 0): 0, (0, 2): 0, (0, 1): 1, (1, 3): 1, (3, 0): 1,
+         (1, 2): 2, (2, 3): 2, (3, 1): 2, (2, 0): 3, (0, 3): 3, (3, 2): 3}
+        >>> g.get_halfedges(ipolygons=(1,2,3)) # doctest: +NORMALIZE_WHITESPACE
+        {(0, 1): 1, (1, 3): 1, (3, 0): 1, (1, 2): 2, (2, 3): 2, (3, 1): 2,
+         (2, 0): 3, (0, 3): 3, (3, 2): 3}
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((2,1,0), (0,1,3), (1,2,3), (3,0,2)) )  # Unorient tet
         >>> g.get_halfedges()
         Traceback (most recent call last):
         ...
-        Exception: ('Geom.get_halfedges(): Non-manifold or unorientable at ipolygon:', 3)
+        Exception: ('Non-manifold or unorientable at ipolygon:', 3)
         """
         if ipolygons is None:
             ipolygons = self.get_ipolygons()
@@ -678,11 +687,13 @@ class Geom():
             for i in range(polygon_nverts):
                 halfedge = (polygon[i], polygon[(i+1) % polygon_nverts])
                 if halfedge in halfedges:
-                    raise Exception('Geom.get_halfedges(): Non-manifold or unorientable at ipolygon:', ipolygon)
+                    raise Exception(
+                            'Non-manifold or unorientable at ipolygon:',
+                            ipolygon)
                 halfedges[halfedge] = ipolygon
         return halfedges
 
-    def get_border_halfedges(self, ipolygons=None):
+    def get_border_halfedges(self, ipolygons=None):  # FIXME FIXME test test
         """
         Get border halfedges dict
         Eg: {(1,2):7]} with {(ivert0, ivert1): iface on the left}
@@ -703,6 +714,70 @@ class Geom():
                 border_halfedges[halfedge] = ipolygon
         return border_halfedges
 
+    def get_all_bordering_polygons(self, ipolygons, halfedges):  # FIXME to be developed
+        pass
+
+    def get_border_loops(self, ipolygons=None):
+        """
+        FIXME
+        Get oriented border vert loops,
+        Eg: [3,0,1,2,] with ivert0, ivert1, ...
+        according to iface0 normal up
+#        >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
+#               3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
+#             ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0)),\
+#             (0,1,2,3,4), \
+#            )  # Open clover on z=0, n=+k
+#        >>> g.get_border_loops()
+#        [[5, 0, 10, 11, 1, 6, 7, 2, 8, 9, 3, 4]]
+        """
+        border_halfedges = self.get_border_halfedges(ipolygons)
+        # Get loops
+        loops = {}
+        while border_halfedges:
+            halfedge, ipolygon = border_halfedges.popitem()
+            loop = [halfedge[0], halfedge[1]]
+            loop_ipolygons = [ipolygon, ]
+            # While loop not closed
+            while loop[-1] != loop[0]:
+                # Get candidates for the loop
+                candidates = []
+                for halfedge, ipolygon in border_halfedges.items():
+                    if loop[-1] == halfedge[0]:
+                        candidates.append((halfedge, ipolygon))
+                # Good vert or singularity?
+                # Choose the candidate that goes home
+                if len(candidates) == 1:
+                    halfedge, ipolygon = candidates[0]
+                elif len(candidates) == 2:
+                    ve = Vector(self.get_vert(loop[-2])) \
+                         - Vector(self.get_vert(loop[-1]))
+                    v0 = Vector(self.get_vert(candidates[0][0][0])) \
+                        - Vector(self.get_vert(candidates[0][0][1]))
+                    v1 = Vector(self.get_vert(candidates[1][0][0])) \
+                        - Vector(self.get_vert(candidates[1][0][1]))
+                    dot0 = v0.dot(ve)
+                    dot1 = v1.dot(ve)
+                    if dot0 < dot1:
+                        halfedge, ipolygon = candidates[0]
+                    else:
+                        halfedge, ipolygon = candidates[1]
+                else:  # In case of 0 or more than 2 candidates
+                    raise Exception('Invalid GEOM, non-manifold in:',
+                                    self.get_vert(loop[-1]))
+                # Append candidate
+                del(border_halfedges[halfedge])
+                loop.append(halfedge)
+                loop_ipolygons.append(ipolygon)
+            # Closed
+            loop.pop()  # Remove last duplicated
+            loops[loop] = ipolygons
+            # Get all included polygons FIXME
+            loops[loop].append(
+                    self.get_all_bordering_polygons(ipolygons, halfedges)
+                    )
+        return loops
+
     def _get_earclip_of_polygon(self, polygon, normal):
         polygon_nverts = len(polygon)
         # Get the first good ear
@@ -718,7 +793,7 @@ class Geom():
             if cross.dot(normal) > 0.:
                 del(polygon[(i+1) % polygon_nverts])
                 return polygon, (ivert0, ivert1, ivert2)
-        raise Exception('Geom.get_tris_of_polygon(): Triangulation impossible, tri:', a,b,c)
+        raise Exception('Triangulation impossible, tri:', a, b, c)
 
     def _get_tris_of_polygon(self, ipolygon):
         # Protect the original polygon
@@ -749,16 +824,20 @@ class Geom():
         [(2, 3, 4), (1, 2, 4), (0, 1, 4), (0, 4, 5)]
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0), \
                      ((0,1,2,3,), ))         # Zero area polyhedra
-        >>> g.get_tris_of_polygon(ipolygon=0)
+        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
         Traceback (most recent call last):
         ...
-        Exception: ('Plane.from_points(): Could not find a plane, points:', [Vector(0.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000), Vector(2.000, 0.000, 0.000), Vector(3.000, 0.000, 0.000)])
+        Exception: ('Could not find a plane, points:',
+                    [Vector(0.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000),
+                    Vector(2.000, 0.000, 0.000), Vector(3.000, 0.000, 0.000)])
         >>> g = Geom((0,0,0, 1,0,0, 1,0,0, 3,1,0), \
                      ((0,1,2,3,), ))         # Zero lenght edge polyhedra
-        >>> g.get_tris_of_polygon(ipolygon=0)
+        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
         Traceback (most recent call last):
         ...
-        Exception: ('Geom.get_tris_of_polygon(): Triangulation impossible, tri:', Vector(1.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000), Vector(0.000, 0.000, 0.000))
+        Exception: ('Triangulation impossible, tri:',
+                    Vector(1.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000),
+                    Vector(0.000, 0.000, 0.000))
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 3,1,0, 3,2,0, 3,3,0), \
                      ((0,1,2,3,4,5,6), ))    # Polyhedra, 7 edges, alignments
         >>> g.get_tris_of_polygon(ipolygon=0)  # Alignments, should work
@@ -778,10 +857,15 @@ class Geom():
                      (0,3,5,6), (1,0,6,7), (2,4,5,3)) )  # A good cube
         >>> g.to_STL('../test/doctest.stl')
         to_STL: ../test/doctest.stl
-        >>> Geom.from_STL('../test/doctest.stl')
+        >>> Geom.from_STL('../test/doctest.stl') \
+            # doctest: +NORMALIZE_WHITESPACE
         Geom(
-            (-1.000,-1.000,-1.000,  -1.000,-1.000,1.000,  -1.000,1.000,1.000,  -1.000,1.000,-1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,  1.000,1.000,-1.000,  1.000,1.000,1.000),
-            [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [1, 4, 7], [1, 7, 2], [0, 3, 6], [0, 6, 5], [1, 0, 5], [1, 5, 4], [2, 7, 6], [2, 6, 3]],
+            (-1.000,-1.000,-1.000,  -1.000,-1.000,1.000,  -1.000,1.000,1.000,
+            -1.000,1.000,-1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,
+            1.000,1.000,-1.000,  1.000,1.000,1.000),
+            [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [1, 4, 7],
+            [1, 7, 2], [0, 3, 6], [0, 6, 5], [1, 0, 5], [1, 5, 4],
+            [2, 7, 6], [2, 6, 3]],
             )
         >>> g.to_STL('../test/doctest.stl')
         to_STL: ../test/doctest.stl
@@ -794,8 +878,10 @@ class Geom():
                     f.write('facet normal 0 0 0\n')
                     f.write(' outer loop\n')
                     for ivert in tri:
-                        f.write('  vertex {v[0]:.9f} {v[1]:.9f} {v[2]:.9f}\n'.format(
-                                v=self.get_vert(ivert)))
+                        f.write('  vertex'
+                                '{v[0]:.9f} {v[1]:.9f} {v[2]:.9f}\n'.format(
+                                  v=self.get_vert(ivert)),
+                                )
                     f.write(' endloop\n')
                     f.write('endfacet\n')
             f.write('endsolid name\n')
@@ -896,7 +982,7 @@ class Geom():
         >>> g.check_loose_verts()
         Traceback (most recent call last):
         ...
-        Exception: Geom.check_loose_verts(): Invalid GEOM, loose verts.
+        Exception: Invalid GEOM, loose verts.
         """
         nverts = self.get_nverts()
         npolygons = self.get_npolygons()
@@ -905,7 +991,7 @@ class Geom():
             used_iverts.extend(self.get_polygon(ipolygon))
         used_iverts = set(used_iverts)
         if nverts != len(used_iverts) or nverts != max(used_iverts) + 1:
-            raise Exception("Geom.check_loose_verts(): Invalid GEOM, loose verts.")
+            raise Exception("Invalid GEOM, loose verts.")
 
     def check_degenerate_geometry(self):
         """
@@ -924,11 +1010,11 @@ class Geom():
         >>> g.check_is_solid()
         Traceback (most recent call last):
         ...
-        Exception: ('Geom.check_is_solid(): Non closed at ipolygons:', [2, 1, 0])
+        Exception: ('Non closed at ipolygons:', [2, 1, 0])
         """
         border_halfedges = self.get_border_halfedges()
         if border_halfedges:
-            raise Exception("Geom.check_is_solid(): Non closed at ipolygons:",
+            raise Exception("Non closed at ipolygons:",
                             [b for b in border_halfedges.values()])
 
 #def check_euler(self):  # FIXME test
@@ -990,6 +1076,7 @@ class Geom():
         """
         pass
 
+
 # BSP tree
 
 class BSPNode(object):
@@ -997,7 +1084,7 @@ class BSPNode(object):
     A node in a BSP tree.
     >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                  ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-    >>> n = BSPNode(geom=g); n.build(); n
+    >>> n = BSPNode(geom=g); n.build(); n  # doctest: +NORMALIZE_WHITESPACE
     BSP tree - geom hid: None, ipolygons: [0]
         │ plane: Plane(normal=Vector(0.000, 0.000, -1.000), distance=-0.000)
         ├─front_node: None
@@ -1008,17 +1095,21 @@ class BSPNode(object):
             │ plane: Plane(normal=Vector(0.816, 0.408, 0.408), distance=0.408)
             ├─front_node: None
             └─back_node: geom hid: None, ipolygons: [3]
-              │ plane: Plane(normal=Vector(-0.816, 0.408, 0.408), distance=0.408)
+              │ plane: Plane(normal=Vector(-0.816, 0.408, 0.408),
+                             distance=0.408)
               ├─front_node: None
               └─back_node: None
-    >>> g = Geom((0,1,0, 1,1,0, 1,2,0, -1,2,0, -1,-2,0, 1,-2,0, 1,-1,0, 0,-1,0,\
-                  0,1,1, 1,1,1, 1,2,1, -1,2,1, -1,-2,1, 1,-2,1, 1,-1,1, 0,-1,1,\
+    >>> g = Geom((0,1,0, 1,1,0, 1,2,0, -1,2,0, -1,-2,0, 1,-2,0, 1,-1,0, \
+                  0,-1,0,\
+                  0,1,1, 1,1,1, 1,2,1, -1,2,1, -1,-2,1, 1,-2,1, 1,-1,1, \
+                  0,-1,1,\
                   ), \
                  ((3,2,1,0), (7,4,3,0), (7,6,5,4), \
                   (8,9,10,11), (8,11,12,15), (12,13,14,15), \
-                  (12,11,3,4), (7,0,8,15), (9,8,0,1), (6,7,15,14), (11,10,2,3), (13,12,4,5), (1,2,10,9), (5,6,14,13), \
+                  (12,11,3,4), (7,0,8,15), (9,8,0,1), (6,7,15,14), \
+                  (11,10,2,3), (13,12,4,5), (1,2,10,9), (5,6,14,13), \
                   ) )  # Good concave C shape
-    >>> n = BSPNode(geom=g); n.build(); n
+    >>> n = BSPNode(geom=g); n.build(); n  # doctest: +NORMALIZE_WHITESPACE
     BSP tree - geom hid: None, ipolygons: [0, 1, 2]
         │ plane: Plane(normal=Vector(0.000, 0.000, -1.000), distance=0.000)
         ├─front_node: None
@@ -1029,31 +1120,40 @@ class BSPNode(object):
             │ plane: Plane(normal=Vector(-1.000, 0.000, 0.000), distance=1.000)
             ├─front_node: None
             └─back_node: geom hid: None, ipolygons: [7]
-              │ plane: Plane(normal=Vector(1.000, 0.000, 0.000), distance=0.000)
+              │ plane: Plane(normal=Vector(1.000, 0.000, 0.000),
+                             distance=0.000)
               ├─front_node: geom hid: None, ipolygons: [8]
-              │ │ plane: Plane(normal=Vector(0.000, -1.000, 0.000), distance=-1.000)
+              │ │ plane: Plane(normal=Vector(0.000, -1.000, 0.000),
+                               distance=-1.000)
               │ ├─front_node: geom hid: None, ipolygons: [9]
-                │ │ plane: Plane(normal=Vector(0.000, 1.000, 0.000), distance=-1.000)
+                │ │ plane: Plane(normal=Vector(0.000, 1.000, 0.000),
+                                 distance=-1.000)
                 │ ├─front_node: None
                 │ └─back_node: geom hid: None, ipolygons: [11]
-                    │ plane: Plane(normal=Vector(0.000, -1.000, 0.000), distance=2.000)
+                    │ plane: Plane(normal=Vector(0.000, -1.000, 0.000),
+                                   distance=2.000)
                     ├─front_node: None
                     └─back_node: geom hid: None, ipolygons: [13]
-                      │ plane: Plane(normal=Vector(1.000, 0.000, 0.000), distance=1.000)
+                      │ plane: Plane(normal=Vector(1.000, 0.000, 0.000),
+                                     distance=1.000)
                       ├─front_node: None
                       └─back_node: None
               │ └─back_node: geom hid: None, ipolygons: [10]
-                  │ plane: Plane(normal=Vector(0.000, 1.000, 0.000), distance=2.000)
+                  │ plane: Plane(normal=Vector(0.000, 1.000, 0.000),
+                                 distance=2.000)
                   ├─front_node: None
                   └─back_node: geom hid: None, ipolygons: [12]
-                    │ plane: Plane(normal=Vector(1.000, 0.000, 0.000), distance=1.000)
+                    │ plane: Plane(normal=Vector(1.000, 0.000, 0.000),
+                                   distance=1.000)
                     ├─front_node: None
                     └─back_node: None
               └─back_node: geom hid: None, ipolygons: [14]
-                │ plane: Plane(normal=Vector(0.000, 1.000, 0.000), distance=2.000)
+                │ plane: Plane(normal=Vector(0.000, 1.000, 0.000),
+                               distance=2.000)
                 ├─front_node: None
                 └─back_node: geom hid: None, ipolygons: [15]
-                  │ plane: Plane(normal=Vector(0.000, -1.000, 0.000), distance=2.000)
+                  │ plane: Plane(normal=Vector(0.000, -1.000, 0.000),
+                                 distance=2.000)
                   ├─front_node: None
                   └─back_node: None
     >>> g.to_OBJ('../test/c-shape2.obj')
@@ -1087,12 +1187,13 @@ class BSPNode(object):
             self.geom.hid,
             self.ipolygons,
             )
-        text = '{3}│ plane: {0}\n{3}├─front_node: {1}\n{3}└─back_node: {2}'.format(
-            self.plane,
-            front_tree,
-            back_tree,
-            line,
-        )
+        text = '{3}│ plane: {0}\n{3}├─front_node: {1}\n'\
+            '{3}└─back_node: {2}'.format(
+                    self.plane,
+                    front_tree,
+                    back_tree,
+                    line,
+                    )
         return header + textwrap.indent(text, '  ')
 
     def clone(self):
@@ -1237,47 +1338,35 @@ class BSPNode(object):
         geom.polygons = new_polygons
         geom.surfids = new_surfids
 
-    def _merge_coplanar_polygons(self, halfedge, ipolygon0, ipolygon1):
-        # Merge, no check for convexity
-        polygon0 = self.geom.get_polygon(ipolygon0)
-        polygon1 = self.geom.get_polygon(ipolygon1)
-        i0e0 = polygon0.index(halfedge[0])  # FIXME to be solved
-        i0e1 = polygon0.index(halfedge[1])
-        i1e0 = polygon1.index(halfedge[0])
-        i1e1 = polygon1.index(halfedge[1])
-        new_polygon = polygon0[:i00+1] + polygon1[i1+2:] + polygon1[:i1] + polygon0[i0+1:]
-        self.geom.update_polygon(ipolygon0, new_polygon)
-        self.ipolygons.remove(ipolygon1)
-
-    def _merge_polygon_to_concave(self):
-        done = False
-        while not done:
-            halfedges = self.geom.get_halfedges(self.ipolygons[:])
-            for halfedge, ipolygon0 in halfedges.items():
-                done = True
-                opposite = halfedge[1], halfedge[0]
-                try:
-                    # Has a merging candidate?
-                    ipolygon1 = halfedges[opposite]
-                except KeyError:
-                    pass
-                else:
-                    # Same surfid?
-                    surfid = self.geom.get_polygon_surfid(ipolygon0)
-                    if surfid == self.geom.get_polygon_surfid(ipolygon1):
-                        self._merge_coplanar_polygons(halfedge, ipolygon0, ipolygon1)
-                        done = False
-                        break
-
     def merge_polygons_to_concave(self):
         """
         Merge coplanar polygons with same surfid to concave polygons
         """
-        self._merge_polygon_to_concave()
-#        if self.front_node: FIXME
-#            self.front_node._merge_polygon_to_concave()
-#        if self.back_node:
-#            self.back_node._merge_polygon_to_concave()
+        ipolygons = self.ipolygons[:]  # FIXME Protect?
+        print("ipoly:", ipolygons)
+        # Build surfid_to_polygons dict FIXME put in a def used twice (to_OBJ)
+        surfid_to_ipolygons = {}
+        for ipolygon in ipolygons:
+            surfid = self.geom.get_polygon_surfid(ipolygon)
+            try:
+                surfid_to_ipolygons[surfid].append(ipolygon)
+            except KeyError:
+                surfid_to_ipolygons[surfid] = [ipolygon, ]
+        # For each surfid merge polygons
+        for surfid in surfid_to_ipolygons:
+            ipolygons = surfid_to_ipolygons[surfid]
+            border_vert_loops = self.geom.get_border_vert_loops(ipolygons)
+            for bvl in border_vert_loops:
+                new_polygon = bvl
+                self.geom.update_polygon(ipolygons[0], new_polygon)
+                for ipolygon in ipolygons[1:]:
+                    self.ipolygons.remove(ipolygon)
+        # Do the same for all the tree
+        if self.front_node:
+            self.front_node.merge_polygons_to_concave()
+        if self.back_node:
+            self.back_node.merge_polygons_to_concave()
+
 
 if __name__ == "__main__":
     import doctest
@@ -1305,7 +1394,7 @@ if __name__ == "__main__":
     b.invert()
 
     # Merge coplanar polygons
-    a.merge_polygons_to_concave()
+    # a.merge_polygons_to_concave()
 
     # Sync
     a.sync_geom()
