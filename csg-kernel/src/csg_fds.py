@@ -693,7 +693,7 @@ class Geom():
                 halfedges[halfedge] = ipolygon
         return halfedges
 
-    def get_border_halfedges(self, ipolygons=None):  # FIXME FIXME test test
+    def get_border_halfedges(self, ipolygons=None):
         """
         Get border halfedges dict
         Eg: {(1,2):7]} with {(ivert0, ivert1): iface on the left}
@@ -714,22 +714,19 @@ class Geom():
                 border_halfedges[halfedge] = ipolygon
         return border_halfedges
 
-    def get_all_bordering_polygons(self, ipolygons, halfedges):  # FIXME to be developed
-        pass
-
-    def get_border_loops(self, ipolygons=None):
+    def get_border_loops(self, ipolygons):  # FIXME FIXME test
         """
         FIXME
         Get oriented border vert loops,
         Eg: [3,0,1,2,] with ivert0, ivert1, ...
         according to iface0 normal up
-#        >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
-#               3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
-#             ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0)),\
-#             (0,1,2,3,4), \
-#            )  # Open clover on z=0, n=+k
-#        >>> g.get_border_loops()
-#        [[5, 0, 10, 11, 1, 6, 7, 2, 8, 9, 3, 4]]
+        >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
+               3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
+             ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9), (10,11,1,0)),\
+             (0,1,2,3,4), \
+            )  # Open clover on z=0, n=+k
+        >>> g.get_border_loops(ipolygons=(0,1,2,3,4,))
+        {(5, 0, 10, 11, 1, 6, 7, 2, 8, 9, 3, 4): [0, 1, 2, 3, 4]}
         """
         border_halfedges = self.get_border_halfedges(ipolygons)
         # Get loops
@@ -767,16 +764,77 @@ class Geom():
                                     self.get_vert(loop[-1]))
                 # Append candidate
                 del(border_halfedges[halfedge])
-                loop.append(halfedge)
+                loop.append(halfedge[1])
                 loop_ipolygons.append(ipolygon)
             # Closed
-            loop.pop()  # Remove last duplicated
-            loops[loop] = ipolygons
-            # Get all included polygons FIXME
-            loops[loop].append(
-                    self.get_all_bordering_polygons(ipolygons, halfedges)
-                    )
+            loop.pop()  # Remove closing ivert that is duplicated
+            loops[tuple(loop)] = loop_ipolygons
+            # Get all included polygons
+            for loop, loop_ipolygons in loops.items():
+                loops[loop] = self.get_cont_ipolygons(
+                        loop_ipolygons[0], ipolygons
+                        )
         return loops
+
+    def get_bordering_ipolygons(self, ipolygon, ipolygons=None):  # FIXME test
+        """
+        Get a set of polygons in ipolygons that border ipolygon
+        >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
+               3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
+             ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9),\
+             (10,11,1,0), (4,3,9), (8,2,7), (6,1,11), (0,5,10),) \
+            )  # Open clover w addition on z=0, n=+k
+        >>> #  y ↑
+        >>> #   9─8
+        >>> #  /│ │ \
+        >>> # 4─3─2─7
+        >>> # │ │∙│ │→ x
+        >>> # 5─0─1─6
+        >>> #  \│ │/
+        >>> #  10-11
+        >>> g.get_bordering_ipolygons(ipolygon=0, ipolygons=None)
+        {1, 2, 3, 4}
+        """
+        bordering_ipolygons = []
+        ipolygons_halfedges = self.get_halfedges(ipolygons)
+        for halfedge in self.get_halfedges((ipolygon,)):
+            try:
+                bordering_ipolygons.append(
+                        ipolygons_halfedges[(halfedge[1], halfedge[0])]
+                        )
+            except KeyError:
+                pass
+        return set(bordering_ipolygons)
+
+    def get_cont_ipolygons(self, ipolygon, ipolygons):  # FIXME test
+        """
+        Get a list of polygons in ipolygons that are continuous to ipolygon
+        >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
+               3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
+             ((0,1,2,3), (5,0,3,4), (1,6,7,2), (3,2,8,9),\
+             (10,11,1,0), (4,3,9), (8,2,7), (6,1,11), (0,5,10),) \
+            )  # Open clover w addition on z=0, n=+k
+        >>> #  y ↑
+        >>> #   9─8
+        >>> #  /│ │ \
+        >>> # 4─3─2─7
+        >>> # │ │∙│ │→ x
+        >>> # 5─0─1─6
+        >>> #  \│ │/
+        >>> #  10-11
+        >>> g.get_cont_ipolygons(ipolygon=0, ipolygons=(0,1,2,3,4,5,6,7,8,))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        """
+        cont_ipolygons = set([ipolygon, ])
+        new_ipolygons = set([ipolygon, ])
+        ipolygons = set(ipolygons)
+        while new_ipolygons:
+            ipolygon = new_ipolygons.pop()
+            bord = self.get_bordering_ipolygons(ipolygon, ipolygons)
+            new_ipolygons |= bord
+            ipolygons -= bord
+            cont_ipolygons |= bord
+        return list(cont_ipolygons)
 
     def _get_earclip_of_polygon(self, polygon, normal):
         polygon_nverts = len(polygon)
@@ -790,10 +848,10 @@ class Geom():
             c = self.get_vert(ivert2)
             b_a, c_b, c_a = b.minus(a), c.minus(b), c.minus(a)
             cross = b_a.cross(c_a)
-            if cross.dot(normal) > 0.:
+            if cross.dot(normal) > 0.: # FIXME > 0.
                 del(polygon[(i+1) % polygon_nverts])
                 return polygon, (ivert0, ivert1, ivert2)
-        raise Exception('Triangulation impossible, tri:', a, b, c)
+        raise Exception('Triangulation impossible, tri:', a, b, c, normal)
 
     def _get_tris_of_polygon(self, ipolygon):
         # Protect the original polygon
@@ -811,7 +869,7 @@ class Geom():
             tris.append(tri)
         return tris
 
-    def get_tris_of_polygon(self, ipolygon):
+    def get_tris_of_polygon(self, ipolygon):  # FIXME FIXME should work for concaves!
         """
         Triangulate ipolygon with no zero-area tris
         >>> g = Geom((0,0,0, 1,0,0, 0,1,0), \
@@ -837,7 +895,7 @@ class Geom():
         ...
         Exception: ('Triangulation impossible, tri:',
                     Vector(1.000, 0.000, 0.000), Vector(1.000, 0.000, 0.000),
-                    Vector(0.000, 0.000, 0.000))
+                    Vector(0.000, 0.000, 0.000), Vector(0.000, 0.000, 1.000))
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 3,1,0, 3,2,0, 3,3,0), \
                      ((0,1,2,3,4,5,6), ))    # Polyhedra, 7 edges, alignments
         >>> g.get_tris_of_polygon(ipolygon=0)  # Alignments, should work
@@ -1355,10 +1413,9 @@ class BSPNode(object):
         # For each surfid merge polygons
         for surfid in surfid_to_ipolygons:
             ipolygons = surfid_to_ipolygons[surfid]
-            border_vert_loops = self.geom.get_border_vert_loops(ipolygons)
-            for bvl in border_vert_loops:
-                new_polygon = bvl
-                self.geom.update_polygon(ipolygons[0], new_polygon)
+            border_loops = self.geom.get_border_loops(ipolygons)
+            for loop, ipolygons in border_loops.items():
+                self.geom.update_polygon(ipolygons[0], loop)
                 for ipolygon in ipolygons[1:]:
                     self.ipolygons.remove(ipolygon)
         # Do the same for all the tree
@@ -1366,13 +1423,13 @@ class BSPNode(object):
             self.front_node.merge_polygons_to_concave()
         if self.back_node:
             self.back_node.merge_polygons_to_concave()
-
+            
 
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-    name = "icosphere"
+    name = "concave"
 
     g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name), surfid=0)
     h = Geom.from_STL(filename='../test/{0}/{0}_b.stl'.format(name), surfid=1)
@@ -1393,18 +1450,22 @@ if __name__ == "__main__":
     b.clip_to(a)
     b.invert()
 
-    # Merge coplanar polygons
-    # a.merge_polygons_to_concave()
+    # Merge coplanar polygons with same surfid
+    a.merge_polygons_to_concave()
+    b.merge_polygons_to_concave()
 
     # Sync
     a.sync_geom()
     b.sync_geom()
 
+    g.to_OBJ('../test/{0}/{0}_a_clipped.obj'.format(name))
+    g.to_STL('../test/{0}/{0}_union.stl'.format(name))  # FIXME needs triangulation for concaves
+    h.to_OBJ('../test/{0}/{0}_b_clipped.obj'.format(name))
+    g.to_STL('../test/{0}/{0}_union.stl'.format(name))
+
+    # Merge geometries FIXME
+#    # Join trees and geometries
+#    a.append(b)
+
     # Merge borders FIXME
 
-    # Join flat faces, same surfid
-
-    # Join trees and geometries
-    a.append(b)
-
-    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
