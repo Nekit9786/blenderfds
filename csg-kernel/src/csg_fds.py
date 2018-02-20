@@ -172,6 +172,43 @@ class Vector(object):
                (p.y < self.y < r.y or r.y < self.y < p.y) and \
                (p.z < self.z < r.z or r.z < self.z < p.z)
 
+    def is_within_tri(self, a, b, c):
+        """
+        Test if a point is in a triangle
+        >>> Vector(1,1,0).is_within_tri(\
+                Vector(0,0,0),Vector(2,0,0),Vector(0,2,0))
+        True
+        >>> Vector(2,0,0).is_within_tri(\
+                Vector(0,0,0),Vector(2,0,0),Vector(0,2,0))
+        True
+        >>> Vector(3,0,0).is_within_tri(\
+                Vector(0,0,0),Vector(2,0,0),Vector(0,2,0))
+        False
+        """
+        # Test tri bounding box
+        p = Vector(
+                max(a.x, b.x, c.x),
+                max(a.y, b.y, c.y),
+                max(a.z, b.z, c.z),
+                )
+        q = Vector(
+                min(a.x, b.x, c.x),
+                min(a.y, b.y, c.y),
+                min(a.z, b.z, c.z),
+                )
+        if not self.is_within(p, q):
+            return False
+        # Test dot products
+        b_a = b.minus(a)
+        p_a = self.minus(a)
+        c_b = c.minus(b)
+        p_b = self.minus(b)
+        a_c = a.minus(c)
+        p_c = self.minus(c)
+        if b_a.dot(p_a) >= -EPSILON and c_b.dot(p_b) >= -EPSILON and a_c.dot(p_c) >= -EPSILON:  # FIXME precision!
+            return True
+        return False
+
 
 class Plane():
     def __init__(self, normal, distance):
@@ -837,6 +874,9 @@ class Geom():
         return list(cont_ipolygons)
 
     def _get_earclip_of_polygon(self, polygon, normal):
+        """
+        Get valid earclip of polygon
+        """
         polygon_nverts = len(polygon)
         # Get the first good ear
         for i in range(polygon_nverts-1):
@@ -846,28 +886,13 @@ class Geom():
             a = self.get_vert(ivert0)
             b = self.get_vert(ivert1)
             c = self.get_vert(ivert2)
-            b_a, c_b, c_a = b.minus(a), c.minus(b), c.minus(a)
+            b_a, c_a = b.minus(a), c.minus(a)
             cross = b_a.cross(c_a)
-            if cross.dot(normal) > 0.: # FIXME > 0.
+            if cross.dot(normal) > -EPSILON and \
+               all((self.get_vert(p).is_within_tri(a,b,c) for p in polygon[i+3:])):    # FIXME Epsilon
                 del(polygon[(i+1) % polygon_nverts])
                 return polygon, (ivert0, ivert1, ivert2)
         raise Exception('Triangulation impossible, tri:', a, b, c, normal)
-
-    def _get_tris_of_polygon(self, ipolygon):
-        # Protect the original polygon
-        polygon = self.get_polygon(ipolygon)[:]
-        polygon_nverts = len(polygon)
-        # Short cut
-        if polygon_nverts == 3:
-            return [tuple(polygon), ]
-        # Get the polygon overall normal
-        normal = self.get_plane_of_polygon(ipolygon).normal
-        # Search for triangulation
-        tris = []
-        while len(polygon) > 2:
-            polygon, tri = self._get_earclip_of_polygon(polygon, normal)
-            tris.append(tri)
-        return tris
 
     def get_tris_of_polygon(self, ipolygon):  # FIXME FIXME should work for concaves!
         """
@@ -879,7 +904,7 @@ class Geom():
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 1,1,0, 0,1,0), \
                      ((0,1,2,3,4,5), ))      # Polyhedra, 6 edges, 3 collinear
         >>> g.get_tris_of_polygon(ipolygon=0)
-        [(2, 3, 4), (1, 2, 4), (0, 1, 4), (0, 4, 5)]
+        [(3, 4, 5), (2, 3, 5), (1, 2, 5), (0, 1, 5)]
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0), \
                      ((0,1,2,3,), ))         # Zero area polyhedra
         >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
@@ -899,9 +924,21 @@ class Geom():
         >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 3,1,0, 3,2,0, 3,3,0), \
                      ((0,1,2,3,4,5,6), ))    # Polyhedra, 7 edges, alignments
         >>> g.get_tris_of_polygon(ipolygon=0)  # Alignments, should work
-        [(2, 3, 4), (1, 2, 4), (0, 1, 4), (0, 4, 5), (0, 5, 6)]
+        [(5, 6, 0), (4, 5, 0), (2, 3, 4), (1, 2, 4), (0, 1, 4)]
         """
-        return self._get_tris_of_polygon(ipolygon)
+        polygon = self.get_polygon(ipolygon)[:]
+        polygon_nverts = len(polygon)
+        # Short cut
+        if polygon_nverts == 3:
+            return [tuple(polygon), ]
+        # Get the polygon overall normal
+        normal = self.get_plane_of_polygon(ipolygon).normal
+        # Search for triangulation
+        tris = []
+        while len(polygon) > 2:
+            polygon, tri = self._get_earclip_of_polygon(polygon, normal)
+            tris.append(tri)
+        return tris
 
     # STL/OBJ
 
@@ -936,7 +973,7 @@ class Geom():
                     f.write('facet normal 0 0 0\n')
                     f.write(' outer loop\n')
                     for ivert in tri:
-                        f.write('  vertex'
+                        f.write('  vertex '
                                 '{v[0]:.9f} {v[1]:.9f} {v[2]:.9f}\n'.format(
                                   v=self.get_vert(ivert)),
                                 )
@@ -1401,7 +1438,6 @@ class BSPNode(object):
         Merge coplanar polygons with same surfid to concave polygons
         """
         ipolygons = self.ipolygons[:]  # FIXME Protect?
-        print("ipoly:", ipolygons)
         # Build surfid_to_polygons dict FIXME put in a def used twice (to_OBJ)
         surfid_to_ipolygons = {}
         for ipolygon in ipolygons:
@@ -1423,7 +1459,7 @@ class BSPNode(object):
             self.front_node.merge_polygons_to_concave()
         if self.back_node:
             self.back_node.merge_polygons_to_concave()
-            
+
 
 if __name__ == "__main__":
     import doctest
@@ -1452,16 +1488,16 @@ if __name__ == "__main__":
 
     # Merge coplanar polygons with same surfid
     a.merge_polygons_to_concave()
-    b.merge_polygons_to_concave()
+#    b.merge_polygons_to_concave()
 
     # Sync
     a.sync_geom()
     b.sync_geom()
 
     g.to_OBJ('../test/{0}/{0}_a_clipped.obj'.format(name))
-    g.to_STL('../test/{0}/{0}_union.stl'.format(name))  # FIXME needs triangulation for concaves
+#    g.to_STL('../test/{0}/{0}_a_clipped.stl'.format(name))  # FIXME needs triangulation for concaves
     h.to_OBJ('../test/{0}/{0}_b_clipped.obj'.format(name))
-    g.to_STL('../test/{0}/{0}_union.stl'.format(name))
+#    g.to_STL('../test/{0}/{0}_b_clipped.stl'.format(name))
 
     # Merge geometries FIXME
 #    # Join trees and geometries
