@@ -116,11 +116,11 @@ class Vector(object):
             math.isclose(self.y, other.y, rel_tol=EPSILON) and \
             math.isclose(self.z, other.z, rel_tol=EPSILON)
 
-    def is_zero(self):
+    def is_zero(self, multiplier=1.):
         return \
-            math.isclose(self.x, 0., rel_tol=EPSILON) and \
-            math.isclose(self.y, 0., rel_tol=EPSILON) and \
-            math.isclose(self.z, 0., rel_tol=EPSILON)
+            math.isclose(self.x, 0., rel_tol=EPSILON * multiplier) and \
+            math.isclose(self.y, 0., rel_tol=EPSILON * multiplier) and \
+            math.isclose(self.z, 0., rel_tol=EPSILON * multiplier)  # FIXME Epsilon
 
     def is_collinear(self, b, c):
         """
@@ -132,6 +132,9 @@ class Vector(object):
         >>> a.is_collinear(b, c)
         False
         >>> a, b, c = Vector(0,0,0), Vector(0,0,0), Vector(0,0,0)
+        >>> a.is_collinear(b, c)
+        True
+        >>> a, b, c = Vector(0,0,0), Vector(1,0,0), Vector(2,1e-9,0)  # FIXME precision
         >>> a.is_collinear(b, c)
         True
         """
@@ -184,7 +187,9 @@ class Vector(object):
         >>> Vector(3,0,0).is_within_tri(\
                 Vector(0,0,0),Vector(2,0,0),Vector(0,2,0))
         False
-        >>> Vector()
+        >>> Vector(3,1,0).is_within_tri(\
+                Vector(0,3,0),Vector(0,0,0),Vector(3,0,0))
+        False
         """
         # Test tri bounding box
         p = Vector(
@@ -199,16 +204,16 @@ class Vector(object):
                 )
         if not self.is_within(p, q):
             return False
-        # Test dot products
-        b_a = b.minus(a)
-        p_a = self.minus(a)
-        c_b = c.minus(b)
-        p_b = self.minus(b)
-        a_c = a.minus(c)
-        p_c = self.minus(c)
-        if b_a.dot(p_a) >= -EPSILON and c_b.dot(p_b) >= -EPSILON and a_c.dot(p_c) >= -EPSILON:  # FIXME precision!
+        # Test cross products
+        normal = Plane.from_points((a, b, c)).normal
+        if all((
+                b.minus(a).cross(self.minus(a)).dot(normal) >= 0.,
+                c.minus(b).cross(self.minus(b)).dot(normal) >= 0.,
+                a.minus(c).cross(self.minus(c)).dot(normal) >= 0.,
+                )):  # FIXME EPSILON precision!
             return True
-        return False
+        else:
+            return False
 
 
 class Plane():
@@ -734,7 +739,7 @@ class Geom():
     def get_border_halfedges(self, ipolygons=None):
         """
         Get border halfedges dict
-        Eg: {(1,2):7]} with {(ivert0, ivert1): iface on the left}
+        Eg: {(1,2):7]} with {(ivert0, ivert1): ipolygon on the left}
         according to iface0 normal up
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
                      ((0,1,3), (1,2,3), (2,0,3)) )  # Open tet
@@ -751,6 +756,87 @@ class Geom():
             else:
                 border_halfedges[halfedge] = ipolygon
         return border_halfedges
+
+    def get_multi_halfedges(self, ipolygons=None):  # FIXME test
+        """
+        Get multi halfedges, that are common between polygons
+        Eg: {(1,2,3,4):[7,4]} with
+        {(ivert0, ivert1): [ipolygon on the left, ipolygon on the right]}
+        >>> g = Geom((),\
+                     ((0,1,2,3,8,4,5,6,10), (11,6,5,4,3,2,1,0), (4,8,3)) )
+        >>> g.get_multi_halfedges()  # doctest: +NORMALIZE_WHITESPACE
+        {(6, 10, 0): (0, None), (6, 5, 4): (1, 0), (3, 2, 1, 0): (1, 0),
+         (0, 11, 6): (1, None), (4, 8, 3): (2, 0)}
+        """
+        halfedges = self.get_halfedges(ipolygons)
+        # Get polygons common halfedges
+        # {(ipolygon_sx, ipolygon_dx): [halfedge, halfedge, ...]
+        common_halfedges = {}
+        while halfedges:
+            halfedge, ipolygon_sx = halfedges.popitem()
+            opposite = halfedge[1], halfedge[0]
+            if opposite in halfedges:
+                ipolygon_dx = halfedges[opposite]
+                del halfedges[opposite]
+                try:
+                    common_halfedges[
+                            (ipolygon_sx, ipolygon_dx)
+                            ].append(halfedge)
+                except KeyError:
+                    common_halfedges[(ipolygon_sx, ipolygon_dx)] = [halfedge, ]
+            else:  # it is a border
+                try:
+                    common_halfedges[(ipolygon_sx, None)].append(halfedge)
+                except KeyError:
+                    common_halfedges[(ipolygon_sx, None)] = [halfedge, ]
+        # Get polygons multi halfedges
+        multi_halfedges = {}
+        while common_halfedges:
+            ipolygons, halfedges = common_halfedges.popitem()
+            while halfedges:
+                multi = list(halfedges.pop())
+                done = False
+                while not done:
+                    done = True
+                    for candidate in halfedges:
+                        if candidate[0] == multi[-1]:
+                            multi.append(candidate[1])
+                            done = False
+                            halfedges.remove(candidate)
+                            break
+                        elif candidate[1] == multi[0]:
+                            multi.insert(0, candidate[0])
+                            done = False
+                            halfedges.remove(candidate)
+                            break
+                if len(multi) > 2:
+                    multi_halfedges[tuple(multi)] = ipolygons
+        return multi_halfedges
+
+    def remove_multi_halfedges(self):  # FIXME Test
+        """
+        Remove multi halfedges from polygon borders, retaining manifoldness
+        """
+        multi_halfedges = self.get_multi_halfedges()
+        for multi, ipolygons in multi_halfedges.items():
+            polygon0 = self.get_polygon(ipolygons[0])
+            if ipolygons[1] is not None:  # An edge between coplanar polygons
+                polygon1 = self.get_polygon(ipolygons[1])
+                for m in multi[1:-1]:
+                    polygon0.remove(m)
+                    polygon1.remove(m)
+                self.update_polygon(ipolygons[0], polygon0)
+                self.update_polygon(ipolygons[1], polygon1)
+            else:  # An external edge, remove only if collinear
+                nverts = len(multi)-2
+                for i in range(nverts):
+                    v0 = self.get_vert(multi[i])
+                    p = self.get_vert(multi[i+1])
+                    v1 = self.get_vert(multi[i+2])
+                    if p.is_strictly_within(v0, v1) and p.is_collinear(v0, v1):
+                        polygon0.remove(multi[i+1])
+                        print("remove")
+                self.update_polygon(ipolygons[0], polygon0)
 
     def get_border_loops(self, ipolygons):  # FIXME FIXME test
         """
@@ -876,37 +962,58 @@ class Geom():
 
     def _get_earclip_of_polygon(self, polygon, normal):
         """
-        Get valid earclip of polygon
+        Get valid earclip of polygon, remove it from polygon, return it
         """
         polygon_nverts = len(polygon)
-        # Get the first good ear
-        for i in range(polygon_nverts):
-            ivert0 = polygon[(i) % polygon_nverts]
-            ivert1 = polygon[(i+1) % polygon_nverts]
-            ivert2 = polygon[(i+2) % polygon_nverts]
-            a = self.get_vert(ivert0)
-            b = self.get_vert(ivert1)
-            c = self.get_vert(ivert2)
-            b_a, c_b = b.minus(a), c.minus(b)
-            ccw = b_a.cross(c_b).dot(normal)  # Counter-clockwise
-            vert_within_tri = [self.get_vert(p).is_within_tri(a, b, c)
-                        for j, p in enumerate(polygon) if j < i or j > (i+2)]
-            if not vert_within_tri:
-                vert_within_tri = [False, ]
-            if ccw > 0. and not any(vert_within_tri):
-                del(polygon[(i+1) % polygon_nverts])
+        for i0 in range(polygon_nverts):
+            i1, i2 = (i0+1) % polygon_nverts, (i0+2) % polygon_nverts
+            ivert0, ivert1, ivert2 = polygon[i0], polygon[i1], polygon[i2]
+            a, b, c = \
+                self.get_vert(ivert0),\
+                self.get_vert(ivert1),\
+                self.get_vert(ivert2)
+            # Test counter-clockwise ear
+            ccw = b.minus(a).cross(c.minus(b)).dot(normal) > 0.
+            # Test no other vert in the ear
+            vwt = any((self.get_vert(p).is_within_tri(a, b, c)
+                       for j, p in enumerate(polygon)
+                       if j not in (i0, i1, i2)
+                       ))
+            # If ok, send ear
+            if ccw and not vwt:
+                del(polygon[i1])
                 return polygon, (ivert0, ivert1, ivert2)
         raise Exception('Triangulation impossible, tri:', a, b, c, normal)
 
-# all((self.get_vert(p).is_within_tri(a,b,c) for p in polygon))
-
-    def get_tris_of_polygon(self, ipolygon):  # FIXME FIXME work for concaves!
+    def get_tris_of_polygon(self, ipolygon):
         """
         Triangulate ipolygon with no zero-area tris
-#        >>> g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
-#                     ((5,0,1,2,3,4,), ))    # L concave
-#        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
-#        TEST should work
+        >>> g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
+                     ((5,0,1,2,3,4,), ))    # L concave
+        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+        [(0, 1, 2), (0, 2, 3), (5, 0, 3), (5, 3, 4)]
+        >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 3,1,0, 2,1,0, 1,1,0, 1,2,0,\
+                      1,3,0, 0,3,0, 0,2,0, 0,1,0), \
+                     ((0,1,2,3,4,5,6,7,8,9,10,11), ))  # L concave, alignment
+        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+        [(2, 3, 4), (1, 2, 4), (0, 1, 4), (0, 4, 5), (0, 5, 6), (0, 6, 7),
+         (0, 7, 8), (8, 9, 10), (8, 10, 11), (0, 8, 11)]
+        >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 2,1,0, ), \
+                     ((0,1,2,3,2), ))    # Zero area
+        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+        Traceback (most recent call last):
+        ...
+        Exception: ('Could not find a plane, points:',
+                    (Vector(0.000, 0.000, 0.000),
+                    Vector(1.000, 0.000, 0.000), Vector(2.000, 0.000, 0.000)))
+        >>> g = Geom((0,0,0, 1,0,0, 1,0,0, 1,2,0, ), \
+                     ((0,1,2,3,), ))    # Zero edge
+        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+        Traceback (most recent call last):
+        ...
+        Exception: ('Triangulation impossible, tri:',
+                    Vector(1.000, 2.000, 0.000), Vector(0.000, 0.000, 0.000),
+                    Vector(1.000, 0.000, 0.000), Vector(0.000, 0.000, 1.000))
         """
         polygon = self.get_polygon(ipolygon)[:]
         polygon_nverts = len(polygon)
@@ -1418,6 +1525,7 @@ class BSPNode(object):
     def merge_polygons_to_concave(self):
         """
         Merge coplanar polygons with same surfid to concave polygons
+        BSP tree cannot be used any more at the end.
         """
         ipolygons = self.ipolygons[:]  # FIXME Protect?
         # Build surfid_to_polygons dict FIXME put in a def used twice (to_OBJ)
@@ -1441,55 +1549,57 @@ class BSPNode(object):
             self.front_node.merge_polygons_to_concave()
         if self.back_node:
             self.back_node.merge_polygons_to_concave()
+        # Remove unuseful verts along straight edges FIXME FIXME
 
 
 if __name__ == "__main__":
-#    import doctest
-#    doctest.testmod()
-    
-#    g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
-#                     ((5,0,1,2,3,4,), ))    # L concave
-#    g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+    import doctest
+    doctest.testmod()
 
-    
-#
-#    name = "concave"
-#
-#    g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name), surfid=0)
-#    h = Geom.from_STL(filename='../test/{0}/{0}_b.stl'.format(name), surfid=1)
-#
-#    # Create and build BSP trees
-#    a = BSPNode(g)
-#    a.build()
-#
-#    b = BSPNode(h)
-#    b.build()
-#
-#    # Remove each interior
-#    a.clip_to(b)
-#    b.clip_to(a)
-#
-#    # Remove shared coplanars
-#    b.invert()
-#    b.clip_to(a)
-#    b.invert()
-#
-#    # Merge coplanar polygons with same surfid
-#    a.merge_polygons_to_concave()
-##    b.merge_polygons_to_concave()
-#
-#    # Sync
-#    a.sync_geom()
-#    b.sync_geom()
-#
-#    g.to_OBJ('../test/{0}/{0}_a_clipped.obj'.format(name))
-##    g.to_STL('../test/{0}/{0}_a_clipped.stl'.format(name))  # FIXME needs triangulation for concaves
-#    h.to_OBJ('../test/{0}/{0}_b_clipped.obj'.format(name))
-##    g.to_STL('../test/{0}/{0}_b_clipped.stl'.format(name))
-#
-#    # Merge geometries FIXME
-##    # Join trees and geometries
-##    a.append(b)
-#
-#    # Merge borders FIXME
+
+    name = "sphere"
+
+    g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name), surfid=0)
+    h = Geom.from_STL(filename='../test/{0}/{0}_b.stl'.format(name), surfid=1)
+
+    # Create and build BSP trees
+    a = BSPNode(g)
+    a.build()
+
+    b = BSPNode(h)
+    b.build()
+
+    # Remove each interior
+    a.clip_to(b)
+    b.clip_to(a)
+
+    # Remove shared coplanars
+    b.invert()
+    b.clip_to(a)
+    b.invert()
+
+    g.to_OBJ('../test/{0}/{0}_a_clipped.obj'.format(name))
+    g.to_STL('../test/{0}/{0}_a_clipped.stl'.format(name))
+
+    # Merge coplanar polygons with same surfid
+    a.merge_polygons_to_concave()
+    b.merge_polygons_to_concave()
+
+    # Sync
+    a.sync_geom()
+    b.sync_geom()
+
+    g.remove_multi_halfedges()
+    h.remove_multi_halfedges()
+
+    g.to_OBJ('../test/{0}/{0}_a_clipped_am.obj'.format(name))
+    g.to_STL('../test/{0}/{0}_a_clipped_am.stl'.format(name))
+    h.to_OBJ('../test/{0}/{0}_b_clipped_am.obj'.format(name))
+    h.to_STL('../test/{0}/{0}_b_clipped_am.stl'.format(name))
+
+    # Merge geometries FIXME
+#    # Join trees and geometries
+#    a.append(b)
+
+    # Merge borders FIXME
 
