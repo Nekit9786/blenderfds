@@ -184,6 +184,7 @@ class Vector(object):
         >>> Vector(3,0,0).is_within_tri(\
                 Vector(0,0,0),Vector(2,0,0),Vector(0,2,0))
         False
+        >>> Vector()
         """
         # Test tri bounding box
         p = Vector(
@@ -889,7 +890,7 @@ class Geom():
             b_a, c_b = b.minus(a), c.minus(b)
             ccw = b_a.cross(c_b).dot(normal)  # Counter-clockwise
             vert_within_tri = [self.get_vert(p).is_within_tri(a, b, c)
-                        for j, p in enumerate(polygon) if j < i and j > (i+2)]
+                        for j, p in enumerate(polygon) if j < i or j > (i+2)]
             if not vert_within_tri:
                 vert_within_tri = [False, ]
             if ccw > 0. and not any(vert_within_tri):
@@ -902,10 +903,10 @@ class Geom():
     def get_tris_of_polygon(self, ipolygon):  # FIXME FIXME work for concaves!
         """
         Triangulate ipolygon with no zero-area tris
-        >>> g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
-                     ((5,0,1,2,3,4,), ))    # L concave
-        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
-        TEST should work
+#        >>> g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
+#                     ((5,0,1,2,3,4,), ))    # L concave
+#        >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+#        TEST should work
         """
         polygon = self.get_polygon(ipolygon)[:]
         polygon_nverts = len(polygon)
@@ -1446,9 +1447,9 @@ if __name__ == "__main__":
 #    import doctest
 #    doctest.testmod()
     
-    g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
-                     ((5,0,1,2,3,4,), ))    # L concave
-    g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
+#    g = Geom((0,0,0, 3,0,0, 3,1,0, 1,1,0, 1,3,0, 0,3,0,), \
+#                     ((5,0,1,2,3,4,), ))    # L concave
+#    g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
 
     
 #
