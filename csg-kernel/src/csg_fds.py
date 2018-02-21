@@ -116,40 +116,44 @@ class Vector(object):
             math.isclose(self.y, other.y, rel_tol=EPSILON) and \
             math.isclose(self.z, other.z, rel_tol=EPSILON)
 
-    def is_zero(self, multiplier=1.):
+    def is_zero(self, multiplier=1.):  # FIXME Epsilon
         return \
             math.isclose(self.x, 0., rel_tol=EPSILON * multiplier) and \
             math.isclose(self.y, 0., rel_tol=EPSILON * multiplier) and \
-            math.isclose(self.z, 0., rel_tol=EPSILON * multiplier)  # FIXME Epsilon
+            math.isclose(self.z, 0., rel_tol=EPSILON * multiplier)
 
     def is_collinear(self, b, c):
         """
         Return true if self, b, and c all lie on the same line.
         >>> a, b, c = Vector(0,0,0), Vector(1,0,0), Vector(2,0,0)
-        >>> a.is_collinear(b, c)
+        >>> a.is_collinear(b, c)  # Collinear
         True
         >>> a, b, c = Vector(0,0,0), Vector(0,-1,0), Vector(0,-2,1)
-        >>> a.is_collinear(b, c)
+        >>> a.is_collinear(b, c)  # Not collinear
         False
         >>> a, b, c = Vector(0,0,0), Vector(0,0,0), Vector(0,0,0)
-        >>> a.is_collinear(b, c)
+        >>> a.is_collinear(b, c)  # Same point
         True
-        >>> a, b, c = Vector(0,0,0), Vector(1,0,0), Vector(2,1e-9,0)  # FIXME precision
+        >>> a, b, c = Vector(0,0,0), Vector(1,0,0), Vector(2,EPSILON,0)
         >>> a.is_collinear(b, c)
         True
         """
         # Simpler
-        return b.minus(self).cross(c.minus(self)).is_zero()
+        # return b.minus(self).cross(c.minus(self)).is_zero()
         # Proposed elsewhere, to correctly use epsilon FIXME
-#        area_tri2 = abs((c-self).cross(b-self).length())
-#        area_square = max(
-#                (c-self).length() ** 2,
-#                (b-self).length() ** 2,
-#                (c-b).length() ** 2
-#                )
-#        if area_tri2 < EPSILON * area_square:
-#            return True
-#        return False
+        c_s = c.minus(self)
+        b_s = b.minus(self)
+        if c_s.is_zero() or b_s.is_zero():
+            return True
+        area_tri2 = c_s.cross(b_s).length()
+        area_square = max(
+                c_s.length() ** 2,
+                b_s.length() ** 2,
+                (c.minus(b)).length() ** 2
+                )
+        if area_tri2 < EPSILON * area_square:
+            return True
+        return False
 
     def is_within(self, p, r):
         """
@@ -162,18 +166,6 @@ class Vector(object):
         return (p.x <= self.x <= r.x or r.x <= self.x <= p.x) and \
                (p.y <= self.y <= r.y or r.y <= self.y <= p.y) and \
                (p.z <= self.z <= r.z or r.z <= self.z <= p.z)
-
-    def is_strictly_within(self, p, r):
-        """
-        Return true if q is between p and r (exclusive).
-        >>> Vector(1,0,0).is_within(Vector(1,0,0), Vector(2,0,0))
-        True
-        >>> Vector(1,0,0).is_strictly_within(Vector(1,0,0), Vector(2,0,0))
-        False
-        """
-        return (p.x < self.x < r.x or r.x < self.x < p.x) and \
-               (p.y < self.y < r.y or r.y < self.y < p.y) and \
-               (p.z < self.z < r.z or r.z < self.z < p.z)
 
     def is_within_tri(self, a, b, c):
         """
@@ -334,6 +326,31 @@ class Geom():
             [3, 5, 4], [3, 6, 5], [3, 4, 6]],
             )
         """
+        # Get my and geom border
+        border0_halfedges = self.get_border_halfedges()
+        border1_halfedges = geom.get_border_halfedges()
+        # Get border verts FIXME verificare se avanzano vertici a self o a geom
+        iverts0 = []
+        for bh in border0_halfedges:
+            iverts0.append(bh[0])
+        iverts1 = []
+        for bh in border1_halfedges:
+            iverts1.append(bh[0])
+        # Merge iverts0 and ivert1
+        while iverts0:
+            ivert0 = iverts0.pop()
+            vert0 = self.get_vert(ivert0)
+            merged = False
+            for ivert1 in iverts1:
+                vert1 = geom.get_vert(ivert1)
+                if vert0.minus(vert1).length() < EPSILON * 10:  # FIXME
+                    print("Merged:", ivert0, ivert1)
+                    geom.update_vert(ivert1, vert0)
+                    iverts1.remove(ivert1)
+                    merged = True
+                    break
+            if not merged:
+                print("Unmerged:", ivert0)
         # Extend verts
         original_nverts = self.get_nverts()
         self.verts.extend(geom.verts)
@@ -637,6 +654,18 @@ class Geom():
         self.verts.extend(list(vert))
         return self.get_nverts()-1
 
+    def update_vert(self, ivert, vert):
+        """
+        Update a vert of a Geom, return its index.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
+        >>> g.update_vert(2,(0,0,0)); g.get_vert(2)
+        2
+        Vector(0.000, 0.000, 0.000)
+        """
+        self.verts[3*ivert:3*ivert+3] = array.array('f', vert)
+        return ivert
+
     def get_nverts(self):
         """
         Get the len of vertices
@@ -657,7 +686,7 @@ class Geom():
         """
         return [i for i in range(int(len(self.verts)/3))]
 
-    def merge_duplicated_verts(self):
+    def merge_duplicated_verts(self, multiplier=1.):
         """
         Remove dup verts, and relink all polygons. No mod of polygons.
         >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1, 0,1,0, 0,1,0, \
@@ -680,7 +709,7 @@ class Geom():
             vert = self.get_vert(ivert)
             seen = False
             for i, selected_pyvert in enumerate(unique_pyverts):
-                if (selected_pyvert - vert).is_zero():
+                if (selected_pyvert - vert).is_zero(multiplier):
                     seen = True
                     ivert_to_ivert[ivert] = i
                     break
@@ -697,6 +726,7 @@ class Geom():
         for pyvert in unique_pyverts:
             verts.extend(pyvert)
         self.verts = verts
+        print("Reduced verts:", original_nverts - self.get_nverts())
         return original_nverts - self.get_nverts()
 
     # Edges
@@ -833,9 +863,8 @@ class Geom():
                     v0 = self.get_vert(multi[i])
                     p = self.get_vert(multi[i+1])
                     v1 = self.get_vert(multi[i+2])
-                    if p.is_strictly_within(v0, v1) and p.is_collinear(v0, v1):
+                    if p.is_within(v0, v1) and p.is_collinear(v0, v1):
                         polygon0.remove(multi[i+1])
-                        print("remove")
                 self.update_polygon(ipolygons[0], polygon0)
 
     def get_border_loops(self, ipolygons):  # FIXME FIXME test
@@ -1556,7 +1585,6 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-
     name = "sphere"
 
     g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name), surfid=0)
@@ -1578,9 +1606,6 @@ if __name__ == "__main__":
     b.clip_to(a)
     b.invert()
 
-    g.to_OBJ('../test/{0}/{0}_a_clipped.obj'.format(name))
-    g.to_STL('../test/{0}/{0}_a_clipped.stl'.format(name))
-
     # Merge coplanar polygons with same surfid
     a.merge_polygons_to_concave()
     b.merge_polygons_to_concave()
@@ -1592,14 +1617,9 @@ if __name__ == "__main__":
     g.remove_multi_halfedges()
     h.remove_multi_halfedges()
 
-    g.to_OBJ('../test/{0}/{0}_a_clipped_am.obj'.format(name))
-    g.to_STL('../test/{0}/{0}_a_clipped_am.stl'.format(name))
-    h.to_OBJ('../test/{0}/{0}_b_clipped_am.obj'.format(name))
-    h.to_STL('../test/{0}/{0}_b_clipped_am.stl'.format(name))
+    g.append(h)
 
-    # Merge geometries FIXME
-#    # Join trees and geometries
-#    a.append(b)
+    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
+    g.to_STL('../test/{0}/{0}_union.stl'.format(name))
 
-    # Merge borders FIXME
 
