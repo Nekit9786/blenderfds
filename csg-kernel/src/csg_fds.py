@@ -318,6 +318,7 @@ class Geom():
         >>> h = Geom((-1,-1,2, 1,-1,2, 0,1,2, 0,0,1), \
                      ((0,1,2), (3,1,0), (3,2,1), (3,0,2)) )  # but upside-down
         >>> g.append(h); g  # doctest: +NORMALIZE_WHITESPACE
+        Reduced verts: 1
         [0, 1, 2, 3, 4, 5, 6, 7]
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,
@@ -338,15 +339,15 @@ class Geom():
             vert0 = self.get_vert(ivert0)
             for ivert1 in iverts1:
                 vert1 = geom.get_vert(ivert1)
-                if vert0.minus(vert1).length() < EPSILON * 10:  # FIXME
+                if vert0.minus(vert1).length() < EPSILON_CUT * 2:  # FIXME
                     geom.update_vert(ivert1, vert0)
                     iverts1.remove(ivert1)
                     break
         # Check if all went well
         if iverts0:
-            raise Exception("Unmerged iverts0:", iverts0)
+            print("Unmerged iverts0:", iverts0)
         if iverts1:
-            raise Exception("Unmerged iverts1:", iverts1)
+            print("Unmerged iverts1:", iverts1)
         # Extend verts of self with geom's
         original_nverts = self.get_nverts()
         self.verts.extend(geom.verts)
@@ -688,6 +689,7 @@ class Geom():
                       1,-1,0, 1,-1,0,), \
                      ((2,6,0), (0,1,3), (7,4,3), (5,0,3)) )  # Dup verts, 8>4
         >>> g.merge_duplicated_verts(); g  # doctest: +NORMALIZE_WHITESPACE
+        Reduced verts: 4
         4
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,
@@ -753,7 +755,7 @@ class Geom():
             polygon = self.get_polygon(ipolygon)
             polygon_nverts = len(polygon)
             for i in range(polygon_nverts):
-                halfedge = (polygon[i], polygon[(i+1) % polygon_nverts])
+                halfedge = (polygon[i], polygon[(i+1) % polygon_nverts]) # linea lunga
                 if halfedge in halfedges:
                     raise Exception(
                             'Non-manifold or unorientable at ipolygon:',
@@ -1057,7 +1059,7 @@ class Geom():
 
     # STL/OBJ
 
-    def to_STL(self, filename):
+    def to_STL(self, filepath):
         """
         Write self to STL file
         >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
@@ -1069,6 +1071,7 @@ class Geom():
         to_STL: ../test/doctest.stl
         >>> Geom.from_STL('../test/doctest.stl') \
             # doctest: +NORMALIZE_WHITESPACE
+        Reduced verts: 28
         Geom(
             (-1.000,-1.000,-1.000,  -1.000,-1.000,1.000,  -1.000,1.000,1.000,
             -1.000,1.000,-1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,
@@ -1080,7 +1083,7 @@ class Geom():
         >>> g.to_STL('../test/doctest.stl')
         to_STL: ../test/doctest.stl
         """
-        with open(filename, 'w') as f:
+        with open(filepath, 'w') as f:
             f.write('solid name\n')
             for ipolygon in range(self.get_npolygons()):
                 tris = self.get_tris_of_polygon(ipolygon)
@@ -1095,7 +1098,7 @@ class Geom():
                     f.write(' endloop\n')
                     f.write('endfacet\n')
             f.write('endsolid name\n')
-        print('to_STL:', filename)
+        print('to_STL:', filepath)
 
     def to_OBJ(self, filepath):
         """
@@ -1123,7 +1126,7 @@ class Geom():
         # Write geometry
         with open(filepath, 'w') as f:
             f.write('# Reference to materials\n')
-            f.write('mtllib {}.mtl\n'.format(filename))
+            f.write('mtllib default.mtl\n')
             f.write('# List of vertices x,y,z\n')
             for ivert in self.get_iverts():
                 vert = self.get_vert(ivert)
@@ -1137,7 +1140,7 @@ class Geom():
                     f.write('f {}\n'.format(str_polygon))
             f.write('# End\n')
         # Write predefined materials
-        with open('{}/{}.mtl'.format(path, filename), 'w') as f:
+        with open('{}/default.mtl'.format(path), 'w') as f:
             f.write(
                     """
                     # Materials
@@ -1160,14 +1163,16 @@ class Geom():
         print('to_OBJ:', filepath)
 
     @classmethod
-    def from_STL(cls, filename, surfid=0):
+    def from_STL(cls, filepath, surfid=0):
         """
         Get new Geom from STL file
         Doctest in Geom.to_STL()
         """
+        import os
+        path, filename = os.path.split(filepath)
         # Get STL mesh
         from stl import mesh
-        mesh = mesh.Mesh.from_file(filename)
+        mesh = mesh.Mesh.from_file(filepath)
         verts, polygons, surfids, py_verts = [], [], [], []
         for iface, p in enumerate(mesh.points):
             # p is [-1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0]
@@ -1177,7 +1182,7 @@ class Geom():
             py_verts.append((p[3], p[4], p[5]))
             py_verts.append((p[6], p[7], p[8]))
             surfids.append(surfid)
-        g = Geom(verts, polygons, surfids)
+        g = Geom(verts, polygons, surfids, hid=filename)
         g.merge_duplicated_verts()
         g.check_geom_sanity()
         return g
@@ -1366,8 +1371,8 @@ class BSPNode(object):
                                  distance=2.000)
                   ├─front_node: None
                   └─back_node: None
-    >>> g.to_OBJ('../test/c-shape2.obj')
-    to_OBJ: ../test/c-shape2.obj
+    >>> g.to_OBJ('../test/c-shape.obj')
+    to_OBJ: ../test/c-shape.obj
     """
     def __init__(self, geom):
         # Tree
@@ -1567,14 +1572,15 @@ class BSPNode(object):
         if self.back_node:
             self.back_node.merge_polygons_to_concave()
 
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-    name = "sphere"
+    name = "tower"
 
-    g = Geom.from_STL(filename='../test/{0}/{0}_a.stl'.format(name), surfid=0)
-    h = Geom.from_STL(filename='../test/{0}/{0}_b.stl'.format(name), surfid=1)
+    g = Geom.from_STL('../test/{0}/{0}_a.stl'.format(name), surfid=0)
+    h = Geom.from_STL('../test/{0}/{0}_b.stl'.format(name), surfid=1)
 
     # Create and build BSP trees
     a = BSPNode(g)
@@ -1607,5 +1613,3 @@ if __name__ == "__main__":
 
     g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
     g.to_STL('../test/{0}/{0}_union.stl'.format(name))
-
-
