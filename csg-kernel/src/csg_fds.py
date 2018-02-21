@@ -117,12 +117,13 @@ class Vector(object):
             math.isclose(self.z, other.z, rel_tol=EPSILON)
 
     def is_zero(self, multiplier=1.):  # FIXME Epsilon
+        # abs(a-b) <= max( rel_tol * max(abs(a), abs(b)), abs_tol )
         return \
             math.isclose(self.x, 0., rel_tol=EPSILON * multiplier) and \
             math.isclose(self.y, 0., rel_tol=EPSILON * multiplier) and \
             math.isclose(self.z, 0., rel_tol=EPSILON * multiplier)
 
-    def is_collinear(self, b, c):
+    def is_collinear(self, b, c, multiplier=1.):
         """
         Return true if self, b, and c all lie on the same line.
         >>> a, b, c = Vector(0,0,0), Vector(1,0,0), Vector(2,0,0)
@@ -151,7 +152,7 @@ class Vector(object):
                 b_s.length() ** 2,
                 (c.minus(b)).length() ** 2
                 )
-        if area_tri2 < EPSILON * area_square:
+        if area_tri2 < EPSILON * area_square * multiplier:
             return True
         return False
 
@@ -326,47 +327,41 @@ class Geom():
             [3, 5, 4], [3, 6, 5], [3, 4, 6]],
             )
         """
-        # Get my and geom border
+        # Join cut border of self and geom
         border0_halfedges = self.get_border_halfedges()
+        iverts0 = [bh[0] for bh in border0_halfedges]
         border1_halfedges = geom.get_border_halfedges()
-        # Get border verts FIXME verificare se avanzano vertici a self o a geom
-        iverts0 = []
-        for bh in border0_halfedges:
-            iverts0.append(bh[0])
-        iverts1 = []
-        for bh in border1_halfedges:
-            iverts1.append(bh[0])
+        iverts1 = [bh[0] for bh in border1_halfedges]
         # Merge iverts0 and ivert1
         while iverts0:
             ivert0 = iverts0.pop()
             vert0 = self.get_vert(ivert0)
-            merged = False
             for ivert1 in iverts1:
                 vert1 = geom.get_vert(ivert1)
                 if vert0.minus(vert1).length() < EPSILON * 10:  # FIXME
-                    print("Merged:", ivert0, ivert1)
                     geom.update_vert(ivert1, vert0)
                     iverts1.remove(ivert1)
-                    merged = True
                     break
-            if not merged:
-                print("Unmerged:", ivert0)
-        # Extend verts
+        # Check if all went well
+        if iverts0:
+            raise Exception("Unmerged iverts0:", iverts0)
+        if iverts1:
+            raise Exception("Unmerged iverts1:", iverts1)
+        # Extend verts of self with geom's
         original_nverts = self.get_nverts()
         self.verts.extend(geom.verts)
-        # Extend polygons
+        # Extend polygons of self with geom's
         original_npolygons = self.get_npolygons()
         self.polygons.extend(geom.polygons)
-        # Relink polygons to new iverts
+        # Relink geom polygons to new iverts
         for i, polygon in enumerate(self.polygons[original_npolygons:]):
             for j, _ in enumerate(polygon):
                 polygon[j] += original_nverts
-        # Extend surfids
+        # Extend self surfids with geom's
         self.surfids.extend(geom.surfids)
         # Merge duplicate verts
         self.merge_duplicated_verts()
         return self.get_ipolygons()
-        # Merge borders FIXME FIXME
 
     def flip(self):
         """
@@ -787,7 +782,7 @@ class Geom():
                 border_halfedges[halfedge] = ipolygon
         return border_halfedges
 
-    def get_multi_halfedges(self, ipolygons=None):  # FIXME test
+    def get_multi_halfedges(self, ipolygons=None):
         """
         Get multi halfedges, that are common between polygons
         Eg: {(1,2,3,4):[7,4]} with
@@ -863,13 +858,15 @@ class Geom():
                     v0 = self.get_vert(multi[i])
                     p = self.get_vert(multi[i+1])
                     v1 = self.get_vert(multi[i+2])
-                    if p.is_within(v0, v1) and p.is_collinear(v0, v1):
+                    if p.is_within(v0, v1) and p.is_collinear(
+                            v0, v1,
+                            multiplier=2
+                            ):
                         polygon0.remove(multi[i+1])
                 self.update_polygon(ipolygons[0], polygon0)
 
-    def get_border_loops(self, ipolygons):  # FIXME FIXME test
+    def get_border_loops(self, ipolygons):
         """
-        FIXME
         Get oriented border vert loops,
         Eg: [3,0,1,2,] with ivert0, ivert1, ...
         according to iface0 normal up
@@ -929,7 +926,7 @@ class Geom():
                         )
         return loops
 
-    def get_bordering_ipolygons(self, ipolygon, ipolygons=None):  # FIXME test
+    def get_bordering_ipolygons(self, ipolygon, ipolygons=None):
         """
         Get a set of polygons in ipolygons that border ipolygon
         >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
@@ -959,7 +956,7 @@ class Geom():
                 pass
         return set(bordering_ipolygons)
 
-    def get_cont_ipolygons(self, ipolygon, ipolygons):  # FIXME test
+    def get_cont_ipolygons(self, ipolygon, ipolygons):
         """
         Get a list of polygons in ipolygons that are continuous to ipolygon
         >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
@@ -1208,7 +1205,7 @@ class Geom():
 
     def check_degenerate_geometry(self):
         """
-        FIXME
+        Check degenerate geometry, as zero lenght edges and zero area faces
         """
         for ipolygon in range(self.get_npolygons()):
             self.get_tris_of_polygon(ipolygon)
@@ -1422,7 +1419,7 @@ class BSPNode(object):
 
     def _invert_node(self):
         """
-        FIXME
+        Invert node orientation, solid <-> void
         """
         # Flip normals
         self.plane.flip()
@@ -1529,15 +1526,6 @@ class BSPNode(object):
                 self.back_node = BSPNode(self.geom)
             self.back_node.build(back)
 
-    def append(self, other_bsp):  # FIXME test
-        """
-        Append other bsp tree to this.
-        """
-        # Append the other geom to self.geom
-        new_ipolygons = self.geom.append(other_bsp.geom)
-        # Build
-        self.build(new_ipolygons)
-
     def sync_geom(self):
         """
         Sync polygons from self to self.geom
@@ -1551,12 +1539,12 @@ class BSPNode(object):
         geom.polygons = new_polygons
         geom.surfids = new_surfids
 
-    def merge_polygons_to_concave(self):
+    def merge_polygons_to_concave(self):  # FIXME move to geom
         """
         Merge coplanar polygons with same surfid to concave polygons
         BSP tree cannot be used any more at the end.
         """
-        ipolygons = self.ipolygons[:]  # FIXME Protect?
+        ipolygons = self.ipolygons[:]
         # Build surfid_to_polygons dict FIXME put in a def used twice (to_OBJ)
         surfid_to_ipolygons = {}
         for ipolygon in ipolygons:
@@ -1578,8 +1566,6 @@ class BSPNode(object):
             self.front_node.merge_polygons_to_concave()
         if self.back_node:
             self.back_node.merge_polygons_to_concave()
-        # Remove unuseful verts along straight edges FIXME FIXME
-
 
 if __name__ == "__main__":
     import doctest
