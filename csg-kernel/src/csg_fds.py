@@ -83,6 +83,9 @@ class Vector(object):
     def length(self):
         return math.sqrt(self.dot(self))
 
+    def squarelength(self):
+        return self.dot(self)
+
     def unit(self):
         return self.dividedBy(self.length())
 
@@ -146,7 +149,7 @@ class Vector(object):
         b_s = b.minus(self)
         if c_s.is_zero() or b_s.is_zero():
             return True
-        area_tri2 = c_s.cross(b_s).length()
+        area_tri2 = c_s.cross(b_s).length()  # FIXME go to squarelenght()
         area_square = max(
                 c_s.length() ** 2,
                 b_s.length() ** 2,
@@ -168,9 +171,10 @@ class Vector(object):
                (p.y <= self.y <= r.y or r.y <= self.y <= p.y) and \
                (p.z <= self.z <= r.z or r.z <= self.z <= p.z)
 
-    def is_within_tri(self, a, b, c):
+    def is_within_tri(self, a, b, c, normal=None):
         """
-        Test if a point is in a triangle
+        Test if a point is in a triangle.
+        A pre-calculated normal can be sent
         >>> Vector(1,1,0).is_within_tri(\
                 Vector(0,0,0),Vector(2,0,0),Vector(0,2,0))
         True
@@ -198,7 +202,8 @@ class Vector(object):
         if not self.is_within(p, q):
             return False
         # Test cross products
-        normal = Plane.from_points((a, b, c)).normal
+        if normal is None:
+            normal = Plane.from_points((a, b, c)).normal
         if all((
                 b.minus(a).cross(self.minus(a)).dot(normal) >= 0.,
                 c.minus(b).cross(self.minus(b)).dot(normal) >= 0.,
@@ -288,15 +293,10 @@ class Geom():
             self.surfids = list(surfids)
         if len(self.surfids) != len(self.polygons):
             raise Exception('Bad surfids in Geom(), hid:', hid)
+        # Set normals
+        self.update_normals()
 
     def __repr__(self):
-        """
-        >>> Geom((1.,2.,3., 1.,2.,3.,), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), )
-        Geom(
-            (1.000,2.000,3.000,  1.000,2.000,3.000),
-            [[1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5]],
-            )
-        """
         strverts = ('{:.3f}'.format(v) for v in self.verts)
         strverts = list(zip(*[iter(strverts)] * 3))  # Join: ((1.,2.,3.,), ...)
         strverts = ',  '.join((','.join(v) for v in strverts))
@@ -305,10 +305,17 @@ class Geom():
                 )
 
     def clone(self):
-        return Geom(
+        geom = Geom(
                 verts=self.verts[:],
                 polygons=[p[:] for p in self.polygons],
+                surfids=self.surfids[:],
+                hid=self.hid,
                 )
+        # Never recalc normals, if possible
+        geom.normals = self.normals[:]
+        return geom
+
+    # Modify geom
 
     def append(self, geom):
         """
@@ -339,7 +346,7 @@ class Geom():
             vert0 = self.get_vert(ivert0)
             for ivert1 in iverts1:
                 vert1 = geom.get_vert(ivert1)
-                if vert0.minus(vert1).length() < EPSILON_CUT * 2:  # FIXME
+                if vert0.minus(vert1).length() < EPSILON_CUT * 2:  # FIXME go to squarelenght
                     geom.update_vert(ivert1, vert0)
                     iverts1.remove(ivert1)
                     break
@@ -360,77 +367,34 @@ class Geom():
                 polygon[j] += original_nverts
         # Extend self surfids with geom's
         self.surfids.extend(geom.surfids)
+        # Extend self normals with geom's
+        self.normals.extend(geom.normals)
         # Merge duplicate verts
         self.merge_duplicated_verts()
-        return self.get_ipolygons()
+        return self.get_ipolygons()  # FIXME why?
 
     def flip(self):
         """
         Flip all polygon normals.
-        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), ); g.flip(); g
-        Geom(
-            (),
-            [[3, 2, 1], [4, 3, 2, 1], [5, 4, 3, 2, 1]],
-            )
+        >>> g = Geom((0,0,1, 1,0,1, 2,0,1, 0,1,1,), ((0,1,2,3), ))
+        >>> g.flip(); g.get_polygon_normal(0); g.get_polygon(0)
+        Vector(-0.000, -0.000, -1.000)
+        [3, 2, 1, 0]
         """
         for polygon in self.polygons:
             polygon.reverse()
+        for ipolygon, normal in enumerate(self.normals):
+            self.normals[ipolygon] = normal.negated()
 
-    def get_polygon(self, ipolygon):
+    def update_normals(self):
         """
-        Get ipolygon connectivity.
-        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), ); g.get_polygon(1)
-        [1, 2, 3, 4]
+        Update polygon normals
         """
-        return self.polygons[ipolygon]
+        self.normals = [Plane.from_points(
+                self.get_polygon_verts(ipolygon)
+                ).normal for ipolygon, polygon in enumerate(self.polygons)]
 
-    def get_polygon_verts(self, ipolygon):
-        """
-        Get ipolygon verts.
-        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
-                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.get_polygon_verts(0)  # doctest: +NORMALIZE_WHITESPACE
-        [Vector(0.000, 1.000, 0.000), Vector(1.000, -1.000, 0.000),
-         Vector(-1.000, -1.000, 0.000)]
-        """
-        return [self.get_vert(ivert) for ivert in self.get_polygon(ipolygon)]
-
-    def get_polygon_surfid(self, ipolygon):
-        """
-        Get ipolygon surfid.
-        >>> g = Geom((), ((1,2,3),(1,2,3,4),(1,2,3,4,5),), (0,1,2))
-        >>> g.get_polygon_surfid(1)
-        1
-        """
-        return self.surfids[ipolygon]
-
-    def update_polygon(self, ipolygon, polygon):
-        """
-        Update ipolygon connectivity.
-        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
-                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.update_polygon(0, (0,0,0)); g.get_polygon(0)
-        0
-        [0, 0, 0]
-        """
-        self.polygons[ipolygon] = list(polygon)
-        return ipolygon
-
-    def append_polygon(self, polygon, surfid):
-        """
-        Append a polygon.
-        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
-                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
-        >>> g.append_polygon((0,0,0), 1); g.get_polygon(4)
-        4
-        [0, 0, 0]
-        >>> g.get_polygon_surfid(4)
-        1
-        """
-        self.polygons.append(list(polygon))
-        self.surfids.append(surfid)
-        ipolygon = self.get_npolygons() - 1
-        return ipolygon
+    # Numbers
 
     def get_npolygons(self):
         """
@@ -452,14 +416,119 @@ class Geom():
         """
         return list(range(len(self.polygons)))
 
-    def get_plane_of_polygon(self, ipolygon):
+    # Get polygon
+
+    def get_polygon(self, ipolygon):
         """
-        Get plane containing ipolygon.
+        Get ipolygon connectivity.
         >>> g = Geom((0,0,1, 1,0,1, 2,0,1, 0,1,1,), ((0,1,2,3), ))
-        >>> g.get_plane_of_polygon(0)
+        >>> g.get_polygon(0)
+        [0, 1, 2, 3]
+        """
+        return self.polygons[ipolygon]
+
+    def get_polygon_verts(self, ipolygon):
+        """
+        Get ipolygon verts.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
+        >>> g.get_polygon_verts(0)  # doctest: +NORMALIZE_WHITESPACE
+        [Vector(0.000, 1.000, 0.000), Vector(1.000, -1.000, 0.000),
+         Vector(-1.000, -1.000, 0.000)]
+        """
+        return [self.get_vert(ivert) for ivert in self.get_polygon(ipolygon)]
+
+    def get_polygon_surfid(self, ipolygon):
+        """
+        Get ipolygon surfid.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)), \
+                     (0,3,2,1), )  # Good tet
+        >>> g.get_polygon_surfid(1)
+        3
+        """
+        return self.surfids[ipolygon]
+
+    def get_polygon_normal(self, ipolygon):
+        """
+        Get normal of ipolygon.
+        >>> g = Geom((0,0,1, 1,0,1, 2,0,1, 0,1,1,), ((0,1,2,3), ))
+        >>> g.get_polygon_normal(0)
+        Vector(0.000, 0.000, 1.000)
+        """
+        return self.normals[ipolygon]
+
+    def get_polygon_plane(self, ipolygon):
+        """
+        Get plane containing ipolygon in a robust way.
+        >>> g = Geom((0,0,1, 1,0,1, 2,0,1, 0,1,1,), ((0,1,2,3), ))
+        >>> g.get_polygon_plane(0)
         Plane(normal=Vector(0.000, 0.000, 1.000), distance=1.000)
         """
-        return Plane.from_points(self.get_polygon_verts(ipolygon))
+        verts = self.get_polygon_verts(ipolygon)
+        normal = self.normals[ipolygon]
+        tot_distance = 0.
+        for vert in verts:
+            tot_distance += vert.dot(normal)
+        distance = tot_distance / len(verts)
+        return Plane(normal, distance)
+
+    # Modify polygon
+
+    def update_polygon(self, ipolygon, polygon, normal=None):
+        """
+        Update ipolygon connectivity.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
+        >>> g.update_polygon(0, (0,1,2), (1,0,0)); g.get_polygon(0)
+        0
+        [0, 1, 2]
+        >>> g.get_polygon_normal(0)
+        Vector(1.000, 0.000, 0.000)
+        """
+        self.polygons[ipolygon] = list(polygon)
+        if normal is not None:
+            self.normals[ipolygon] = Vector(normal)
+        return ipolygon
+
+    def append_polygon(self, polygon, surfid, normal):
+        """
+        Append a polygon.
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
+        >>> g.append_polygon((3,1,0), 1, (1,0,0)); g.get_polygon(4)
+        4
+        [3, 1, 0]
+        >>> g.get_polygon_surfid(4); g.get_polygon_normal(4)
+        1
+        Vector(1.000, 0.000, 0.000)
+        """
+        self.polygons.append(list(polygon))
+        self.surfids.append(surfid)
+        self.normals.append(Vector(normal))
+        ipolygon = self.get_npolygons() - 1
+        return ipolygon
+
+    def merge_polygons_to_concave(self, ipolygons):
+        """
+        Merge coplanar polygons (online) with same surfid to concave polygons.
+        No check is performed on coplanarity. This is used by the bsp tree.
+        """
+        # Build surfid_to_polygons dict FIXME put in a def used twice (to_OBJ)
+        surfid_to_ipolygons = {}
+        for ipolygon in ipolygons:
+            surfid = self.get_polygon_surfid(ipolygon)
+            try:
+                surfid_to_ipolygons[surfid].append(ipolygon)
+            except KeyError:
+                surfid_to_ipolygons[surfid] = [ipolygon, ]
+        # For each surfid merge polygons
+        for surfid, surfid_ipolygons in surfid_to_ipolygons.items():
+            border_loops = self.get_border_loops(surfid_ipolygons)
+            for loop, loop_ipolygons in border_loops.items():
+                self.update_polygon(loop_ipolygons[0], loop)  # FIXME if not coplanar, set new normal
+                for ipolygon in loop_ipolygons[1:]:
+                    ipolygons.remove(ipolygon)
 
     def split_polygon(self, ipolygon, plane, coplanar_front,
                       coplanar_back, front, back):
@@ -533,7 +602,8 @@ class Geom():
         polygon_type = 0
         ivert_types = []
         polygon_nverts = len(polygon)
-        surfid = self.get_polygon_surfid(ipolygon)
+        polygon_surfid = self.get_polygon_surfid(ipolygon)
+        polygon_normal = self.get_polygon_normal(ipolygon)
 
         # The edges to be split,
         # eg. {(2,3): 1} with {(ivert0,ivert1): cut_ivert, ...}
@@ -560,7 +630,6 @@ class Geom():
         # Put the polygon in the correct list
         if polygon_type == COPLANAR:
             # Same or opposite normal?
-            polygon_normal = self.get_plane_of_polygon(ipolygon).normal
             if plane.normal.dot(polygon_normal) > 0:
                 coplanar_front.append(ipolygon)
             else:
@@ -596,7 +665,7 @@ class Geom():
                     cut_vert = vert0.lerp(vert1, t)
                     cut_ivert = self.append_vert(cut_vert)
                     # Register the split for domino to bordering polygons
-                    spl_edges[(ivert1, ivert0)] = cut_ivert
+                    spl_edges[(ivert1, ivert0)] = cut_ivert  # opposite!
                     # Append the new_vert to the right list
                     front_iverts.append(cut_ivert)
                     back_iverts.append(cut_ivert)
@@ -610,7 +679,9 @@ class Geom():
 
             if len(back_iverts) >= 3:
                 if updated:
-                    new_ipolygon = self.append_polygon(back_iverts, surfid)
+                    new_ipolygon = self.append_polygon(
+                            back_iverts, polygon_surfid, polygon_normal,
+                            )
                 else:
                     updated = True
                     new_ipolygon = self.update_polygon(ipolygon, back_iverts)
@@ -628,6 +699,8 @@ class Geom():
                 i = spl_polygon.index(spl_edge[0])  # find right edge
                 spl_polygon.insert(i+1, cut_ivert)  # inject cut_ivert
                 self.update_polygon(spl_ipolygon, spl_polygon)
+
+    # Verts
 
     def get_vert(self, ivert):
         """
@@ -728,6 +801,34 @@ class Geom():
 
     # Edges
 
+    def collapse_short_edges(self, limit):  # FIXME develop
+        double_halfedges = self.get_double_halfedges()
+        limit = limit ** 2
+        counter = 0
+        while double_halfedges:
+            halfedge, ipolygons = double_halfedges.popitem()  # qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+            ipolygon0, ipolygon1 = ipolygons
+            v0 = self.get_vert(halfedge[0])
+            v1 = self.get_vert(halfedge[1])
+            if v1.minus(v0).squarelength() < limit:
+                # Get concerned ipolygons
+                if len(self.polygons[ipolygon0]) > 3:
+                    print(self.polygons[ipolygon0], halfedge)
+                    self.polygons[ipolygon0].remove(halfedge[0])
+                else:
+                    pass
+                if ipolygon1 is not None:
+                    if len(self.polygons[ipolygon1]) > 3:
+                        self.polygons[ipolygon1].remove(halfedge[1])
+                counter += 1
+        print("Collapsed edges:", counter)
+
+    def _split_edge(self, length):  # FIXME develop
+        pass
+
+    def split_long_edges(self, length):  # FIXME develop
+        pass
+
     def get_halfedges(self, ipolygons=None):
         """
         Get halfedges dict of ipolygons subset.
@@ -755,13 +856,36 @@ class Geom():
             polygon = self.get_polygon(ipolygon)
             polygon_nverts = len(polygon)
             for i in range(polygon_nverts):
-                halfedge = (polygon[i], polygon[(i+1) % polygon_nverts]) # linea lunga
+                halfedge = (polygon[i], polygon[(i+1) % polygon_nverts])
                 if halfedge in halfedges:
                     raise Exception(
                             'Non-manifold or unorientable at ipolygon:',
                             ipolygon)
                 halfedges[halfedge] = ipolygon
         return halfedges
+
+    def get_double_halfedges(self, ipolygons=None):
+        """
+        Get double halfedges dict of ipolygons subset.
+        double halfedges are: {(1,2):7,6]}
+        with {(ivert0, ivert1): ipolygon_sx, ipolygon_dx}
+        according to iface0 normal up
+        >>> g = Geom((-1,-1,0, 1,-1,0, 0,1,0, 0,0,1), \
+                     ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
+        >>> g.get_double_halfedges() # doctest: +NORMALIZE_WHITESPACE
+        {(3, 2): (3, 2), (0, 3): (3, 1), (2, 0): (3, 0), (3, 1): (2, 1),
+         (1, 2): (2, 0), (0, 1): (1, 0)}
+        """
+        halfedges = self.get_halfedges(ipolygons)
+        halfedges_double = dict()
+        while halfedges:
+            halfedge, ipolygon_sx = halfedges.popitem()
+            opposite = halfedge[1], halfedge[0]
+            ipolygon_dx = halfedges.get(opposite, None)
+            if ipolygon_dx is not None:
+                del halfedges[opposite]
+            halfedges_double[halfedge] = ipolygon_sx, ipolygon_dx
+        return halfedges_double
 
     def get_border_halfedges(self, ipolygons=None):
         """
@@ -789,11 +913,12 @@ class Geom():
         Get multi halfedges, that are common between polygons
         Eg: {(1,2,3,4):[7,4]} with
         {(ivert0, ivert1): [ipolygon on the left, ipolygon on the right]}
-        >>> g = Geom((),\
-                     ((0,1,2,3,8,4,5,6,10), (11,6,5,4,3,2,1,0), (4,8,3)) )
+        >>> g = Geom((0,0,0, 1,0,0, 2,0,0, 3,0,0, 4,0,0, 5,0,0, 6,0,0,\
+                      3,1,0, 3,3,0, 3,-3,0),\
+                     ((0,1,2,3,7,4,5,6,8), (9,6,5,4,3,2,1,0), (4,7,3)) )
         >>> g.get_multi_halfedges()  # doctest: +NORMALIZE_WHITESPACE
-        {(6, 10, 0): (0, None), (6, 5, 4): (1, 0), (3, 2, 1, 0): (1, 0),
-         (0, 11, 6): (1, None), (4, 8, 3): (2, 0)}
+        {(6, 8, 0): (0, None), (6, 5, 4): (1, 0), (3, 2, 1, 0): (1, 0),
+         (0, 9, 6): (1, None), (4, 7, 3): (2, 0)}
         """
         halfedges = self.get_halfedges(ipolygons)
         # Get polygons common halfedges
@@ -870,7 +995,7 @@ class Geom():
     def get_border_loops(self, ipolygons):
         """
         Get oriented border vert loops,
-        Eg: [3,0,1,2,] with ivert0, ivert1, ...
+        Eg: {(ivert0, ivert1, ...):[ipolygon, ...]}
         according to iface0 normal up
         >>> g = Geom((-1,-1,0, 1,-1,0, 1,1,0, -1,1,0, -3, 1,0, -3,-1,0, \
                3,-1,0, 3, 1,0, 1,3,0, -1,3,0, -1,-3,0,  1,-3,0),\
@@ -1003,7 +1128,7 @@ class Geom():
             # Test counter-clockwise ear
             ccw = b.minus(a).cross(c.minus(b)).dot(normal) > 0.
             # Test no other vert in the ear
-            vwt = any((self.get_vert(p).is_within_tri(a, b, c)
+            vwt = any((self.get_vert(p).is_within_tri(a, b, c, normal)
                        for j, p in enumerate(polygon)
                        if j not in (i0, i1, i2)
                        ))
@@ -1031,9 +1156,9 @@ class Geom():
         >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
         Traceback (most recent call last):
         ...
-        Exception: ('Could not find a plane, points:',
-                    (Vector(0.000, 0.000, 0.000),
-                    Vector(1.000, 0.000, 0.000), Vector(2.000, 0.000, 0.000)))
+        Exception: ('Triangulation impossible, tri:',
+                    Vector(2.000, 0.000, 0.000), Vector(0.000, 0.000, 0.000),
+                    Vector(1.000, 0.000, 0.000), Vector(0.000, 0.000, -1.000))
         >>> g = Geom((0,0,0, 1,0,0, 1,0,0, 1,2,0, ), \
                      ((0,1,2,3,), ))    # Zero edge
         >>> g.get_tris_of_polygon(ipolygon=0)  # doctest: +NORMALIZE_WHITESPACE
@@ -1049,7 +1174,7 @@ class Geom():
         if polygon_nverts == 3:
             return [tuple(polygon), ]
         # Get the polygon overall normal
-        normal = self.get_plane_of_polygon(ipolygon).normal
+        normal = self.get_polygon_normal(ipolygon)
         # Search for triangulation
         tris = []
         while len(polygon) > 2:
@@ -1144,20 +1269,13 @@ class Geom():
             f.write(
                     """
                     # Materials
-                    newmtl 0
-                    Kd 0.6 0.0 0.0
-                    newmtl 1
-                    Kd 0.6 0.6 0.6
-                    newmtl 2
-                    Kd 0.0 0.6 0.0
-                    newmtl 3
-                    Kd 0.0 0.0 0.6
-                    newmtl 4
-                    Kd 0.0 0.6 0.6
-                    newmtl 5
-                    Kd 0.6 0.0 0.6
-                    newmtl 6
-                    Kd 0.6 0.6 0.0
+                    newmtl 0\nKd 0.6 0.0 0.0
+                    newmtl 1\nKd 0.6 0.6 0.6
+                    newmtl 2\nKd 0.0 0.6 0.0
+                    newmtl 3\nKd 0.0 0.0 0.6
+                    newmtl 4\nKd 0.0 0.6 0.6
+                    newmtl 5\nKd 0.6 0.0 0.6
+                    newmtl 6\nKd 0.6 0.6 0.0
                     """
                     )
         print('to_OBJ:', filepath)
@@ -1301,7 +1419,7 @@ class BSPNode(object):
                  ((2,1,0), (0,1,3), (1,2,3), (2,0,3)) )  # Good tet
     >>> n = BSPNode(geom=g); n.build(); n  # doctest: +NORMALIZE_WHITESPACE
     BSP tree - geom hid: None, ipolygons: [0]
-        │ plane: Plane(normal=Vector(0.000, 0.000, -1.000), distance=-0.000)
+        │ plane: Plane(normal=Vector(0.000, 0.000, -1.000), distance=0.000)
         ├─front_node: None
         └─back_node: geom hid: None, ipolygons: [1]
           │ plane: Plane(normal=Vector(0.000, -0.707, 0.707), distance=0.707)
@@ -1509,7 +1627,7 @@ class BSPNode(object):
         i = 0
         if not self.plane:
             i = 1
-            self.plane = self.geom.get_plane_of_polygon(ipolygons[0])
+            self.plane = self.geom.get_polygon_plane(ipolygons[0])
             self.ipolygons.append(ipolygons[0])
 
         # Split all polygons using self.plane
@@ -1531,41 +1649,27 @@ class BSPNode(object):
                 self.back_node = BSPNode(self.geom)
             self.back_node.build(back)
 
-    def sync_geom(self):
+    def sync_geom(self):  # FIXME why not a new Geom?
         """
         Sync polygons from self to self.geom
         """
         geom = self.geom
-        new_polygons = []
+        new_polygons, new_surfids, new_normals = [], [], []
         new_surfids = []
         for ipolygon in self.get_all_ipolygons():
             new_polygons.append(geom.get_polygon(ipolygon))
             new_surfids.append(geom.get_polygon_surfid(ipolygon))
+            new_normals.append(geom.get_polygon_normal(ipolygon))
         geom.polygons = new_polygons
         geom.surfids = new_surfids
+        geom.normals = new_normals
 
     def merge_polygons_to_concave(self):  # FIXME move to geom
         """
         Merge coplanar polygons with same surfid to concave polygons
         BSP tree cannot be used any more at the end.
         """
-        ipolygons = self.ipolygons[:]
-        # Build surfid_to_polygons dict FIXME put in a def used twice (to_OBJ)
-        surfid_to_ipolygons = {}
-        for ipolygon in ipolygons:
-            surfid = self.geom.get_polygon_surfid(ipolygon)
-            try:
-                surfid_to_ipolygons[surfid].append(ipolygon)
-            except KeyError:
-                surfid_to_ipolygons[surfid] = [ipolygon, ]
-        # For each surfid merge polygons
-        for surfid in surfid_to_ipolygons:
-            ipolygons = surfid_to_ipolygons[surfid]
-            border_loops = self.geom.get_border_loops(ipolygons)
-            for loop, ipolygons in border_loops.items():
-                self.geom.update_polygon(ipolygons[0], loop)
-                for ipolygon in ipolygons[1:]:
-                    self.ipolygons.remove(ipolygon)
+        self.geom.merge_polygons_to_concave(self.ipolygons)
         # Do the same for all the tree
         if self.front_node:
             self.front_node.merge_polygons_to_concave()
@@ -1577,39 +1681,42 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-    name = "tower"
-
-    g = Geom.from_STL('../test/{0}/{0}_a.stl'.format(name), surfid=0)
-    h = Geom.from_STL('../test/{0}/{0}_b.stl'.format(name), surfid=1)
-
-    # Create and build BSP trees
-    a = BSPNode(g)
-    a.build()
-
-    b = BSPNode(h)
-    b.build()
-
-    # Remove each interior
-    a.clip_to(b)
-    b.clip_to(a)
-
-    # Remove shared coplanars
-    b.invert()
-    b.clip_to(a)
-    b.invert()
-
-    # Merge coplanar polygons with same surfid
-    a.merge_polygons_to_concave()
-    b.merge_polygons_to_concave()
-
-    # Sync
-    a.sync_geom()
-    b.sync_geom()
-
-    g.remove_multi_halfedges()
-    h.remove_multi_halfedges()
-
-    g.append(h)
-
-    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
-    g.to_STL('../test/{0}/{0}_union.stl'.format(name))
+#    name = "sphere"
+#
+#    g = Geom.from_STL('../test/{0}/{0}_a.stl'.format(name), surfid=0)
+#    h = Geom.from_STL('../test/{0}/{0}_b.stl'.format(name), surfid=1)
+#
+#    # Create and build BSP trees
+#    a = BSPNode(g)
+#    a.build()
+#
+#    b = BSPNode(h)
+#    b.build()
+#
+#    # Remove each interior
+#    a.clip_to(b)
+#    b.clip_to(a)
+#
+#    # Remove shared coplanars
+#    b.invert()
+#    b.clip_to(a)
+#    b.invert()
+#
+#    # Merge coplanar polygons with same surfid
+#    a.merge_polygons_to_concave()
+#    b.merge_polygons_to_concave()
+#
+#    # Sync
+#    a.sync_geom()
+#    b.sync_geom()
+#
+#    g.collapse_short_edges(limit=.001)
+#    h.collapse_short_edges(limit=.001)
+#
+#    g.remove_multi_halfedges()
+#    h.remove_multi_halfedges()
+#
+#    g.append(h)
+#
+#    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
+#    g.to_STL('../test/{0}/{0}_union.stl'.format(name))
