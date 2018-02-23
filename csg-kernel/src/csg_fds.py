@@ -9,7 +9,6 @@ Created on Sat Feb 10 17:12:27 2018
 import math
 import array
 import textwrap
-import random
 
 EPSILON = 1e-6  # FIXME different EPSILON for different applications
 EPSILON_CUT = 1e-06
@@ -277,7 +276,7 @@ class Geom():
         if verts is None:
             verts = ()
         if polygons is None:
-            polygons = ((), )
+            polygons = ()
         try:
             # Array of vertices coordinates, eg. [1.,2.,3., 2.,3.,4., ...]
             self.verts = array.array('f', verts)
@@ -288,13 +287,15 @@ class Geom():
             raise Exception('Bad Geom(), hid:', hid)
         # Set surfids
         if surfids is None:
-            self.surfids = [random.randint(1, 3) for polygon in self.polygons]
+            self.surfids = ['White' for polygon in self.polygons]
         else:
             self.surfids = list(surfids)
         if len(self.surfids) != len(self.polygons):
             raise Exception('Bad surfids in Geom(), hid:', hid)
         # Set normals
-        self.update_normals()
+        self.normals = []
+        if self.polygons and self.verts:
+            self.update_normals()
 
     def __repr__(self):
         strverts = ('{:.3f}'.format(v) for v in self.verts)
@@ -325,7 +326,7 @@ class Geom():
         >>> h = Geom((-1,-1,2, 1,-1,2, 0,1,2, 0,0,1), \
                      ((0,1,2), (3,1,0), (3,2,1), (3,0,2)) )  # but upside-down
         >>> g.append(h); g  # doctest: +NORMALIZE_WHITESPACE
-        Reduced verts: 1
+        Dup verts removed: 1
         [0, 1, 2, 3, 4, 5, 6, 7]
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,
@@ -474,6 +475,15 @@ class Geom():
         return Plane(normal, distance)
 
     # Modify polygon
+
+    def remove_polygon(self, ipolygon):
+        """
+        Remove a polygon. Change ipolygon references!
+        """
+        print("Polygon removed:", ipolygon)
+        del self.polygons[ipolygon]
+        del self.surfids[ipolygon]
+        del self.normals[ipolygon]
 
     def update_polygon(self, ipolygon, polygon, normal=None):
         """
@@ -762,7 +772,7 @@ class Geom():
                       1,-1,0, 1,-1,0,), \
                      ((2,6,0), (0,1,3), (7,4,3), (5,0,3)) )  # Dup verts, 8>4
         >>> g.merge_duplicated_verts(); g  # doctest: +NORMALIZE_WHITESPACE
-        Reduced verts: 4
+        Dup verts removed: 4
         4
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  0.000,1.000,0.000,
@@ -796,34 +806,58 @@ class Geom():
         for pyvert in unique_pyverts:
             verts.extend(pyvert)
         self.verts = verts
-        print("Reduced verts:", original_nverts - self.get_nverts())
+        print("Dup verts removed:", original_nverts - self.get_nverts())
         return original_nverts - self.get_nverts()
 
     # Edges
 
+    def _collapse_edge(self, ivert0, ivert1, halfedges):
+        # Replace ivert0 with ivert1 in all polygons
+        broken_ipolygons = []
+        for ipolygon, polygon in enumerate(self.polygons):
+            if ivert1 in polygon:
+                # Polygon has ivert1 already, try to remove ivert0 only
+                try:
+                    polygon.remove(ivert0)
+                except ValueError:
+                    pass
+                else:
+                    if len(polygon) < 3:
+                        broken_ipolygons.append(ipolygon)
+            else:
+                # Polygon does not have ivert1, try to replace ivert0
+                try:
+                    polygon[polygon.index(ivert0)] = ivert1
+                except ValueError:
+                    pass
+        # Update halfedges
+        for halfedge in halfedges:
+            try:
+                halfedge[halfedge.index(ivert0)] = ivert1
+            except ValueError:
+                pass
+        # Remove broken ipolygons
+        for ipolygon in broken_ipolygons:
+            self.remove_polygon(ipolygon)
+
     def collapse_short_edges(self, limit):  # FIXME develop
-        double_halfedges = self.get_double_halfedges()
-        limit = limit ** 2
+        halfedges = self.get_double_halfedges()
         counter = 0
-        while double_halfedges:
-            halfedge, ipolygons = double_halfedges.popitem()  # qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
-            ipolygon0, ipolygon1 = ipolygons
-            v0 = self.get_vert(halfedge[0])
-            v1 = self.get_vert(halfedge[1])
+        # Get short halfedges
+        limit = limit ** 2
+        short_halfedges = []
+        for halfedge in halfedges:
+            ivert0, ivert1 = halfedge
+            v0 = self.get_vert(ivert0)
+            v1 = self.get_vert(ivert1)
             if v1.minus(v0).squarelength() < limit:
-                # Get concerned ipolygons
-                if len(self.polygons[ipolygon0]) > 3:
-                    self.polygons[ipolygon0].remove(halfedge[0])
-                else:
-                    pass  # FIXME stub
-                if ipolygon1 is None:
-                    continue
-                if len(self.polygons[ipolygon1]) > 3:
-                    self.polygons[ipolygon1].remove(halfedge[1])
-                else:
-                    pass   # FIXME stub
-                counter += 1
-        print("Collapsed edges:", counter)
+                short_halfedges.append(list(halfedge))
+        # Collapse them
+        while short_halfedges:
+            ivert0, ivert1 = short_halfedges.pop()
+            self._collapse_edge(ivert0, ivert1, short_halfedges)
+            counter += 1
+        print("Short edges removed:", counter)
 
     def _split_edge(self, length):  # FIXME develop
         pass
@@ -1195,20 +1229,21 @@ class Geom():
         >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
                       -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0, \
                        1.0, -1.0, -1.0,   1.0, -1.0, 1.0), \
-                    ((0,1,2,3), (7,6,5,4), (1,7,4,2), \
-                     (0,3,5,6), (1,0,6,7), (2,4,5,3)) )  # A good cube
+                    ((0,1,2,3), (7,6,5,4), (1,0,6,7), (2,4,5,3), \
+                     (0,3,5,6), (1,7,4,2)),  \
+                     ('Red', 'Magenta', 'Green', 'Yellow', 'Blue', 'Cyan',)) \
+                    # A good cube w surfid
         >>> g.to_STL('../test/doctest.stl')
         to_STL: ../test/doctest.stl
         >>> Geom.from_STL('../test/doctest.stl') \
             # doctest: +NORMALIZE_WHITESPACE
-        Reduced verts: 28
+        Dup verts removed: 28
         Geom(
             (-1.000,-1.000,-1.000,  -1.000,-1.000,1.000,  -1.000,1.000,1.000,
-            -1.000,1.000,-1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,
-            1.000,1.000,-1.000,  1.000,1.000,1.000),
-            [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [1, 4, 7],
-            [1, 7, 2], [0, 3, 6], [0, 6, 5], [1, 0, 5], [1, 5, 4],
-            [2, 7, 6], [2, 6, 3]],
+             -1.000,1.000,-1.000,  1.000,-1.000,1.000,  1.000,-1.000,-1.000,
+             1.000,1.000,-1.000,  1.000,1.000,1.000),
+            [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [1, 0, 5], [1, 5, 4],
+             [2, 7, 6], [2, 6, 3], [0, 3, 6], [0, 6, 5], [1, 4, 7], [1, 7, 2]],
             )
         >>> g.to_STL('../test/doctest.stl')
         to_STL: ../test/doctest.stl
@@ -1230,63 +1265,8 @@ class Geom():
             f.write('endsolid name\n')
         print('to_STL:', filepath)
 
-    def to_OBJ(self, filepath):
-        """
-        Write self to OBJ file
-        >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
-                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0, \
-                       1.0, -1.0, -1.0,   1.0, -1.0, 1.0), \
-                    ((0,1,2,3), (7,6,5,4), (1,7,4,2), \
-                     (0,3,5,6), (1,0,6,7), (2,4,5,3)),\
-                     (0, 0, 1, 1, 2, 2,))  # A good cube w surfid
-        >>> g.to_OBJ('../test/doctest.obj')
-        to_OBJ: ../test/doctest.obj
-        """
-        import os
-        path, filename = os.path.split(filepath)
-        # Arrange polygons by surfid
-        polygons = self.polygons[:]
-        surfid_to_polygons = {}
-        for ipolygon, polygon in enumerate(polygons):
-            surfid = self.get_polygon_surfid(ipolygon)
-            try:
-                surfid_to_polygons[surfid].append(polygon)
-            except KeyError:
-                surfid_to_polygons[surfid] = [polygon, ]
-        # Write geometry
-        with open(filepath, 'w') as f:
-            f.write('# Reference to materials\n')
-            f.write('mtllib default.mtl\n')
-            f.write('# List of vertices x,y,z\n')
-            for ivert in self.get_iverts():
-                vert = self.get_vert(ivert)
-                new_vert = (vert[0], vert[2], -vert[1])
-                f.write('v {0[0]} {0[1]} {0[2]}\n'.format(new_vert))
-            f.write('# List of polygons by material (surfid)\n')
-            for surfid in surfid_to_polygons:
-                f.write('usemtl {}\n'.format(surfid))
-                for polygon in surfid_to_polygons[surfid]:
-                    str_polygon = ' '.join([str(ivert+1) for ivert in polygon])
-                    f.write('f {}\n'.format(str_polygon))
-            f.write('# End\n')
-        # Write predefined materials
-        with open('{}/default.mtl'.format(path), 'w') as f:
-            f.write(
-                    """
-                    # Materials
-                    newmtl 0\nKd 0.6 0.0 0.0
-                    newmtl 1\nKd 0.6 0.6 0.6
-                    newmtl 2\nKd 0.0 0.6 0.0
-                    newmtl 3\nKd 0.0 0.0 0.6
-                    newmtl 4\nKd 0.0 0.6 0.6
-                    newmtl 5\nKd 0.6 0.0 0.6
-                    newmtl 6\nKd 0.6 0.6 0.0
-                    """
-                    )
-        print('to_OBJ:', filepath)
-
     @classmethod
-    def from_STL(cls, filepath, surfid=0):
+    def from_STL(cls, filepath, surfid='White'):
         """
         Get new Geom from STL file
         Doctest in Geom.to_STL()
@@ -1309,6 +1289,140 @@ class Geom():
         g.merge_duplicated_verts()
         g.check_geom_sanity()
         return g
+
+    def to_OBJ(self, filepath, triangulate=False):
+        """
+        Write self to OBJ file
+        >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
+                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0, \
+                       1.0, -1.0, -1.0,   1.0, -1.0, 1.0), \
+                    ((0,1,2,3), (7,6,5,4), (1,0,6,7), (2,4,5,3), \
+                     (0,3,5,6), (1,7,4,2)),  \
+                     ('Red', 'Magenta', 'Green', 'Yellow', 'Blue', 'Cyan',)) \
+                    # A good cube w surfid
+        >>> g.to_OBJ('../test/doctest.obj')
+        to_OBJ: ../test/doctest.obj
+        >>> geoms = Geom.from_OBJ('../test/doctest.obj')
+        Dup verts removed: 0
+        from_OBJ: ../test/doctest.obj
+        >>> g = geoms[0]; g.get_polygon(1); g.get_vert(7)
+        [7, 6, 5, 4]
+        Vector(1.000, -1.000, 1.000)
+        >>> g.to_OBJ('../test/doctest2.obj', triangulate=True)
+        to_OBJ: ../test/doctest2.obj
+        """
+        import os
+        path, filename = os.path.split(filepath)
+        # Arrange polygons by surfid
+        surfid_to_ipolygons = {}  # FIXME move to def, duplicated
+        for ipolygon, _ in enumerate(self.polygons):
+            surfid = self.get_polygon_surfid(ipolygon)
+            try:
+                surfid_to_ipolygons[surfid].append(ipolygon)
+            except KeyError:
+                surfid_to_ipolygons[surfid] = [ipolygon, ]
+        # Write geometry
+        with open(filepath, 'w') as f:
+            f.write('# Reference to materials\n')
+            f.write('mtllib default.mtl\n')
+            f.write('# List of vertices x,y,z\n')
+            for ivert in self.get_iverts():
+                vert = self.get_vert(ivert)
+                new_vert = (vert[0], vert[2], -vert[1])  # Different ref sys
+                f.write('v {0[0]} {0[1]} {0[2]}\n'.format(new_vert))
+            f.write('# List of polygons by material (surfid)\n')
+            for surfid, ipolygons in surfid_to_ipolygons.items():
+                f.write('usemtl {}\n'.format(surfid))
+                for ipolygon in ipolygons:
+                    if triangulate:
+                        polygons = self.get_tris_of_polygon(ipolygon)
+                    else:
+                        polygons = (self.get_polygon(ipolygon),)
+                    for polygon in polygons:
+                        str_polygon = ' '.join(
+                                [str(ivert+1) for ivert in polygon]
+                                )
+                        f.write('f {}\n'.format(str_polygon))
+            f.write('# End\n')
+        # Write predefined materials
+        with open('{}/default.mtl'.format(path), 'w') as f:
+            f.write(
+                    """
+                    # Materials
+                    newmtl White\nKd 0.6 0.6 0.6
+                    newmtl Red\nKd 0.6 0.0 0.0
+                    newmtl Green\nKd 0.0 0.6 0.0
+                    newmtl Blue\nKd 0.0 0.0 0.6
+                    newmtl Yellow\nKd 0.6 0.6 0.0
+                    newmtl Cyan\nKd 0.0 0.6 0.6
+                    newmtl Magenta\nKd 0.6 0.0 0.6
+                    """
+                    )
+        print('to_OBJ:', filepath)
+
+    @classmethod
+    def from_OBJ(cls, filepath):
+        """
+        Get a dict of new Geom from OBJ file
+        Doctest in Geom.to_OBJ()
+        """
+        # Init
+        import os
+        path, filename = os.path.split(filepath)
+        geoms = {}
+        current_geom = Geom()
+        current_surfid = 'White'
+        nverts = 0
+        # Read file
+        with open(filepath, 'r') as f:
+            for line in f:
+                tokens = line[:-1].split(' ')
+                # vert
+                if tokens[0] == 'v':
+                    current_geom.append_vert((
+                            float(tokens[1]),
+                            -float(tokens[3]),
+                            float(tokens[2]),
+                            ))  # Different ref sys
+                # polygon
+                elif tokens[0] == 'f':
+                    # Remove texture and normal info
+                    tokens = [t.split('/')[0] for t in tokens]
+                    # Check polygon
+                    polygon = [int(t)-1-nverts for t in tokens[1:]]
+                    for ivert in polygon:
+                        if ivert < 0:
+                            raise Exception(
+                                    'OBJ format not supported, negative ivert.'
+                                    )
+                    # Get polygon
+                    current_geom.append_polygon(
+                            polygon=polygon,
+                            surfid=current_surfid,
+                            normal=(1, 0, 0),  # updated later
+                            )
+                # surfid
+                elif tokens[0] == 'usemtl':
+                    current_surfid = tokens[1]
+                # geom
+                elif tokens[0] == 'o':
+                    if not geoms:
+                        geoms[tokens[1]] = current_geom
+                        current_geom.hid = tokens[1]
+                    else:
+                        nverts = current_geom.get_nverts()
+                        current_geom = Geom(hid=tokens[1])
+                        geoms[tokens[1]] = current_geom
+                        current_surfid = 'White'
+
+        if not geoms:
+            geoms[filename] = current_geom
+        for hid, g in geoms.items():
+            print('from_OBJ:', filepath, '->', hid)
+            g.update_normals()
+            g.merge_duplicated_verts()
+            g.check_geom_sanity()
+        return geoms
 
     # Geometry sanity
 
@@ -1392,10 +1506,12 @@ class Geom():
         If the mesh is not correct, many geometric algorithms will fail.
         The only solution in this case is the user repairing the mesh.
         >>> g = Geom((-1.0, -1.0, -1.0,  -1.0, -1.0, 1.0,  -1.0, 1.0,  1.0, \
-                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0,\
+                      -1.0,  1.0, -1.0,   1.0,  1.0, 1.0,   1.0, 1.0, -1.0, \
                        1.0, -1.0, -1.0,   1.0, -1.0, 1.0), \
-                    ((0,1,2,3), (7,6,5,4), (1,7,4,2), \
-                     (0,3,5,6), (1,0,6,7), (2,4,5,3)) )  # A good cube
+                    ((0,1,2,3), (7,6,5,4), (1,0,6,7), (2,4,5,3), \
+                     (0,3,5,6), (1,7,4,2)),  \
+                     ('Red', 'Magenta', 'Green', 'Yellow', 'Blue', 'Cyan',)) \
+                    # A good cube w surfid
         >>> g.check_geom_sanity()
         """
         self.check_loose_verts()
@@ -1683,13 +1799,20 @@ class BSPNode(object):
 
 
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+#    import doctest
+#    doctest.testmod()
 
-#    name = "sphere"
-#
-#    g = Geom.from_STL('../test/{0}/{0}_a.stl'.format(name), surfid=0)
-#    h = Geom.from_STL('../test/{0}/{0}_b.stl'.format(name), surfid=1)
+    name = "concave"
+
+    geoms = Geom.from_OBJ('../test/{0}/{0}.obj'.format(name))
+    g = geoms['{}_a'.format(name)]
+    h = geoms['{}_b'.format(name)]
+
+    g.to_OBJ('../test/{0}/{0}_g.obj'.format(name))
+    h.to_OBJ('../test/{0}/{0}_h.obj'.format(name))
+
+##    g = Geom.from_OBJ('../test/{0}/{0}_a.obj'.format(name))[0]
+##    h = Geom.from_OBJ('../test/{0}/{0}_b.obj'.format(name))[0]
 #
 #    # Create and build BSP trees
 #    a = BSPNode(g)
@@ -1715,13 +1838,13 @@ if __name__ == "__main__":
 #    a.sync_geom()
 #    b.sync_geom()
 #
-#    g.collapse_short_edges(limit=.001)
-#    h.collapse_short_edges(limit=.001)
+##    g.collapse_short_edges(limit=.001)
+##    h.collapse_short_edges(limit=.001)
 #
 #    g.remove_multi_halfedges()
 #    h.remove_multi_halfedges()
 #
 #    g.append(h)
+#    g.collapse_short_edges(limit=.01)
 #
-#    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name))
-#    g.to_STL('../test/{0}/{0}_union.stl'.format(name))
+#    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name), triangulate=True)
