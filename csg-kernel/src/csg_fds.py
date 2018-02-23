@@ -813,13 +813,15 @@ class Geom():
             if v1.minus(v0).squarelength() < limit:
                 # Get concerned ipolygons
                 if len(self.polygons[ipolygon0]) > 3:
-                    print(self.polygons[ipolygon0], halfedge)
                     self.polygons[ipolygon0].remove(halfedge[0])
                 else:
-                    pass
-                if ipolygon1 is not None:
-                    if len(self.polygons[ipolygon1]) > 3:
-                        self.polygons[ipolygon1].remove(halfedge[1])
+                    pass  # FIXME stub
+                if ipolygon1 is None:
+                    continue
+                if len(self.polygons[ipolygon1]) > 3:
+                    self.polygons[ipolygon1].remove(halfedge[1])
+                else:
+                    pass   # FIXME stub
                 counter += 1
         print("Collapsed edges:", counter)
 
@@ -1113,7 +1115,7 @@ class Geom():
             cont_ipolygons |= bord
         return list(cont_ipolygons)
 
-    def _get_earclip_of_polygon(self, polygon, normal):
+    def _get_tri_earclip(self, polygon, normal):
         """
         Get valid earclip of polygon, remove it from polygon, return it
         """
@@ -1137,6 +1139,9 @@ class Geom():
                 del(polygon[i1])
                 return polygon, (ivert0, ivert1, ivert2)
         raise Exception('Triangulation impossible, tri:', a, b, c, normal)
+
+    def _get_convex_earclip(self, polygon, normal, tri=False):
+        pass # FIXME stub
 
     def get_tris_of_polygon(self, ipolygon):
         """
@@ -1178,7 +1183,7 @@ class Geom():
         # Search for triangulation
         tris = []
         while len(polygon) > 2:
-            polygon, tri = self._get_earclip_of_polygon(polygon, normal)
+            polygon, tri = self._get_tri_earclip(polygon, normal)
             tris.append(tri)
         return tris
 
