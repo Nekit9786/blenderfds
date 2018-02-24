@@ -564,8 +564,8 @@ class Geom():
                             coplanar_front, coplanar_back, front, back)
         >>> coplanar_front, coplanar_back, front, back
         ([], [], [0], [5])
-        >>> g.to_OBJ('../test/clover.obj')
-        to_OBJ: ../test/clover.obj
+        >>> g.to_OBJ('../test/auto/clover.obj')
+        to_OBJ: ../test/auto/clover.obj
         >>> g  # doctest: +NORMALIZE_WHITESPACE
         Geom(
             (-1.000,-1.000,0.000,  1.000,-1.000,0.000,  1.000,1.000,0.000,
@@ -1233,9 +1233,9 @@ class Geom():
                      (0,3,5,6), (1,7,4,2)),  \
                      ('Red', 'Magenta', 'Green', 'Yellow', 'Blue', 'Cyan',)) \
                     # A good cube w surfid
-        >>> g.to_STL('../test/doctest.stl')
-        to_STL: ../test/doctest.stl
-        >>> Geom.from_STL('../test/doctest.stl') \
+        >>> g.to_STL('../test/auto/doctest.stl')
+        to_STL: ../test/auto/doctest.stl
+        >>> Geom.from_STL('../test/auto/doctest.stl') \
             # doctest: +NORMALIZE_WHITESPACE
         Dup verts removed: 28
         Geom(
@@ -1245,8 +1245,8 @@ class Geom():
             [[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7], [1, 0, 5], [1, 5, 4],
              [2, 7, 6], [2, 6, 3], [0, 3, 6], [0, 6, 5], [1, 4, 7], [1, 7, 2]],
             )
-        >>> g.to_STL('../test/doctest.stl')
-        to_STL: ../test/doctest.stl
+        >>> g.to_STL('../test/auto/doctest.stl')
+        to_STL: ../test/auto/doctest.stl
         """
         with open(filepath, 'w') as f:
             f.write('solid name\n')
@@ -1300,16 +1300,16 @@ class Geom():
                      (0,3,5,6), (1,7,4,2)),  \
                      ('Red', 'Magenta', 'Green', 'Yellow', 'Blue', 'Cyan',)) \
                     # A good cube w surfid
-        >>> g.to_OBJ('../test/doctest.obj')
-        to_OBJ: ../test/doctest.obj
-        >>> g = Geom.from_OBJ('../test/doctest.obj').popitem()[1]
-        from_OBJ: ../test/doctest.obj -> doctest.obj
+        >>> g.to_OBJ('../test/auto/doctest.obj')
+        to_OBJ: ../test/auto/doctest.obj
+        >>> g = Geom.from_OBJ('../test/auto/doctest.obj').popitem()[1]
+        from_OBJ: ../test/auto/doctest.obj -> doctest.obj
         Dup verts removed: 0
         >>> g.get_polygon(1); g.get_vert(7)
         [7, 6, 5, 4]
         Vector(1.000, -1.000, 1.000)
-        >>> g.to_OBJ('../test/doctest2.obj', triangulate=True)
-        to_OBJ: ../test/doctest2.obj
+        >>> g.to_OBJ('../test/auto/doctest2.obj', triangulate=True)
+        to_OBJ: ../test/auto/doctest2.obj
         """
         import os
         path, filename = os.path.split(filepath)
@@ -1607,8 +1607,8 @@ class BSPNode(object):
                                  distance=2.000)
                   ├─front_node: None
                   └─back_node: None
-    >>> g.to_OBJ('../test/c-shape.obj')
-    to_OBJ: ../test/c-shape.obj
+    >>> g.to_OBJ('../test/auto/c-shape.obj')
+    to_OBJ: ../test/auto/c-shape.obj
     """
     def __init__(self, geom):
         # Tree
