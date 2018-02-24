@@ -10,8 +10,8 @@ import math
 import array
 import textwrap
 
-EPSILON = 1e-6  # FIXME different EPSILON for different applications
-EPSILON_CUT = 1e-06
+EPSILON = 1e-4  # FIXME different EPSILON for different applications
+EPSILON_CUT = 1e-04
 
 
 class Vector(object):
@@ -1302,10 +1302,10 @@ class Geom():
                     # A good cube w surfid
         >>> g.to_OBJ('../test/doctest.obj')
         to_OBJ: ../test/doctest.obj
-        >>> geoms = Geom.from_OBJ('../test/doctest.obj')
+        >>> g = Geom.from_OBJ('../test/doctest.obj').popitem()[1]
+        from_OBJ: ../test/doctest.obj -> doctest.obj
         Dup verts removed: 0
-        from_OBJ: ../test/doctest.obj
-        >>> g = geoms[0]; g.get_polygon(1); g.get_vert(7)
+        >>> g.get_polygon(1); g.get_vert(7)
         [7, 6, 5, 4]
         Vector(1.000, -1.000, 1.000)
         >>> g.to_OBJ('../test/doctest2.obj', triangulate=True)
@@ -1323,14 +1323,12 @@ class Geom():
                 surfid_to_ipolygons[surfid] = [ipolygon, ]
         # Write geometry
         with open(filepath, 'w') as f:
-            f.write('# Reference to materials\n')
             f.write('mtllib default.mtl\n')
-            f.write('# List of vertices x,y,z\n')
+            f.write('o {}\n'.format(self.hid or filename))
             for ivert in self.get_iverts():
                 vert = self.get_vert(ivert)
                 new_vert = (vert[0], vert[2], -vert[1])  # Different ref sys
                 f.write('v {0[0]} {0[1]} {0[2]}\n'.format(new_vert))
-            f.write('# List of polygons by material (surfid)\n')
             for surfid, ipolygons in surfid_to_ipolygons.items():
                 f.write('usemtl {}\n'.format(surfid))
                 for ipolygon in ipolygons:
@@ -1343,7 +1341,6 @@ class Geom():
                                 [str(ivert+1) for ivert in polygon]
                                 )
                         f.write('f {}\n'.format(str_polygon))
-            f.write('# End\n')
         # Write predefined materials
         with open('{}/default.mtl'.format(path), 'w') as f:
             f.write(
@@ -1799,52 +1796,47 @@ class BSPNode(object):
 
 
 if __name__ == "__main__":
-#    import doctest
-#    doctest.testmod()
+    import doctest
+    doctest.testmod()
 
-    name = "concave"
+    name = "torus"
 
-    geoms = Geom.from_OBJ('../test/{0}/{0}.obj'.format(name))
-    g = geoms['{}_a'.format(name)]
-    h = geoms['{}_b'.format(name)]
+    geometries = Geom.from_OBJ('../test/{0}/{0}.obj'.format(name))
+    g = geometries['{}_a'.format(name)]
+    h = geometries['{}_b'.format(name)]
 
-    g.to_OBJ('../test/{0}/{0}_g.obj'.format(name))
-    h.to_OBJ('../test/{0}/{0}_h.obj'.format(name))
+    # Create and build BSP trees
+    a = BSPNode(g)
+    a.build()
 
-##    g = Geom.from_OBJ('../test/{0}/{0}_a.obj'.format(name))[0]
-##    h = Geom.from_OBJ('../test/{0}/{0}_b.obj'.format(name))[0]
-#
-#    # Create and build BSP trees
-#    a = BSPNode(g)
-#    a.build()
-#
-#    b = BSPNode(h)
-#    b.build()
-#
-#    # Remove each interior
-#    a.clip_to(b)
-#    b.clip_to(a)
-#
-#    # Remove shared coplanars
-#    b.invert()
-#    b.clip_to(a)
-#    b.invert()
-#
-#    # Merge coplanar polygons with same surfid
+    b = BSPNode(h)
+    b.build()
+
+    # Remove each interior
+    a.clip_to(b)
+    b.clip_to(a)
+
+    # Remove shared coplanars
+    b.invert()
+    b.clip_to(a)
+    b.invert()
+
+    # Merge coplanar polygons with same surfid
 #    a.merge_polygons_to_concave()
 #    b.merge_polygons_to_concave()
-#
-#    # Sync
-#    a.sync_geom()
-#    b.sync_geom()
-#
-##    g.collapse_short_edges(limit=.001)
-##    h.collapse_short_edges(limit=.001)
-#
-#    g.remove_multi_halfedges()
-#    h.remove_multi_halfedges()
-#
-#    g.append(h)
+
+    # Sync
+    a.sync_geom()
+    b.sync_geom()
+
+#    g.collapse_short_edges(limit=.001)
+#    h.collapse_short_edges(limit=.001)
+
+    g.remove_multi_halfedges()
+    h.remove_multi_halfedges()
+
+    g.append(h)
 #    g.collapse_short_edges(limit=.01)
-#
+
 #    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name), triangulate=True)
+    g.to_OBJ('../test/{0}/{0}_union.obj'.format(name), triangulate=False)
