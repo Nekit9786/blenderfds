@@ -186,21 +186,9 @@ def ob_to_pbs(context, ob):
 
 ### to GEOM
 
-# Current format DEV1:
+# Format:
 # &GEOM ID='FEM_MESH',
-#       SURF_ID='CONE',
-#       MATL_ID='CONE',
-#       VERTS=0.0699,-0.0146,3.4286,
-#             0.0714, 0.0000,3.4286,
-#             ...
-#       FACES=1,2,3,
-#             4,5,2,
-#             ...   
-#       /
-
-# Future format DEV2:
-# &GEOM ID='FEM_MESH',
-#       SURF_IDV='CONE','Gypsum plaster','Wood',
+#       SURF_ID='CONE','Gypsum plaster','Wood',
 #       MATL_ID='Matl1',
 #       VERTS=0.0699,-0.0146,3.4286,
 #             0.0714, 0.0000,3.4286,
@@ -323,6 +311,6 @@ def ob_to_geom2(context, ob) -> "surf_idv, verts, faces":
     bm.free()
 
     # Set up msg
-    msg = "{} surf_idv, {} vertices, {} faces".format(len(surf_idv),len(verts),len(faces))
+    msg = "{} surf_id, {} vertices, {} faces".format(len(surf_idv),len(verts),len(faces))
             
     return surf_idv, verts, faces, msg

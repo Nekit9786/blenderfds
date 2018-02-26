@@ -241,7 +241,7 @@ class OP_XB(BFXBProp):
 
     def _format_xb_idxyz(self, value, name, i):
         return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
-    
+
     def to_fds(self, context):
         # Check
         self.check(context)
@@ -251,7 +251,7 @@ class OP_XB(BFXBProp):
         # Get coordinates
         xbs, msg = geometry.to_fds.ob_to_xbs(context, self.element)
         if msg: self.infos.append(msg)
-        if not xbs: return None     
+        if not xbs: return None
         # Correct for scale_lenght
         scale_length = context.scene.unit_settings.scale_length
         xbs = [[coo * scale_length for coo in xb] for xb in xbs]
@@ -286,7 +286,7 @@ class OP_XB(BFXBProp):
             ) # Send existing element.bf_xb for evaluation.
         # TODO: EDGE recognition!
         except: raise BFException(self, "Error while importing '{}' value".format(value))
-        
+
 @subscribe
 class OP_XB_bbox(OP_XB):
     allowed_items = "NONE", "BBOX"
@@ -731,7 +731,7 @@ class SN_MISC(BFNamelist):
     bf_prop_export = SP_MISC_export
     bpy_type = Scene
     bf_props = SP_MISC_FYI, SP_MISC_OVERWRITE, SP_MISC_THICKEN_OBSTRUCTIONS, SP_MISC_free
-    
+
 
 # REAC
 
@@ -1040,7 +1040,7 @@ class MP_RGB(BFNoAutoUIMod, BFProp): # ui is statically added in the material pa
 
     def to_fds(self, context):
         color = self.element.diffuse_color
-        return "RGB={},{},{}".format(int(color[0]*255), int(color[1]*255), int(color[2]*255))   
+        return "RGB={},{},{}".format(int(color[0]*255), int(color[1]*255), int(color[2]*255))
 
     def from_fds(self, context, value):
         try: self.element.diffuse_color = value[0]/255, value[1]/255, value[2]/255
@@ -1311,7 +1311,7 @@ class OP_SURF_ID(BFProp):
 
     def to_fds(self, context):
         if self.get_exported(context): return "SURF_ID='{}'".format(self.element.active_material.name)
-        
+
     def from_fds(self, context, value):
         try: self.element.active_material = geometry.geom_utils.get_material(context, str(value))
         except: raise BFException(self, "Error while setting '{}' Blender material".format(value))
@@ -1358,7 +1358,7 @@ class OP_GEOM(BFProp): # FIXME
         # Get verts and faces
         verts, faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
         if msg: self.infos.append(msg)
-        if not verts: return None     
+        if not verts: return None
         # Correct for scale_lenght FIXME
         # scale_length = context.scene.unit_settings.scale_length
         # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
@@ -1370,7 +1370,7 @@ class OP_GEOM(BFProp): # FIXME
         for f in faces:
             faces_str += "\n            {0[0]},{0[1]},{0[2]},".format(f)
         return "VERTS={}\n      FACES={}".format(verts_str,faces_str)
-        
+
 @subscribe
 class ON_GEOM(BFNamelist):
     label = "GEOM"
@@ -1383,7 +1383,7 @@ class ON_GEOM(BFNamelist):
     bf_other = {
         "draw_type": "SOLID",
     }
-    
+
 @subscribe
 class OP_GEOM2(BFProp): # FIXME
     label = "Triangulated geometry (DEV2)"
@@ -1399,7 +1399,7 @@ class OP_GEOM2(BFProp): # FIXME
         # Get verts and faces
         surf_idv, verts, faces, msg = geometry.to_fds.ob_to_geom2(context, self.element)
         if msg: self.infos.append(msg)
-        if not verts: return None     
+        if not verts: return None
         # Correct for scale_lenght FIXME
         # scale_length = context.scene.unit_settings.scale_length
         # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
@@ -1413,7 +1413,7 @@ class OP_GEOM2(BFProp): # FIXME
         faces_str = ""
         for f in faces:
             faces_str += "\n            {0[0]},{0[1]},{0[2]}, {0[3]},".format(f)
-        return "SURF_IDV={}\n      VERTS={}\n      FACES={}".format(surf_idv_str,verts_str,faces_str)
+        return "SURF_ID={}\n      VERTS={}\n      FACES={}".format(surf_idv_str,verts_str,faces_str)
 
 @subscribe
 class ON_GEOM2(BFNamelist):
@@ -1427,7 +1427,7 @@ class ON_GEOM2(BFNamelist):
     bf_other = {
         "draw_type": "SOLID",
     }
-    
+
 # FIXME ID index should not be displayed
 
 # HOLE
@@ -1444,7 +1444,7 @@ class ON_HOLE(BFNamelist):
     bf_other = {
         "draw_type": "WIRE",
     }
-    
+
 
 # VENT
 
@@ -1558,7 +1558,7 @@ class OP_SLCF_VECTOR(BFBoolProp):
     bpy_other = {
 		"default": False,
 	}
-    
+
 @subscribe
 class ON_SLCF(BFNamelist):
     label = "SLCF"
@@ -1627,7 +1627,7 @@ class OP_MESH_IJK(BFProp):
         ))  # info, operator
         # Info on aspect ratio
         if cell_aspect_ratio > 2.:
-            self.infos.append("Max cell aspect ratio is {:.1f}".format(cell_aspect_ratio))             
+            self.infos.append("Max cell aspect ratio is {:.1f}".format(cell_aspect_ratio))
 
 @subscribe
 class OP_MESH_MPI_PROCESS_export(BFExportProp):
@@ -1740,7 +1740,7 @@ class ON_free(BFNamelist):
     bpy_type = Object
     bf_prop_export = OP_export
     bf_props = OP_free_namelist, OP_ID, OP_FYI, OP_SURF_ID, OP_XB, OP_XYZ, OP_PB, OP_free
-    
+
 
 ### Update OP_namelist_cls (menu for Object namelist selection) with all defined namelists
 items = [bf_namelist.get_enum_item() for bf_namelist in BFNamelist.all if bf_namelist.bpy_type == Object]
