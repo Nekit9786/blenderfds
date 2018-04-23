@@ -278,6 +278,7 @@ class OP_XB(BFXBProp):
             scale_length = context.scene.unit_settings.scale_length
             value = [coo / scale_length for coo in value]
             # Set value
+            print("lang.py : from_fds:", self.element, self.element.bf_xb, value, )
             geometry.from_fds.xbs_to_ob(
                 xbs=(value,),
                 context=context,
@@ -1344,8 +1345,8 @@ class ON_OBST(BFNamelist):
 # GEOM
 
 @subscribe
-class OP_GEOM(BFProp): # FIXME
-    label = "Triangulated geometry (DEV1)"
+class OP_GEOM(BFProp):
+    label = "Triangulated geometry"
     description = "Triangulated geometry vertices and faces"
     bpy_type = Object
 
@@ -1354,76 +1355,35 @@ class OP_GEOM(BFProp): # FIXME
 
     def to_fds(self, context):
         # Check
-        # self.check(context) (FIXME check sanity?)
+        self.check(context)
         # Get verts and faces
-        verts, faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
+        surf_idv, verts, faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
         if msg: self.infos.append(msg)
         if not verts: return None
         # Correct for scale_lenght FIXME
         # scale_length = context.scene.unit_settings.scale_length
         # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
-        # Prepare FIXME
-        verts_str = ""
-        for v in verts:
-            verts_str += "\n            {0[0]:.3f},{0[1]:.3f},{0[2]:.3f},".format(v)
-        faces_str = ""
-        for f in faces:
-            faces_str += "\n            {0[0]},{0[1]},{0[2]},".format(f)
-        return "VERTS={}\n      FACES={}".format(verts_str,faces_str)
-
-@subscribe
-class ON_GEOM(BFNamelist):
-    label = "GEOM"
-    description = "DEV1 Geometry"
-    enum_id = 1020
-    fds_label = "GEOM"
-    bpy_type = Object
-    bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_SURF_ID, OP_GEOM, OP_free
-    bf_other = {
-        "draw_type": "SOLID",
-    }
-
-@subscribe
-class OP_GEOM2(BFProp): # FIXME
-    label = "Triangulated geometry (DEV2)"
-    description = "Triangulated geometry vertices and faces"
-    bpy_type = Object
-
-    def from_fds(self, context, value): # FIXME
-        pass
-
-    def to_fds(self, context):
-        # Check
-        # self.check(context) (FIXME check sanity?)
-        # Get verts and faces
-        surf_idv, verts, faces, msg = geometry.to_fds.ob_to_geom2(context, self.element)
-        if msg: self.infos.append(msg)
-        if not verts: return None
-        # Correct for scale_lenght FIXME
-        # scale_length = context.scene.unit_settings.scale_length
-        # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
-        # Prepare FIXME
+        # Prepare
         surf_idv_str = ""
         for s in surf_idv:
             surf_idv_str += "'{}',".format(s)
         verts_str = ""
         for v in verts:
-            verts_str += "\n            {0[0]:.3f},{0[1]:.3f},{0[2]:.3f},".format(v)
+            verts_str += "\n            {0[0]:.6f},{0[1]:.6f},{0[2]:.6f},".format(v)
         faces_str = ""
         for f in faces:
             faces_str += "\n            {0[0]},{0[1]},{0[2]}, {0[3]},".format(f)
         return "SURF_ID={}\n      VERTS={}\n      FACES={}".format(surf_idv_str,verts_str,faces_str)
 
 @subscribe
-class ON_GEOM2(BFNamelist):
+class ON_GEOM(BFNamelist):
     label = "GEOM"
-    description = "DEV2 Geometry"
+    description = "Geometry"
     enum_id = 1021
     fds_label = "GEOM"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_GEOM2, OP_free
+    bf_props = OP_ID, OP_FYI, OP_GEOM, OP_free
     bf_other = {
         "draw_type": "SOLID",
     }

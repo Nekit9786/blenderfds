@@ -8,7 +8,7 @@ from .utils import is_iterable, ClsList
 
 from . import config
 
-DEBUG = False
+DEBUG = True
 
 ### Collections
 
@@ -253,7 +253,7 @@ class BFProp(_BFCommon):
         Value is any type of data compatible with bpy_prop
         Eg: "String", (0.2,3.4,1.2), ...
         """
-        # DEBUG and print("BFDS: BFProp.from_fds:", str(self), value)
+        DEBUG and print("BFDS: BFProp.from_fds:", str(self), value)
         self.set_exported(context, True)
         try: self.set_value(context, value)
         except: raise BFException(self, "Error importing '{}' value".format(value))

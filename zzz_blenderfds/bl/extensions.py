@@ -312,7 +312,7 @@ class BFScene():
             else:
                 # This FDS namelists is not managed
                 free_texts.append(fds_original)
-        # Save free_texts, even if empty (remeber, bf_head_free_text is not set to default)
+        # Save free_texts, even if empty (reme,ber, bf_head_free_text is not set to default)
         self._save_imported_unmanaged_tokens(context, free_texts)
         # Return
         if errors: raise BFException(self, "Errors reported, see details in HEAD free text file.", errors)

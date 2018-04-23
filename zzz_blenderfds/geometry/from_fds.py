@@ -79,6 +79,7 @@ def xbs_to_ob(xbs, context, ob=None, bf_xb="NONE", name="xbs_to_ob", update_cent
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
+    ob.bf_xb = bf_xb  # FIXME right?
     return ob
 
 ### from XYZ
@@ -109,6 +110,7 @@ def xyzs_to_ob(xyzs, context, ob=None, bf_xyz="NONE", name="xyzs_to_ob", update_
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
+    ob.bf_xyz = bf_xyz  # FIXME right?
     return ob
 
 ### from PB
@@ -145,6 +147,7 @@ def pbs_to_ob(pbs, context, ob=None, bf_pb="NONE", name="pbs_to_ob", update_cent
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
+    ob.bf_pb = bf_pb  # FIXME right?
     return ob
 
 ### from GEOM
