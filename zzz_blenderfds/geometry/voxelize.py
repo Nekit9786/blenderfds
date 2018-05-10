@@ -28,7 +28,7 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
         context.scene,
         "global_ob",
         get_global_mesh(context, ob),
-        linked=True, # FIXME False
+        linked=False,
     )
     flat_axis = _get_flat_axis(ob_global)
     bbox = get_global_bbox(context,ob_global)
@@ -59,7 +59,7 @@ def _get_solidify_ob(context, ob, thickness) -> "ob":
         context.scene,
         "solidified_tmp",
         me=ob.data,
-        linked=True, # FIXME False
+        linked=False,
     )
     # Create modifier
     mo = ob_new.modifiers.new('solidify_tmp','SOLIDIFY')
@@ -178,7 +178,7 @@ def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     insert_vertices_into_mesh(me_norm, verts)
     # Update mesh and return
     ob_norm.data = me_norm
-    ob_norm.data.update(calc_tessface=True) # Or it will not update the mesh FIXME
+    ob_norm.data.update(calc_tessface=True) # Or it will not update the mesh
     return ob_norm
 
 # When appling a remesh box modifier, object max dimension is scaled up
@@ -198,7 +198,7 @@ def _get_remesh_ob(context, ob, voxel_size) -> "ob":
     mo.use_remove_disconnected = False
     mo.octree_depth = octree_depth
     mo.scale = scale
-    ob.data.update(calc_tessface=True) # Or it will not update the mesh FIXME
+    ob.data.update(calc_tessface=True) # Or it will not update the mesh
     # Apply modifier
     me = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER")
     return bpy.data.objects.new("remeshed_tmp", me)
@@ -464,7 +464,6 @@ def _get_flat_axis(ob):
         (dimensions[2],2), # ... to z axis
     ]
     choose.sort(key=lambda k:k[0]) # sort by dimension
-    print("Flat axis:",choose[0][1]) # FIXME del
     return choose[0][1]
 
 def _x_flatten_xbs(xbs, flat_origin) -> "[(l0, l0, y0, y1, z0, z1), ...]":
