@@ -278,7 +278,6 @@ class OP_XB(BFXBProp):
             scale_length = context.scene.unit_settings.scale_length
             value = [coo / scale_length for coo in value]
             # Set value
-            print("lang.py : from_fds:", self.element, self.element.bf_xb, value, )
             geometry.from_fds.xbs_to_ob(
                 xbs=(value,),
                 context=context,
@@ -989,7 +988,7 @@ class MP_export(BFExportProp):
     bpy_type = Material
 
 @subscribe
-class MP_ID(BFStringProp):
+class MP_ID(BFNoAutoUIMod, BFStringProp):
     label = "ID"
     description = "Material identificator"
     fds_label = "ID"
@@ -999,13 +998,6 @@ class MP_ID(BFStringProp):
     bpy_type = Material
     bpy_prop = None # Do not register
     bpy_idname = "name"
-
-    def _draw_body(self, context, layout):
-        pass # FIXME
-        row = layout.row()
-        #row.template_ID(context.object, "active_material", new="material.new") FIXME
-        row.prop(context.object, "active_material", text="")
-        row.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="")
 
 @subscribe
 class MP_FYI(BFFYIProp):
@@ -1244,8 +1236,8 @@ class OP_draw_type(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_p
     bpy_idname = "draw_type"
 
 @subscribe
-class OP_id_suffix(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
-    label = "ID Suffix"
+class OP_id_suffix(BFNoAutoExportMod, BFProp):
+    label = "Multiple IDs Suffix"
     description = "Append suffix to multiple ID values"
     fds_label = None
     bpy_type = Object
@@ -1266,7 +1258,7 @@ class OP_id_suffix(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
     }
 
 @subscribe
-class OP_ID(BFStringProp):
+class OP_ID(BFNoAutoUIMod, BFStringProp):
     label = "ID"
     description = "Object identificator"
     fds_label = "ID"
@@ -1277,11 +1269,6 @@ class OP_ID(BFStringProp):
     bpy_type = Object
     bpy_prop = None # Do not register
     bpy_idname = "name"
-
-    def _draw_body(self, context, layout):
-        row = layout.split(.8, align=True)
-        row.template_ID(context.scene.objects, "active")
-        row.prop(self.element, "bf_id_suffix", text="")
 
 @subscribe
 class OP_FYI(BFFYIProp):
@@ -1337,7 +1324,7 @@ class ON_OBST(BFNamelist):
     fds_label = "OBST"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_id_suffix, OP_FYI, OP_SURF_ID, OP_XB, OP_OBST_THICKEN, OP_free # It is OP_XB instead of OP_XB_solid, for flat solids
+    bf_props = OP_ID, OP_FYI, OP_SURF_ID, OP_XB, OP_id_suffix, OP_OBST_THICKEN, OP_free # It is OP_XB instead of OP_XB_solid, for flat solids
     bf_other = {
         "draw_type": "SOLID",
     }
@@ -1350,26 +1337,20 @@ class OP_GEOM(BFProp):
     description = "Triangulated geometry vertices and faces"
     bpy_type = Object
 
-    def from_fds(self, context, value): # FIXME
-        pass
-
     def to_fds(self, context):
-        # Check
-        self.check(context)
-        # Get verts and faces
+        # Check is performed while exporting
+        # Get surf_idv, verts and faces
         surf_idv, verts, faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
         if msg: self.infos.append(msg)
         if not verts: return None
-        # Correct for scale_lenght FIXME
+        # Correct for scale_lenght TODO
         # scale_length = context.scene.unit_settings.scale_length
         # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
         # Prepare
-        surf_idv_str = ""
-        for s in surf_idv:
-            surf_idv_str += "'{}',".format(s)
+        surf_idv_str = ','.join((f"'{s}'" for s in surf_idv))
         verts_str = ""
         for v in verts:
-            verts_str += "\n            {0[0]:.6f},{0[1]:.6f},{0[2]:.6f},".format(v)
+            verts_str += "\n            {0[0]:.6f}, {0[1]:.6f}, {0[2]:.6f},".format(v)
         faces_str = ""
         for f in faces:
             faces_str += "\n            {0[0]},{0[1]},{0[2]}, {0[3]},".format(f)
@@ -1388,7 +1369,39 @@ class ON_GEOM(BFNamelist):
         "draw_type": "SOLID",
     }
 
-# FIXME ID index should not be displayed
+    def from_fds(self, context, tokens) -> "None":
+        """Set my properties from imported FDS tokens, on error raise BFException.
+        Tokens have the following format: ((fds_original, fds_label, fds_value), ...)
+        Eg: (("ID='example'", "ID", "example"), ("XB=...", "XB", (1., 2., 3., 4., 5., 6.,)), ...)
+        """
+        DEBUG and print("BFDS: ON_GEOM.from_fds:", str(self), tokens)
+        # Set ID for easier error management later
+        self.element.name = tokens.get('ID', 'No ID')[0]
+        # Check GEOM variants # TODO SPHERE, BIX, 2D elevation
+        if "SURF_ID" in tokens and "VERTS" in tokens and "FACES" in tokens:
+            token = tokens.pop("SURF_ID")  # Remove treated token
+            fds_surfids = isinstance(token[0], tuple) and token[0] or (token[0],)
+            token = tokens.pop("VERTS")  # Remove treated token
+            fds_verts = token[0]
+            token = tokens.pop("FACES")  # Remove treated token
+            fds_faces = token[0]
+            try:
+                geometry.from_fds.geom_to_ob(
+                    fds_surfids, fds_verts, fds_faces,
+                    context, ob=self.element, name="geom_to_ob",
+                    update_center=True
+                    )
+            except Exception as err:
+                raise BFException(self, str(err))
+#        elif "SURF_ID" in tokens and "XB" in tokens and "IJK" in tokens:
+# TODO manage box
+#            pass
+#        elif "SPHERE_RADIUS" in tokens and "SPHERE_ORIGIN" in tokens:
+# TODO manage sphere
+#            pass
+#        elif # manage 2d terrain
+        # Manage the rest of the tokens
+        super().from_fds(context, tokens)
 
 # HOLE
 
@@ -1400,7 +1413,7 @@ class ON_HOLE(BFNamelist):
     fds_label = "HOLE"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI , OP_XB_solid, OP_free
+    bf_props = OP_ID, OP_FYI , OP_XB_solid, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
@@ -1416,7 +1429,7 @@ class ON_VENT(BFNamelist):
     fds_label = "VENT"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_SURF_ID, OP_XB_faces, OP_XYZ, OP_PB, OP_free
+    bf_props = OP_ID, OP_FYI, OP_SURF_ID, OP_XB_faces, OP_XYZ, OP_PB, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "SOLID",
     }
@@ -1500,7 +1513,7 @@ class ON_DEVC(BFNamelist):
     fds_label = "DEVC"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_DEVC_SETPOINT, OP_DEVC_INITIAL_STATE, OP_DEVC_LATCH, OP_DEVC_PROP_ID, OP_XB, OP_XYZ, OP_free
+    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_DEVC_SETPOINT, OP_DEVC_INITIAL_STATE, OP_DEVC_LATCH, OP_DEVC_PROP_ID, OP_XB, OP_XYZ, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
@@ -1527,7 +1540,7 @@ class ON_SLCF(BFNamelist):
     fds_label = "SLCF"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_SLCF_VECTOR, OP_XB_faces, OP_PB, OP_free
+    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_SLCF_VECTOR, OP_XB_faces, OP_PB, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
@@ -1543,7 +1556,7 @@ class ON_PROF(BFNamelist):
     fds_label = "PROF"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_XYZ, OP_free
+    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_XYZ, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
@@ -1632,7 +1645,7 @@ class ON_INIT(BFNamelist):
     fds_label = "INIT"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_XB_solid, OP_XYZ, OP_free
+    bf_props = OP_ID, OP_FYI, OP_XB_solid, OP_XYZ, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
@@ -1662,7 +1675,7 @@ class ON_HVAC(BFNamelist):
     fds_label = "HVAC"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_XYZ, OP_free
+    bf_props = OP_ID, OP_FYI, OP_XYZ, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
@@ -1699,7 +1712,7 @@ class ON_free(BFNamelist):
     fds_label = None
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_free_namelist, OP_ID, OP_FYI, OP_SURF_ID, OP_XB, OP_XYZ, OP_PB, OP_free
+    bf_props = OP_free_namelist, OP_ID, OP_FYI, OP_SURF_ID, OP_XB, OP_XYZ, OP_PB, OP_id_suffix, OP_free
 
 
 ### Update OP_namelist_cls (menu for Object namelist selection) with all defined namelists

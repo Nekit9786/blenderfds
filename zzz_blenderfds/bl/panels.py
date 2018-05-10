@@ -177,11 +177,12 @@ class MATERIAL_PT_BF(Panel):
         w = context.window_manager.windows[0]
         w.cursor_modal_restore()
         # Panel
-        split = layout.split(.7) # namelist
+        split = layout.split(.5) # namelist
         split.prop(element, "bf_namelist_cls", text="")
-        row = split.row(align=True) # aspect
+        row = split.row()
         row.prop(element, "diffuse_color", text="")
         row.prop(element, "alpha", text="")
+        row.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="")
         element.bf_namelist.draw(context, layout)
         # Other operators
         row = layout.row()
