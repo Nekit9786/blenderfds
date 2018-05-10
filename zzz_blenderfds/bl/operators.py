@@ -3,11 +3,16 @@
 import bpy, os, sys
 from bpy.types import Operator
 from bpy.props import *
+from bpy_extras.io_utils import ImportHelper
+from bpy_extras.io_utils import ExportHelper
 
 from ..types import BFProp
 from ..exceptions import BFException
 from .. import fds
 from .. import geometry
+from ..utils import is_writable, write_to_file
+
+DEBUG = False
 
 # TODO search operators fro MATL_ID, PROP_ID...
 
@@ -93,11 +98,11 @@ def _get_namelist_items(self, context, nl): # TODO move away from here
     # Select MATL tokens, get IDs, return
     ids = list()
     for token in tokens:
-        if token[1] != nl: continue
-        for param in token[2]:
-            if param[1] == "ID":
+        if token[0] != nl: continue
+        for label, value in token[1].items():
+            if label == "ID":
                 # Built like this: (("Steel", "Steel", "",) ...)
-                ids.append((param[2],param[2],"",))
+                ids.append((value[0],value[0],"",))
     ids.sort(key=lambda k:k[1])
     return ids
 
@@ -280,7 +285,8 @@ class _COMMON_bf_show_fds_code():
 
     def draw(self, context):
         layout = self.layout
-        for line in self.bf_fds_code.split("\n"):
+        bf_fds_code = self.bf_fds_code or 'No FDS code is exported'
+        for line in bf_fds_code.split("\n"):
             row = layout.row()
             row.label(text=line)
         
@@ -289,8 +295,7 @@ class _COMMON_bf_show_fds_code():
         return {'FINISHED'}
 
     def _get_fds_code(self, context):
-        ob = context.active_object
-        self.bf_fds_code = ob.to_fds(context)
+        self.bf_fds_code = ''
 
     def invoke(self, context, event):
         # Init
@@ -436,18 +441,6 @@ class MATERIAL_OT_bf_assign_BC_to_sel_obs(Operator):
         self.report({"INFO"}, "Assigned to selected objects")
         return {'FINISHED'}
 
-### Predefined materials
-
-class MATERIAL_OT_bf_set_predefined(Operator): # TODO this operator is not used, no more checks in the UI
-    bl_label = "Set Predefined"
-    bl_idname = "material.bf_set_predefined"
-    bl_description = "Set predefined SURFs: INERT, OPEN, MIRROR..."
-
-    def execute(self, context):
-        fds.surf.set_predefined(context)
-        self.report({"INFO"}, "Predefined SURFs ok")
-        return {'FINISHED'}
-
 ### Show exported geometry
 
 class OBJECT_OT_bf_show_fds_geometry(Operator):
@@ -496,8 +489,10 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
         if msg: msgs.append(msg)
         if pbs:
             geometry.from_fds.pbs_to_ob(pbs, context, bf_pb=ob.bf_pb, name="Shown {} PBs".format(ob.name)).set_tmp(context, ob)
-        # Set report
-        if msgs:
+        # Prepare result and report
+        if ob.bf_namelist_cls == 'ON_GEOM':
+            report = {"INFO"}, "GEOM is exported as it is"
+        elif msgs:
             report = {"INFO"}, "; ".join(msgs)
             ob.show_tmp_obs(context)
         elif xbs or xyzs or pbs:
@@ -630,4 +625,223 @@ class MATERIAL_OT_bf_set_tau_q(Operator):
         # Call dialog
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
+
+
+### Import FDS case to new scene
+
+def import_OT_fds_case_menu(self, context):
+    """Import an FDS case file into new scene, menu funtion"""
+    self.layout.operator("import_scene.fds_case", text="FDS Case (.fds) to New Scene")
+
+class import_OT_fds_case(Operator, ImportHelper):
+    """Import an FDS case file into new scene, operator"""
+    bl_label = "Import FDS Case"
+    bl_idname = "import_scene.fds_case"
+    bl_description = "Import an FDS case file into a new Blender Scene"
+    filename_ext = ".fds"
+    filter_glob = bpy.props.StringProperty(default="*.fds", options={'HIDDEN'})
+
+    def execute(self, context):
+        return bl_scene_from_fds_case(
+            self,
+            context,
+            to_current_scene=False,
+            **self.as_keywords(ignore=("check_existing", "filter_glob"))
+        )
+
+
+### Import FDS code into current scene
+
+class ImportHelperSnippet(ImportHelper):
+    """Load an FDS snippet into current scene, operator"""
+    bl_label = "Load FDS Snippet"
+    bl_idname = "import_scene.fds_snippet"
+    bl_description = "Load an FDS snippet into current Blender Scene"
+    filename_ext = ".fds"
+    filter_glob = bpy.props.StringProperty(default="*.fds", options={'HIDDEN'})
+    filepath_predefined = "/predefined/"
+
+    def invoke(self, context, event):
+        # Get snippet path from preferences
+        preferences = context.user_preferences.addons["zzz_blenderfds"].preferences
+        if preferences.bf_pref_use_custom_snippet_path:
+            self.filepath = preferences.bf_pref_custom_snippet_path
+        # Else get it from predefined
+        elif self.filepath_predefined:
+            self.filepath = os.path.dirname(sys.modules['zzz_blenderfds'].__file__) + \
+                self.filepath_predefined
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        return bl_scene_from_fds_case(
+            self,
+            context,
+            to_current_scene=True,
+            **self.as_keywords(ignore=("check_existing", "filter_glob"))
+        )
+
+def import_OT_fds_snippet_menu(self, context):
+    """Import an FDS snippet into current scene, menu funtion"""
+    self.layout.operator("import_scene.fds_snippet", text="FDS Snippet (.fds) to Scene")
+
+class import_OT_fds_snippet(Operator, ImportHelperSnippet):
+    bl_idname = "import_scene.fds_snippet"
+    filepath_predefined = None
+
+class MATERIAL_OT_bf_load_surf(Operator, ImportHelperSnippet):
+    bl_label = "Load SURF"
+    bl_idname = "material.bf_load_surf"
+    bl_description = "Load a SURF namelist"
+    filepath_predefined = "/predefined/SURFs/"    
+
+class SCENE_OT_bf_load_reac(Operator, ImportHelperSnippet):
+    bl_label = "Load REAC"
+    bl_idname = "scene.bf_load_reac"
+    bl_description = "Load a REAC namelist"
+    filepath_predefined = "/predefined/REACs/"
+    
+class SCENE_OT_bf_load_misc(Operator, ImportHelperSnippet):
+    bl_label = "Load MISC"
+    bl_idname = "scene.bf_load_misc"
+    bl_description = "Load a MISC namelist"
+    filepath_predefined = "/predefined/MISCs/"
+
+### Import function
+
+def _view3d_view_all(context):
+    """View all elements on the 3dview. Override context."""
+    for area in context.screen.areas:
+        if area.type == 'VIEW_3D':
+            for region in area.regions:
+                if region.type == 'WINDOW':
+                    override = {'area': area, 'region': region, 'edit_object': bpy.context.edit_object}
+                    bpy.ops.view3d.view_all(override)
+
+def bl_scene_from_fds_case(operator, context, to_current_scene=False, filepath=""):
+    """Import FDS file to a Blender Scene"""
+    # Init
+    w = context.window_manager.windows[0]
+    w.cursor_modal_set("WAIT")
+    # Read file
+    DEBUG and print("BFDS: operators.bl_scene_from_fds_case: Importing:", filepath)
+    encodings = [('utf8','ignore'),('windows-1252',None),('utf8',None),] # Last tested first
+    while encodings:
+        e = encodings.pop()
+        try:
+            with open(filepath,"r",encoding=e[0],errors=e[1]) as infile:
+                imported_value = infile.read()
+        except UnicodeDecodeError: pass
+        except:
+            w.cursor_modal_restore()
+            operator.report({"ERROR"}, "FDS file not readable, cannot import")
+            return {'CANCELLED'}
+        else: break
+    if not encodings:
+        w.cursor_modal_restore()
+        operator.report({"ERROR"}, "Unknown text encoding, cannot import")
+        return {'CANCELLED'}
+    # Get Scene
+    if to_current_scene:
+        # Import into current scene
+        sc = context.scene
+    else:
+        # Create new scene and set as default
+        sc = bpy.data.scenes.new("imported_case")
+        bpy.context.screen.scene = sc
+        sc.set_default_appearance(context)
+    # Import to Scene
+    try: sc.from_fds(context=context, value=imported_value)
+    except BFException as err:
+        w.cursor_modal_restore()
+        operator.report({"ERROR"}, err.labels[0])
+        return {'CANCELLED'}
+    # Adapt 3DView
+    _view3d_view_all(context)
+    # End
+    w.cursor_modal_restore()
+    print("BFDS: operators.bl_scene_from_fds_case: FDS file Imported.")
+    operator.report({"INFO"}, "FDS file imported")
+    return {'FINISHED'}
+
+
+### Export scene to FDS
+
+def export_OT_fds_case_menu(self, context):
+    """Export current scene to FDS case, menu function"""
+    # Prepare default filepath
+    filepath = "{0}.fds".format(os.path.splitext(bpy.data.filepath)[0])
+    directory = os.path.dirname(filepath)
+    basename = os.path.basename(filepath)
+    # If the context scene contains path and basename, use them
+    sc = context.scene
+    if sc.bf_head_directory: directory = sc.bf_head_directory
+    if sc.name: basename = "{0}.fds".format(bpy.path.clean_name(sc.name))
+    # Call the exporter operator
+    filepath = "{0}/{1}".format(directory, basename)
+    self.layout.operator("export_scene.fds_case", text="Scene to FDS Case (.fds)").filepath = filepath
+
+class export_OT_fds_case(Operator, ExportHelper):
+    """Export current Blender Scene to an FDS case file, operator"""
+    bl_label = "Export FDS"
+    bl_idname = "export_scene.fds_case"
+    bl_description = "Export current Blender Scene as an FDS case file"
+    filename_ext = ".fds"
+    filter_glob = bpy.props.StringProperty(default="*.fds", options={'HIDDEN'})
+
+    def execute(self, context):
+        # Init
+        w = context.window_manager.windows[0]
+        w.cursor_modal_set("WAIT")
+        sc = context.scene
+        # Prepare FDS filepath
+        DEBUG and print("BFDS: export_OT_fds_case: Exporting current Blender Scene '{}' to FDS case file".format(sc.name))
+        filepath = self.filepath
+        if not filepath.lower().endswith('.fds'): filepath += '.fds'
+        filepath = bpy.path.abspath(filepath)
+        # Check FDS filepath writable
+        if not is_writable(filepath):
+            w.cursor_modal_restore()
+            self.report({"ERROR"}, "FDS file not writable, cannot export")
+            return {'CANCELLED'}
+        # Prepare FDS file
+        try: fds_file = sc.to_fds(context=context, with_children=True)
+        except BFException as err:
+            w.cursor_modal_restore()
+            self.report({"ERROR"}, str(err))
+            return{'CANCELLED'}
+        # Add namelist index # TODO develop
+        # Write FDS file
+        if not write_to_file(filepath, fds_file):
+            w.cursor_modal_restore()
+            self.report({"ERROR"}, "FDS file not writable, cannot export")
+            return {'CANCELLED'}
+        print("BFDS: export_OT_fds_case: FDS file written")
+        # GE1 description file requested?
+        if sc.bf_dump_render_file:
+            # Prepare GE1 filepath
+            DEBUG and print("BFDS: export_OT_fds_case: Exporting current Blender Scene '{}' to .ge1 render file".format(sc.name))
+            filepath = filepath[:-4] + '.ge1'
+            if not is_writable(filepath):
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, "GE1 file not writable, cannot export")
+                return {'CANCELLED'}              
+            # Prepare GE1 file
+            try: ge1_file = sc.to_ge1(context=context)
+            except BFException as err:
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, str(err))
+                return{'CANCELLED'}
+            # Write GE1 file
+            if not write_to_file(filepath, ge1_file):
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, "GE1 file not writable, cannot export")
+                return {'CANCELLED'}      
+            print("BFDS: export_OT_fds_case: GE1 file written")
+
+        # End
+        w.cursor_modal_restore()
+        DEBUG and print("BFDS: export_OT_fds_case: End.")
+        self.report({"INFO"}, "FDS case exported")
+        return {'FINISHED'}
 

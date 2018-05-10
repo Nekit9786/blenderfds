@@ -251,23 +251,23 @@ class BFScene():
 
     # Import
 
-    def _get_imported_bf_namelist_cls(self, context, fds_label, fds_value) -> "BFNamelist or None":
+    def _get_imported_bf_namelist_cls(self, context, fds_label, fds_params) -> "BFNamelist or None":
         """Try to get managed BFNamelist from fds_label."""
         bf_namelist_cls = BFNamelist.all.get_by_fds_label(fds_label)
         if not bf_namelist_cls:
-            if set(("XB", "XYZ", "PBX", "PBY", "PBZ")) & set(prop[1] for prop in fds_value):
+            if any((label in fds_params for label in ('XB', 'XYZ', 'PBX', 'PBY', 'PBZ'))):
                 # An unmanaged geometric namelist
                 bf_namelist_cls = BFNamelist.all["ON_free"] # Link to free namelist
         return bf_namelist_cls
 
-    def _get_imported_element(self, context, bf_namelist_cls, fds_label, fds_value) -> "Element":
+    def _get_imported_element(self, context, bf_namelist_cls, fds_label) -> "Element":
         """Get element."""
         bpy_type = bf_namelist_cls.bpy_type
         if bpy_type == bpy.types.Scene:
             element = self # Import into self
         elif bpy_type == bpy.types.Object:
             element = geometry.geom_utils.get_new_object(context, self, name="New {}".format(fds_label)) # New Object
-            element.bf_namelist_cls = bf_namelist_cls.__name__ # Set link to namelist
+            element.bf_namelist_cls = bf_namelist_cls.__name__  # Set link to namelist
         elif bpy_type == bpy.types.Material:
             element = geometry.geom_utils.get_new_material(context, name="New {}".format(fds_label)) # New Material
             element.bf_namelist_cls = "MN_SURF" # Set link to default namelist
@@ -294,25 +294,25 @@ class BFScene():
         try: tokens = fds.to_py.tokenize(value)
         except Exception as err:  # TODO improve!
             raise BFException(self, "Unrecognized FDS syntax, cannot import.")
-        # Treat tokens
+        # Treat tokens, first SURFs
         free_texts = list()
         errors = list()
-        for token in tokens:
+        for token in sorted(tokens, key=lambda k: k[0]!=("SURF_ID")):
             # Init
-            fds_original, fds_label, fds_value = token
+            fds_label, fds_params, fds_original = token
             # Search managed FDS namelist, and import token
-            bf_namelist_cls = self._get_imported_bf_namelist_cls(context, fds_label, fds_value)
+            bf_namelist_cls = self._get_imported_bf_namelist_cls(context, fds_label, fds_params)
             if bf_namelist_cls:
                 # This FDS namelists is managed: get element, instanciate and import BFNamelist
-                element = self._get_imported_element(context, bf_namelist_cls, fds_label, fds_value)
-                try: bf_namelist_cls(element).from_fds(context, fds_value)
+                element = self._get_imported_element(context, bf_namelist_cls, fds_label)
+                try: bf_namelist_cls(element).from_fds(context, fds_params)
                 except BFException as err:
                     errors.append(err)
                     free_texts.extend(err.free_texts) # Record in free_texts
             else:
                 # This FDS namelists is not managed
                 free_texts.append(fds_original)
-        # Save free_texts, even if empty (reme,ber, bf_head_free_text is not set to default)
+        # Save free_texts, even if empty (remember, bf_head_free_text is not set to default)
         self._save_imported_unmanaged_tokens(context, free_texts)
         # Return
         if errors: raise BFException(self, "Errors reported, see details in HEAD free text file.", errors)

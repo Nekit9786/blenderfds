@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Panel, Header, Menu
 
-from . import operators_export, operators_import
+from . import operators
 
 DEBUG = False
 
@@ -12,9 +12,9 @@ DEBUG = False
 def register():
     """Register menus and other ui mods"""
     # io menus
-    bpy.types.INFO_MT_file_export.prepend(operators_export.export_OT_fds_case_menu)
-    bpy.types.INFO_MT_file_import.prepend(operators_import.import_OT_fds_snippet_menu)
-    bpy.types.INFO_MT_file_import.prepend(operators_import.import_OT_fds_case_menu)
+    bpy.types.INFO_MT_file_export.prepend(operators.export_OT_fds_case_menu)
+    bpy.types.INFO_MT_file_import.prepend(operators.import_OT_fds_snippet_menu)
+    bpy.types.INFO_MT_file_import.prepend(operators.import_OT_fds_case_menu)
     # Load blenderfds settings menu
     bpy.types.INFO_MT_file.draw = _INFO_MT_file_draw
     # Create property for space properties header
@@ -178,6 +178,7 @@ _used_headers = (
 _used_panels = (
     'Panel',
     'SCENE_PT_BF_HEAD', 'SCENE_PT_BF_TIME', 'SCENE_PT_BF_DUMP', 'SCENE_PT_BF_MISC', 'SCENE_PT_BF_REAC',
+    'OBJECT_PT_context_object',
     'OBJECT_PT_BF_MESH', 'OBJECT_PT_BF_EMPTY', 'OBJECT_PT_BF_TMP',
     'MATERIAL_PT_BF',
     'MATERIAL_PT_context_material','MaterialButtonsPanel',
