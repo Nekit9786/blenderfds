@@ -1,103 +1,84 @@
 """BlenderFDS, tokenize FDS file in a readable notation"""
 
-# TODO use search instead of match for optimization
-# TODO generalize regex
-
 import re
 
-DEBUG = False
-
-def _extract(value, pattern):
-    """Extract compiled regex pattern from value sequentially"""
-    start = 0
-    results = list()
-    while True:
-        m = pattern.match(value, start)
-        if not m: break
-        results.append(list(m.groups()))
-        start = m.end(0)
-    if DEBUG:
-        print("BFDS: fds.to_py._extract:")
-        for result in results: print(", ".join("<{}>".format(item) for item in result))
-    return results
-
-choose_fds_to_py = {".TRUE.": "True", ".FALSE.": "False"}
-
-def tokenize(fds_file):
-    """Parse and tokenize fds file.
-    Input:  "&OBST ID='Hello' XB=1,2,3,4,5,6 /"
-    Output: [[fds_original, fds_label, [[fds_original, fds_label, fds_value], ...]], ...]
-    Output: [["&OBST ID='Hello' XB=1,2,3,4,5,6 /", "OBST", [["ID='Hello'", "ID", "Hello"], ...]], ...]
-    """
-    # Extract namelists
-    regex = r"""
-        .*?    # zero or more chars of any type (not greedy) (re.DOTALL) 
-        (?P<namelist>   # namelist, group "namelist"
-            ^&                              # ampersand after newline (re.MULTILINE)
-            (?P<label>[A-Z0-9_]{4})         # namelist label, 4 chars, group "fds_label"
-            [,\s]+                          # followed by one or more separators of any kind
-            (?P<params>                     # namelist parameters, group "fds_params"
-                (?: '[^']*?' | "[^"]*?" | [^'"] )*?     # namelist params; protect chars in strings, "no params" allowed by *
-            )
-        [,\s]*          # followed by zero or more separators of any kind
-        /               # closing slash, anything outside &.../ is a comment and is ignored
-        )    
-    """, re.VERBOSE | re.MULTILINE | re.DOTALL
-    pattern = re.compile(regex[0], regex[1])
-    namelists = _extract(fds_file, pattern)
-    # Extract parameters
-    regex = r"""
-        [,\s]*          # zero or more separators
-        (?P<fds_original>   # the original namelist group
-            (?P<fds_label>      # the parameter label group. Could be: ID or MATL_ID(1:2,1)
-                [A-Z0-9_]+          # First part, as in MATL_ID
-                (?:\([0-9:,]+\))?   # Second optional part, as in (1:2,1)
-            )
-            [\s]*           # followed by zero or more spaces
-            =               # an equal sign
-            [\s]*           # followed by zero or more spaces
-            (?P<fds_value>  # the value group
-                (?: '[^']*?' | "[^"]*?" | [^'"] )+? # protect chars in strings, anonymous group, "no value" not allowed by +
-            )
-            (?=             # stop the previous value match when it is followed by
-                [,\s]+          # one or more separators
-                [A-Z0-9_]+      # another parameter label (same definition as before)
-                (?:\([0-9:,]+\))?
-                [\s]*           # zero or more spaces
-                =               # an equal sign
-                |               # or
-                $               # the end of the string
-            )
+nl_re = re.compile(r"""
+    (?P<namelist>   # namelist, group "namelist"
+        ^&                # starting ampersand after newline (re.MULTILINE)
+        (?P<label>[a-zA-Z][a-zA-Z0-9_]+?)  # namelist label, not greedy
+        [,\s\t]+          # one or more separators of any kind    
+        (?P<params>       # namelist params, protect strings, no &
+            (?: '[^']*?' | "[^"]*?" | [^'"&] )*?  # zero or more groups, not greedy
         )
-    """, re.VERBOSE | re.MULTILINE | re.DOTALL
-    pattern = re.compile(regex[0], regex[1])
-    for namelist in namelists:
-        # Extract parameter
-        params = list()
-        for param in _extract(namelist[2], pattern):
-            # Unpack and clean original
-            fds_original, fds_label, fds_value = param       
-            fds_original = "=".join((fds_label, fds_value))
-            # Translate value from FDS to Py
-            try: fds_value = eval(choose_fds_to_py.get(fds_value, fds_value))
-            except:
-                print("BFDS: fds_to_py.tokenize: '{}' parameter evaluation error:\n<{}>".format(fds_label, fds_original))
-            # Append
-            params.append((fds_original, fds_label, fds_value))
-        # Update extracted
-        namelist[2] = params
-    # Return
-    return namelists
+        [,\s\t]*          # zero or more separators of any kind    
+        /                 # anything outside &.../ is a comment and is ignored
+    )
+    """, re.VERBOSE | re.MULTILINE | re.DOTALL)
 
-# Test
+def _extract_namelists(text):
+    """Return a list of multiline namelists strings from an fds file"""
+    return re.findall(nl_re, text)
+
+param_re = re.compile(r"""
+    (?P<label>[a-zA-Z][a-zA-Z0-9_\(\):,]+?)  # parameter label w bounds, not greedy
+    [\s\t]*           # zero or more spaces    
+    =                 # an equal sign
+    [\s\t]*           # zero or more spaces    
+    (?P<fds_value>    # the value group, protect strings
+        (?: '[^']*?' | "[^"]*?" | [^'"] )+?  # one or more groups, not empty
+    )
+    (?=               # stop the previous value match when it is followed by
+        [,\s\t]+      # one or more separators of any kind
+        [a-zA-Z][a-zA-Z0-9_\(\):,]+  # another parameter label (same definition as before)
+        [\s\t]*       # zero or more spaces
+        =             # an equal sign
+        |             # or
+        $             # the end of the string
+    )
+    """, re.VERBOSE | re.DOTALL)  # no MULTILINE, so that $ is the end of the file
+
+def _extract_params(text):
+    """Return a list of parameters"""
+    return re.findall(param_re, text)
+
+def _eval_param(text):
+    """Eval text to the corresponding Py value"""
+    # Remove newlines
+    text = ' '.join(text.splitlines())
+    # Get logicals, or eval
+    if text.upper() in ('T','.TRUE.'):
+        return True
+    elif text.upper() in ('F','.FALSE.'):
+        return False
+    else:
+        return eval(text)
+
+def tokenize(text):
+    """Parse and tokenize fds text.
+    Input:  "&OBST ID='Hello' XB=1,2,3,4,5,6 /"
+    Output: (("&OBST ID='Hello' XB=1,2,3,4,5,6 /", "OBST", {'ID': 'Hello', ...}), ...)
+    """
+    tokens = list()
+    for nl in _extract_namelists(text):
+        # nl[0]: original namelist
+        # nl[1]: fds label
+        params = dict()
+        for par in _extract_params(nl[2]):
+            # par[0]: fds label
+            # par[1]: fds value
+            try:
+                params[par[0]] = (_eval_param(par[1]), par[1])  # {label: (value, fds_value), }
+            except:
+                print('BFDS: to_py.tokenize: cannot evaluate parameter:\n', par[0], '=', par[1])
+        # tokens = ("fds_label", {label: (value, fds_value), label: (value, fds_value), ...}, "original namelist"), ...
+        tokens.append((nl[1], params, nl[0]))
+    return tokens
+
 if __name__ == "__main__":
-    # Get fds_file
     import sys
     if not sys.argv: exit()
     print("BFDS fds.to_py.tokenize:", sys.argv[1])
     with open(sys.argv[1], 'r') as f:
         fds_file = f.read()
-    # Tokenize it
-    results = tokenize(fds_file)
-    print("BFDS: fds.to_py.__main__:")
-    for result in results: print(", ".join("<{}>".format(item) for item in result))
+    print('\n'.join(str(v) for v in tokenize(fds_file)))
+

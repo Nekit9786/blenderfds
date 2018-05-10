@@ -79,7 +79,7 @@ def xbs_to_ob(xbs, context, ob=None, bf_xb="NONE", name="xbs_to_ob", update_cent
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
-    ob.bf_xb = bf_xb  # FIXME right?
+    ob.bf_xb = bf_xb
     return ob
 
 ### from XYZ
@@ -110,7 +110,7 @@ def xyzs_to_ob(xyzs, context, ob=None, bf_xyz="NONE", name="xyzs_to_ob", update_
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
-    ob.bf_xyz = bf_xyz  # FIXME right?
+    ob.bf_xyz = bf_xyz
     return ob
 
 ### from PB
@@ -147,23 +147,49 @@ def pbs_to_ob(pbs, context, ob=None, bf_pb="NONE", name="pbs_to_ob", update_cent
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
-    ob.bf_pb = bf_pb  # FIXME right?
+    ob.bf_pb = bf_pb
     return ob
 
 ### from GEOM
 
-def geom_to_mesh(verts, faces, me=None) -> "Mesh":
+def geom_to_mesh(fds_surfids, fds_verts, fds_faces, me=None) -> "Mesh":
     """Translate GEOM vertices ((x0,y0,z0,), ...) and faces ((1,2,3,), ...) to Blender mesh."""
     if not me: me = bpy.data.meshes.new("geom_to_mesh")
-    verts, edges, faces = verts, list(), [(face[0]-1,face[1]-1,face[2]-1,) for face in faces]
+    # Append material slots
+    for i, surfid in enumerate(fds_surfids):
+        found = False
+        for ma in bpy.data.materials:
+            if surfid == ma.name:
+                me.materials.append(ma)
+                found = True
+                break
+        if not found: raise Exception("Unknown SURF_ID '{}'".format(surfid))
+    # Treat fds_verts and fds_faces
+    nverts, nfaces = len(fds_verts) // 3, len(fds_faces) // 4
+    if nverts * 3 != len(fds_verts):
+        raise Exception("Wrong VERTS length")
+    if nfaces * 4 != len(fds_faces):
+        raise Exception("Wrong FACES length")
+    verts = [(fds_verts[i*3], fds_verts[i*3+1], fds_verts[i*3+2],) for i in range(nverts)]
+    edges = list()
+    faces = [(fds_faces[i*4]-1, fds_faces[i*4+1]-1, fds_faces[i*4+2]-1,) for i in range(nfaces)]
+    imats = [fds_faces[i*4+3]-1 for i in range(nfaces)]
+    # Check imats
+    if max(imats) > len(me.materials)-1:
+        raise Exception("Wrong SURF_ID length")
+    # Create mesh
     me.from_pydata(verts, edges, faces)
+    # Assign materials to faces
+    for iface, face in enumerate(me.polygons):
+        face.material_index = imats[iface]    
     return me
 
-def geom_to_ob(verts, faces, context, ob=None, name="geom_to_ob", update_center=True) -> "Mesh":
-    """Transform geometry in FDS notation to Blender object."""
+def geom_to_ob(fds_surfids, fds_verts, fds_faces, context, ob=None, name="geom_to_ob", update_center=True) -> "Mesh":
+    """Transform geometry in FDS notation to Blender object."""  
     # Get mesh, set it, set properties and center position
-    me = geom_to_mesh(verts, faces, me=None)
+    me = geom_to_mesh(fds_surfids, fds_verts, fds_faces, me=None)
     if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
     else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
     if update_center: set_balanced_center_position(context, ob)
     return ob
+  
