@@ -222,7 +222,7 @@ def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
     epsilon = .000001 # FIXME global epsilon
     # Check self intersection
     import mathutils
-    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon)
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon)
     if tree.overlap(tree): raise BFException(ob, "Object self intersection detected.")    
     # Check edges:
     # - manifold, each edge should join two faces, no more no less
@@ -239,8 +239,13 @@ def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
     for vert in bm.verts:
         if not bool(vert.link_edges): raise BFException(ob, "Loose vertices detected.")
 
-    # Get its surf_idv
-    surf_idv = [material_slot.material.name for material_slot in ob.material_slots]
+    # Get its surf_idv, and check that all used surfs are exported
+    surf_idv = []
+    for material_slot in ob.material_slots:
+        ma = material_slot.material
+        if not ma.bf_export:
+            raise BFException(ob, "Referenced SURF ID='{}' is not exported.".format(ma.name))
+        surf_idv.append(ma.name)
         
     # Get its vertex coordinates
     verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
