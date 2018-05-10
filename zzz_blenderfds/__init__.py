@@ -16,7 +16,7 @@
 """BlenderFDS"""
 
 print("""
-    BlenderFDS  Copyright (C) 2013-2016 Emanuele Gissi, http://www.blenderfds.org
+    BlenderFDS  Copyright (C) 2013-2018 Emanuele Gissi, http://www.blenderfds.org
     This addon comes with ABSOLUTELY NO WARRANTY.
     This is free software, and you are welcome to redistribute it
     under certain conditions; see included license file for details.
