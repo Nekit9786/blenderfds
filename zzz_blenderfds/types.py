@@ -8,7 +8,7 @@ from .utils import is_iterable, ClsList
 
 from . import config
 
-DEBUG = True
+DEBUG = False
 
 ### Collections
 
@@ -21,7 +21,8 @@ def subscribe(cls):
     # Subscribe to other useful dicts, but init specific dict for each new class
     # Build my cls.all_bf_props
     cls.all_bf_props = ClsList()
-    if cls.bf_prop_export: cls.all_bf_props.append(cls.bf_prop_export)
+    if cls.bf_prop_export:
+        cls.all_bf_props.append(cls.bf_prop_export)
     for bf_prop in cls.bf_props:
         cls.all_bf_props.append(bf_prop)
         cls.all_bf_props.extend(bf_prop.all_bf_props)
@@ -78,21 +79,6 @@ class _BFCommon():
     def bf_prop_free(self):
         for bf_prop in self.bf_props:
             if isinstance(bf_prop, BFFreeProp): return bf_prop
-
-    @property
-    def bf_prop_XB(self):
-        for bf_prop in self.bf_props:
-            if isinstance(bf_prop, BFXBProp): return bf_prop
-
-    @property
-    def bf_prop_XYZ(self):
-        for bf_prop in self.bf_props:
-            if isinstance(bf_prop, BFXYZProp): return bf_prop
-            
-    @property
-    def bf_prop_PB(self):
-        for bf_prop in self.bf_props:
-            if isinstance(bf_prop, BFPBProp): return bf_prop
 
     # Register/Unregister
 
@@ -254,9 +240,9 @@ class BFProp(_BFCommon):
         Eg: "String", (0.2,3.4,1.2), ...
         """
         DEBUG and print("BFDS: BFProp.from_fds:", str(self), value)
-        self.set_exported(context, True)
         try: self.set_value(context, value)
         except: raise BFException(self, "Error importing '{}' value".format(value))
+        self.set_exported(context, True)  # Do not export, if errors raised
 
 
 class BFNamelist(_BFCommon):
@@ -266,7 +252,7 @@ class BFNamelist(_BFCommon):
     all_bf_props = ClsList()
 
     def __str__(self):
-        return "{} > Namelist {}".format(
+        return "{} > {}".format(
             str(self.element),
             self.fds_label or self.label or self.__name__,
             )
@@ -373,40 +359,40 @@ class BFNamelist(_BFCommon):
     def from_fds(self, context, tokens) -> "None":
         """Set my properties from imported FDS tokens, on error raise BFException.
         Tokens have the following format: ((fds_original, fds_label, fds_value), ...)
-        Eg: (("ID='example'", "ID", "example"), ("XB=...", "XB", (1., 2., 3., 4., 5., 6.,)), ...)
+        Eg: {'ID': 'example', "XB": (1., 2., 3., 4., 5., 6.,), ...}
         """
         DEBUG and print("BFDS: BFNamelist.from_fds:", str(self), tokens)
         # Init
         if not tokens: return
-        # Set separator
-        separator = config.namelist_separator
         # Only scene namelists may be overwritten;
         # Do not mix old and new properties, so first set default, if it exists
-        if self.bpy_type == Scene: self.set_default(context)
-        # Set export of myself
-        self.set_exported(context, True)
-        # Order tokens, SURF_ID needs a working mesh, so treat last, after XB, XYZ, PB* that create the mesh
-        tokens.sort(key=lambda k:k[1]==("SURF_ID")) # Order is: False then True
-        # Treat tokens
+        if self.bpy_type == Scene:
+            self.set_default(context)
+        # Treat tokens, SURF_ID needs geometry so last
         free_texts = list()
         errors = list()
-        for token in tokens:
-            # Init
-            fds_original, fds_label, fds_value = token
+        for fds_label in sorted(tokens.keys(), key=lambda k: k==("SURF_ID")):
+            value, fds_value = tokens[fds_label]
             # Search managed FDS property, and import token
             bf_prop_cls = self.all_bf_props.get_by_fds_label(fds_label)
             if bf_prop_cls:
                 # This FDS property is managed: instantiate and import BFProp
-                try: bf_prop_cls(self.element).from_fds(context, fds_value)
-                except BFException as err: errors.append(err)
+                try:
+                    bf_prop_cls(self.element).from_fds(context, value)
+                except Exception as err:
+                    errors.append(err)
             else:
                 # This FDS property is not managed
-                free_texts.append(fds_original)
+                free_texts.append(fds_label + "=" + fds_value)
         # Save unmanaged tokens in self.bf_prop_free
         if free_texts and self.bf_prop_free:
             self.bf_prop_free.set_value(context, " ".join(free_texts))
         # Re-raise occurred errors
-        if errors: raise BFException(self, "Following errors reported", errors)
+        if errors:
+            raise BFException(self, "Following errors reported", errors)
+        # All ok, set export of myself
+        self.set_exported(context, True)
+
 
 ### Specialized BFProp
 
