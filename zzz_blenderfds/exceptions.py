@@ -8,7 +8,8 @@ class BFException(Exception):
         self.sender = sender
         self.msg = msg
         self.errors = list()
-        if errors: self.errors.extend(errors)
+        if errors:
+            self.errors.extend(errors)
 
     def __str__(self):
         return "\n".join(self.labels)
