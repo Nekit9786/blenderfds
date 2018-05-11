@@ -11,7 +11,7 @@ import subprocess
 
 #blender = "/home/egissi/Documenti/Argomenti/BlenderFDS/blender"
 blender="blender"
-examples_dir = "/home/egissi/Documenti/Argomenti/BlenderFDS/git/blenderfds/examples"
+examples_dir = "/home/egissi/git/blenderfds/examples"
 test_names = "round-room","plume","uni-build" # list of test names
 
 def _run_test(test_dir, test_name):

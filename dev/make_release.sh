@@ -4,7 +4,7 @@
 
 # Setup
 
-tag="v4.1.1"
+tag="v4.2.0"
 short_tag=${tag:1}
 release_name="BlenderFDS-$tag"
 
@@ -12,7 +12,7 @@ github_url="https://github.com/firetools/blenderfds/archive"
 github_file="$tag.zip"
 github_unzip_dir="blenderfds-$short_tag"
 
-git_local="/home/egissi/Documenti/Argomenti/BlenderFDS/git"
+git_local="/home/egissi/git/blenderfds"
 
 destination_path="/home/egissi/Documenti/Argomenti/BlenderFDS/BlenderFDS_releases"
 
