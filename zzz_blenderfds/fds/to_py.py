@@ -69,7 +69,7 @@ def tokenize(text):
             try:
                 params[par[0]] = (_eval_param(par[1]), par[1])  # {label: (value, fds_value), }
             except:
-                print('BFDS: to_py.tokenize: cannot evaluate parameter:\n', par[0], '=', par[1])
+                raise Exception(f'Cannot evaluate parameter: {par[0]}={par[1]}')
         # tokens = ("fds_label", {label: (value, fds_value), label: (value, fds_value), ...}, "original namelist"), ...
         tokens.append((nl[1], params, nl[0]))
     return tokens
