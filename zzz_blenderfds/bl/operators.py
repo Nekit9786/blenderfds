@@ -83,6 +83,19 @@ class WM_OT_bf_load_blenderfds_settings(Operator):
         self.report({"INFO"}, "Default BlenderFDS settings loaded")
         return {'FINISHED'}
 
+### Set predefined materials, used by handler
+
+class MATERIAL_OT_bf_set_predefined(Operator):
+    bl_label = "Set Predefined"
+    bl_idname = "material.bf_set_predefined"
+    bl_description = "Set predefined SURFs: INERT, OPEN, MIRROR..."
+
+    def execute(self, context):
+        fds.surf.set_predefined(context)
+        self.report({"INFO"}, "Predefined SURFs ok")
+        return {'FINISHED'}
+
+
 ### SURF MATL_ID
 
 def _get_namelist_items(self, context, nl): # TODO move away from here
