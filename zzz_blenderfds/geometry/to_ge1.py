@@ -18,9 +18,9 @@ from .geom_utils import *
 # 2 150 150 150 0.0 0.0 0.5
 #
 # [FACES]       < immutable title
-# 2             < number of tri faces (from OBST and SURF objects triamgulated bm.faces)
-# 6.0 3.9 0.5 6.0 1.9 0.5 6.0 1.9 1.9 6.0 3.9 1.9 0 < x0, y0, z0, x1, y1, z1, ..., ref to appearance index
-# 6.0 3.9 0.5 6.0 1.9 0.5 6.0 1.9 1.9 6.0 3.9 1.9 0
+# 2             < number of *quad* faces (from OBST and SURF objects triamgulated bm.faces)
+# 6.0 3.9 0.5  6.0 1.9 0.5  6.0 1.9 1.9  6.0 3.9 1.9  0 < x0, y0, z0, x1, y1, z1, ..., ref to appearance index
+# 6.0 3.9 0.5  6.0 1.9 0.5  6.0 1.9 1.9  6.0 3.9 1.9  0
 # EOF
 
 def scene_to_ge1(context, scene):  # TODO use BMesh
@@ -54,7 +54,7 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
         and not ob.hide_render  # hide some objects if requested
         and not ob.bf_is_tmp    # do not show temporary objects
         and ob.bf_export        # show only exported objects
-        and ob.bf_namelist_cls in ("ON_OBST", "ON_GEOM", "ON_GEOM2", "ON_VENT", "ON_HOLE") # show only some namelists
+        and ob.bf_namelist_cls in ("ON_OBST", "ON_GEOM", "ON_VENT", "ON_HOLE") # show only some namelists
         and getattr(ob.active_material, "name", None) != "OPEN" # do not show open VENTs
     )
     # Get GE1 faces from selected objects
@@ -68,16 +68,20 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
         # Get ob material_slots
         material_slots = ob.material_slots
         # Get default_material_name
-        if   ob.bf_namelist_cls == "ON_HOLE":  default_material_name = "BF_HOLE"
-        elif ob.bf_namelist_cls == "ON_GEOM2": default_material_name = None
+        if   ob.bf_namelist_cls == "ON_HOLE": default_material_name = "BF_HOLE"
+        elif ob.bf_namelist_cls == "ON_GEOM": default_material_name = None
         elif ob.active_material: default_material_name = ob.active_material.name
         else: default_material_name = "INERT"
         for f in bm.faces:
             # Grab ordered vertices coordinates
-            items = ["{:.3f}".format(co) for v in f.verts for co in v.co]
+            coos = [co for v in f.verts for co in v.co]
+            coos.extend((coos[-3], coos[-2], coos[-1]))  # tri to quad
+            items = ["{:.3f}".format(co) for co in coos]
             # Get appearance_index
-            if default_material_name: material_name = default_material_name
-            else: material_name = material_slots[f.material_index].material.name
+            if default_material_name:
+                material_name = default_material_name
+            else:
+                material_name = material_slots[f.material_index].material.name
             appearance_index = str(ma_to_appearance.get(material_name, 0)) + "\n"
             items.append(appearance_index)
             # Append GE1 face
