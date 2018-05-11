@@ -219,28 +219,28 @@ class OP_XB(BFXBProp):
         return "XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value)
 
     def _format_xb_idi(self, value, name, i):
-        return "ID='{1}_{2}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name, i)
+        return "ID='{1}_{2}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name, i)
 
     def _format_xb_idx(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idy(self, value, name, i):
-        return "ID='{1}_Y{0[2]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[2]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idz(self, value, name, i):
-        return "ID='{1}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idxy(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idxz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idyz(self, value, name, i):
-        return "ID='{1}_Y{0[2]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[2]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def _format_xb_idxyz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}_Z{0[4]:+.3f}'\n      XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
 
     def to_fds(self, context):
         # Check
@@ -330,28 +330,28 @@ class OP_XYZ(BFXYZProp):
         return "XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value)
 
     def _format_xyz_idi(self, value, name, i):
-        return "ID='{1}_{2}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name, i)
+        return "ID='{1}_{2}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name, i)
 
     def _format_xyz_idx(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idy(self, value, name, i):
-        return "ID='{1}_Y{0[1]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[1]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idz(self, value, name, i):
-        return "ID='{1}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idxy(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idxz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idyz(self, value, name, i):
-        return "ID='{1}_Y{0[1]:+.3f}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[1]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def _format_xyz_idxyz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}_Z{0[2]:+.3f}'\n      XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
 
     def to_fds(self, context):
         # Check
@@ -432,19 +432,19 @@ class OP_PB(BFPBProp):
 
     def _format_pb_idi(self, value, name, i):
         if   value[0] == 0:
-            return "ID='{1}_{2}'\n      PBX={0[1]:.3f}".format(value, name, i) # PBX is 0
+            return "ID='{1}_{2}' PBX={0[1]:.3f}".format(value, name, i) # PBX is 0
         elif value[0] == 1:
-            return "ID='{1}_{2}'\n      PBY={0[1]:.3f}".format(value, name, i) # PBY is 1
+            return "ID='{1}_{2}' PBY={0[1]:.3f}".format(value, name, i) # PBY is 1
         elif value[0] == 2:
-            return "ID='{1}_{2}'\n      PBZ={0[1]:.3f}".format(value, name, i) # PBZ is 2
+            return "ID='{1}_{2}' PBZ={0[1]:.3f}".format(value, name, i) # PBZ is 2
 
     def _format_pb_idxyz(self, value, name, i):
         if   value[0] == 0:
-            return "ID='{1}_X{0[1]:+.3f}'\n      PBX={0[1]:.3f}".format(value, name) # PBX is 0
+            return "ID='{1}_X{0[1]:+.3f}' PBX={0[1]:.3f}".format(value, name) # PBX is 0
         elif value[0] == 1:
-            return "ID='{1}_Y{0[1]:+.3f}'\n      PBY={0[1]:.3f}".format(value, name) # PBY is 1
+            return "ID='{1}_Y{0[1]:+.3f}' PBY={0[1]:.3f}".format(value, name) # PBY is 1
         elif value[0] == 2:
-            return "ID='{1}_Z{0[1]:+.3f}'\n      PBZ={0[1]:.3f}".format(value, name) # PBZ is 2
+            return "ID='{1}_Z{0[1]:+.3f}' PBZ={0[1]:.3f}".format(value, name) # PBZ is 2
 
     def to_fds(self, context):
         # Check
