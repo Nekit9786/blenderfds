@@ -145,8 +145,8 @@ class BFMaterial():
         return "Material {}".format(self.name)
 
     @property
-    def bf_namelist(self) -> "BFNamelist instance or None": # Only one namelist per material
-        """Return an instance of the linked Material namelist class"""
+    def bf_namelist(self) -> "BFNamelist instance or None":
+        """Return an instance of the linked Material namelist class."""
         MN_cls = BFNamelist.all.get(self.bf_namelist_cls)
         if MN_cls:
             return MN_cls(element=self)  # create instance from class
@@ -290,7 +290,7 @@ class BFScene():
         if not bf_namelist_cls:
             if any(
                 (label in fds_params
-                for label in ('XB', 'XYZ', 'PBX', 'PBY', 'PBZ'))
+                    for label in ('XB', 'XYZ', 'PBX', 'PBY', 'PBZ'))
             ):
                 # An unmanaged geometric namelist
                 bf_namelist_cls = BFNamelist.all["ON_free"]
@@ -333,18 +333,15 @@ class BFScene():
         bpy.data.texts[bf_head_free_text].from_string("\n".join(free_texts))
 
     def from_fds(self, context, value):
-        """Import a text in FDS notation into self. On error raise BFException.
-        Value is any text in good FDS notation.
-        """
+        """Import a text in FDS notation into self."""
         tokens = None
-        errors = list()
+        errors = False
         free_texts = list()
         # Tokenize value and manage exception
         try:
             tokens = fds.to_py.tokenize(value)
-        except Exception as err:  # TODO improve!
-#            raise BFException(self, "Unrecognized FDS syntax, cannot import.")
-            errors.append(err)  # FIXME still not working
+        except BFException as err:
+            errors = True
             free_texts.extend(err.free_texts)  # Record in free_texts
         # Treat tokens, first SURFs
         if tokens:
@@ -357,22 +354,23 @@ class BFScene():
                 if bf_namelist_cls:
                     # This FDS namelists is managed:
                     # get element, instanciate and import BFNamelist
-                    element = self._get_imported_element(context, bf_namelist_cls, fds_label)
+                    element = self._get_imported_element(
+                        context, bf_namelist_cls, fds_label)
                     try:
                         bf_namelist_cls(element).from_fds(context, fds_params)
                     except BFException as err:
-                        errors.append(err)
+                        errors = True
                         free_texts.extend(err.free_texts)
                 else:
                     # This FDS namelists is not managed
                     free_texts.append(fds_original)
-        # Save free_texts, even if empty (remember, bf_head_free_text is not set to default)
+        # Save free_texts, even if empty
+        # (remember, bf_head_free_text is not set to default)
         self._save_imported_unmanaged_tokens(context, free_texts)
         # Return
         if errors:
             raise BFException(
-                self,
-                "Errors reported, see details in HEAD free text file.", errors)
+                self, "Errors reported, see details in HEAD free text file.")
 
 
 # Add methods to original Blender type

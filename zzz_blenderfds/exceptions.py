@@ -1,10 +1,10 @@
-"""BlenderFDS, exceptions"""
+"""BlenderFDS, exceptions."""
+
 
 class BFException(Exception):
-    """Exception raised by all methods in case of an error. Can contain sub-errors."""
+    """Exception raised by all methods in case of an error."""
 
     def __init__(self, sender, msg, errors=None):
-        if not sender: raise Exception("No sender in BFException")
         self.sender = sender
         self.msg = msg
         self.errors = list()
@@ -13,7 +13,7 @@ class BFException(Exception):
 
     def __str__(self):
         return "\n".join(self.labels)
-    
+
     def draw(self, context, layout) -> "layout":
         """Draw self msgs user interface."""
         layout.label(icon="ERROR", text=self.msg)
@@ -21,15 +21,16 @@ class BFException(Exception):
     @property
     def my_label(self) -> "str":
         """Get my label."""
-        sender_text = str(self.sender)
-        return ": ".join((sender_text, self.msg))
+        return self.sender and ": ".join((str(self.sender), self.msg)) \
+            or self.msg
 
     @property
     def labels(self) -> "List":
         """Get my label and all errors labels."""
         labels = list()
         labels.append(self.my_label)
-        for err in self.errors: labels.extend(err.labels)
+        for err in self.errors:
+            labels.extend(err.labels)
         return labels
 
     @property
