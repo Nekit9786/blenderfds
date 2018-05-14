@@ -12,9 +12,9 @@ github_url="https://github.com/firetools/blenderfds/archive"
 github_file="$tag.zip"
 github_unzip_dir="blenderfds-$short_tag"
 
-git_local="/home/egissi/git/blenderfds"
+git_local="/home/egissi/github/blenderfds"
 
-destination_path="/home/egissi/Documenti/Argomenti/BlenderFDS/BlenderFDS_releases"
+destination_path="/home/egissi"
 
 # Main
 
@@ -103,4 +103,3 @@ echo_ok "Done."
 # Bump version
 
 echo_msg "Do not forget to bump version!"
-

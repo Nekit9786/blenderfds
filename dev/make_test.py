@@ -7,12 +7,15 @@
 # - export all example cases
 # - import some fds files and export, then compare with ref
 
+"""Automated tests."""
+
 import subprocess
 
-#blender = "/home/egissi/Documenti/Argomenti/BlenderFDS/blender"
-blender="blender"
-examples_dir = "/home/egissi/git/blenderfds/examples"
-test_names = "round-room","plume","uni-build" # list of test names
+blender = "blender"
+examples_dir = "/home/egissi/github/blenderfds/examples"
+test_names = "round-room", "plume", "uni-build"  # list of test names
+# FIXME couch
+
 
 def _run_test(test_dir, test_name):
     args = (
@@ -22,17 +25,16 @@ def _run_test(test_dir, test_name):
             "--python",
             test_dir + "/test/run.py"
     )
-    subprocess.call(args)    
+    subprocess.call(args)
+
 
 def main():
     for test_name in test_names:
         print("\nTest name:", test_name)
         test_dir = examples_dir + "/" + test_name
         _run_test(test_dir, test_name)
-        
-    #test_name = "couch" FIXME
-               
     print("\nmake_test.py: Done.")
-    
+
+
 if __name__ == "__main__":
     main()
