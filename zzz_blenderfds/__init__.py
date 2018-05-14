@@ -15,6 +15,13 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """BlenderFDS"""
 
+# Import
+
+import bpy
+from .types import BFNamelist, BFProp
+from .fds import lang  # Import the FDS language
+from .bl import ui, handlers
+
 print("""
     BlenderFDS  Copyright (C) 2013-2018 Emanuele Gissi, http://www.blenderfds.org
     This addon comes with ABSOLUTELY NO WARRANTY.
@@ -25,8 +32,8 @@ print("""
 bl_info = {
     "name": "BlenderFDS",
     "author": "Emanuele Gissi",
-    "version": (4,2,0),
-    "blender": (2,7,6),
+    "version": (4, 2, 0),
+    "blender": (2, 7, 9),
     "api": 35622,
     "location": "File > Export > FDS Case (.fds)",
     "description": "BlenderFDS, an open graphical editor for the NIST Fire Dynamics Simulator",
@@ -37,34 +44,33 @@ bl_info = {
     "category": "Import-Export",
 }
 
-### Import
 
-import bpy
-from .types import BFNamelist, BFProp
-from .fds import lang # Import the FDS language
-from .bl import ui, handlers
-
-### Registration/Unregistration
+# Registration/Unregistration
 
 def register():
-    """Register Blender types"""
+    """Register Blender types."""
     # Register module
-    bpy.utils.register_module(__name__)    
+    bpy.utils.register_module(__name__)
     # Register all BFProps
-    for bf_namelist in BFNamelist.all: bf_namelist.register() # may contain a bpy_idname
-    for bf_prop in BFProp.all: bf_prop.register()    
+    for bf_namelist in BFNamelist.all:
+        bf_namelist.register()  # may contain a bpy_idname
+    for bf_prop in BFProp.all:
+        bf_prop.register()
     # Blender things
     ui.register()
     handlers.register()
 
+
 def unregister():
-    """Unregister Blender types"""
+    """Unregister Blender types."""
     # Blender things
     ui.unregister()
     handlers.unregister()
     bpy.utils.unregister_module(__name__)
     # Unregister all bf_namelists
-    for bf_namelist in BFProp.all: bf_namelist.unregister()
+    for bf_namelist in BFProp.all:
+        bf_namelist.unregister()
+
 
 if __name__ == "__main__":
     register()

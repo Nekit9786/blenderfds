@@ -1,15 +1,17 @@
-"""BlenderFDS, FDS SURF routines"""
+"""BlenderFDS, FDS SURF routines."""
 
 import bpy
 
 predefined = ("INERT", "OPEN", "MIRROR", "HVAC", "PERIODIC")
 
+
 def has_predefined():
-    """Check predefined materials"""
+    """Check predefined materials."""
     return set(predefined) <= set(bpy.data.materials.keys())
 
+
 def set_predefined(context):
-    """Set BlenderFDS predefined materials/bcs"""
+    """Set BlenderFDS predefined materials/bcs."""
     mas = bpy.data.materials.keys()
     value = str()
     if "INERT" not in mas:
@@ -22,4 +24,5 @@ def set_predefined(context):
         value += "&SURF ID='MIRROR' RGB=51,51,204 /\n"
     if "HVAC" not in mas:
         value += "&SURF ID='HVAC' RGB=51,51,204 /\n"
-    if value: context.scene.from_fds(context, value)
+    if value:
+        context.scene.from_fds(context, value)
