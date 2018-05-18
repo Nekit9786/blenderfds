@@ -30,16 +30,19 @@ class BFPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+        # UI
+        row = layout.split(.3)
+        row.operator("wm.bf_load_blenderfds_settings", icon='LOAD_FACTORY')
+        layout.prop(self, "bf_pref_simplify_ui")
+        layout.prop(context.user_preferences.filepaths, "use_load_ui", text="Reset User Interface on File Load")
         # Paths
         row = layout.row()
         col_export, col = row.column(), row.column()
         col_export.prop(self, "bf_pref_use_custom_snippet_path", text="")
         col.prop(self, "bf_pref_custom_snippet_path")
         col.active = bool(self.bf_pref_use_custom_snippet_path) # if not used, layout is inactive
-        # UI
+        # Mouse button selection
         row = layout.row()
-        row.prop(self, "bf_pref_simplify_ui")
-        row = layout.row()
-        row.prop(context.user_preferences.filepaths, "use_load_ui", text="Load Custom User Interface on File Open")
+        row.label("Mouse Select With Button:")
+        row.prop(context.user_preferences.inputs, "select_mouse", expand=True)
         return layout
-        

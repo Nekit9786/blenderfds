@@ -12,20 +12,20 @@ class SCENE_PT_BF():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "scene"
-    
+
     bf_namelist = None
 
     def draw_header(self, context):
         layout = self.layout
         element = context.scene
         self.bl_label = self.bf_namelist(element).draw_header(context, layout)
-        
+
     def draw(self, context):
         layout = self.layout
         element = context.scene
         # Panel
         self.bf_namelist(element).draw(context, layout)
-        
+
 class SCENE_PT_BF_HEAD(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_HEAD"
     bf_namelist = SN_HEAD
@@ -69,7 +69,7 @@ class OBJECT_PT_BF_MESH(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
-    
+
     @classmethod
     def poll(cls, context):
         ob = context.active_object
@@ -105,7 +105,7 @@ class OBJECT_PT_BF_EMPTY(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
-    
+
     @classmethod
     def poll(cls, context):
         ob = context.active_object
@@ -132,7 +132,7 @@ class OBJECT_PT_BF_TMP(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
-    
+
     @classmethod
     def poll(cls, context):
         ob = context.active_object
@@ -162,7 +162,7 @@ class MATERIAL_PT_BF(Panel):
         ob = context.active_object
         all_bf_props = ob.bf_namelist.all_bf_props
         return ma and ob and ob.type == "MESH" and not ob.bf_is_tmp \
-            and (OP_SURF_ID in all_bf_props or OP_GEOM in all_bf_props) 
+            and (OP_SURF_ID in all_bf_props or OP_GEOM in all_bf_props)
             # show the panel only when relevant
 
     def draw_header(self, context):
@@ -177,15 +177,15 @@ class MATERIAL_PT_BF(Panel):
         w = context.window_manager.windows[0]
         w.cursor_modal_restore()
         # Panel
-        split = layout.split(.5) # namelist
+        split = layout.split(.7) # namelist
         split.prop(element, "bf_namelist_cls", text="")
         row = split.row()
-        row.prop(element, "diffuse_color", text="")
-        row.prop(element, "alpha", text="")
+        row_align = row.row(align=True)
+        row_align.prop(element, "diffuse_color", text="")
+        row_align.prop(element, "alpha", text="")
         row.operator("material.bf_load_surf", icon="LOAD_FACTORY", text="")
         element.bf_namelist.draw(context, layout)
         # Other operators
         row = layout.row()
         row.operator("material.bf_show_fds_code", text="Show FDS Code")
         row.operator("material.bf_surf_to_sel_obs", text="Assign To")
-
