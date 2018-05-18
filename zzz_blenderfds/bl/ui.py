@@ -1,136 +1,81 @@
-"""BlenderFDS, menus and other ui mods"""
+"""BlenderFDS, menus and other ui mods."""
 
 import bpy
-from bpy.types import Panel, Header, Menu
+from bpy.types import Panel, Header
+from bpy.utils import register_class
 
 from . import operators
 
 DEBUG = False
 
-### Register/Unregister
+
+# Register/Unregister
 
 def register():
-    """Register menus and other ui mods"""
-    # io menus
-    bpy.types.INFO_MT_file_export.prepend(operators.export_OT_fds_case_menu)
-    bpy.types.INFO_MT_file_import.prepend(operators.import_OT_fds_snippet_menu)
-    bpy.types.INFO_MT_file_import.prepend(operators.import_OT_fds_case_menu)
-    # Load blenderfds settings menu
-    bpy.types.INFO_MT_file.draw = _INFO_MT_file_draw
-    # Create property for space properties header
-    # called elsewhere, should always exist
+    """Register menus and other ui mods."""
+    # Properties for UI simplification
     bpy.types.WindowManager.bf_sp_context = bpy.props.EnumProperty(
         items=_sp_items,
         update=_sp_items_update,
-        default="SCENE"
-    )    
-    # Additional mods (user's preference)
+        default="OBJECT"
+    )
+    # Simplify UI, if requested from user's preferences
     if bpy.context.user_preferences.addons["zzz_blenderfds"].preferences.bf_pref_simplify_ui:
-        # Simplify info editor menu
-        bpy.types.INFO_MT_editor_menus.draw_menus = _INFO_MT_editor_menus_draw_menus
-        bpy.types.INFO_MT_help.draw = _INFO_MT_help_draw
-        bpy.types.INFO_MT_add.draw = _INFO_MT_add_draw
-        # Simplify view3d tools
-        bpy.types.VIEW3D_PT_tools_add_object.draw = _VIEW3D_PT_tools_add_object_draw
+        # Simplify info editor (upper menu)
+        from .simplified_ui import space_info
+        for cls in space_info.classes:
+            try: register_class(cls)
+            except ValueError: pass
+        # Simplify view3d editor
+        from .simplified_ui import space_view3d
+        for cls in space_view3d.classes:
+            try: register_class(cls)
+            except ValueError: pass
         # Simplify space properties header
-        bpy.types.PROPERTIES_HT_header.draw = _PROPERTIES_HT_header_draw
+        from .simplified_ui import space_properties
+        for cls in space_properties.classes:
+            try: register_class(cls)
+            except ValueError: pass
+        # Simplify modifiers
+        from .simplified_ui import properties_data_modifier
+        for cls in properties_data_modifier.classes:
+            try: register_class(cls)
+            except ValueError: pass
         # Treat (rewire or unregister) unused Blender bpy.types
         _treat_unused_bl_classes()
+
+    # Append import/export menus
+    bpy.types.INFO_MT_file_export.prepend(operators.export_OT_fds_case_menu)
+    bpy.types.INFO_MT_file_import.prepend(operators.import_OT_fds_snippet_menu)
+    bpy.types.INFO_MT_file_import.prepend(operators.import_OT_fds_case_menu)
 
 def unregister():
     """Unregister menus and other ui mods"""
     # info menu
     bpy.types.INFO_MT_editor_menus.draw_menus = _INFO_MT_editor_menus_draw_menus_tmp
 
-### Rewire draw functions
 
-def _INFO_MT_editor_menus_draw_menus(layout, context): # beware: here is "layout, context"!
-    layout.menu("INFO_MT_file")
-    layout.menu("INFO_MT_window")
-    layout.menu("INFO_MT_help")
+# Rewire draw functions
 
-def _INFO_MT_editor_menus_draw_menus_tmp(layout, context): # beware: here is "layout, context"!
+def _INFO_MT_editor_menus_draw_menus_tmp(layout, context):
+    """Show restart needed on top"""
     row = layout.row()
     row.alert = True
     row.operator("wm.quit_blender", text="Restart neeeded", icon='QUIT')
 
-def _INFO_MT_file_draw(self, context):
-    layout = self.layout
 
-    layout.operator_context = 'INVOKE_AREA'
-    layout.operator("wm.read_homefile", text="New", icon='NEW')
-    layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
-    layout.menu("INFO_MT_file_open_recent", icon='OPEN_RECENT')
-    layout.operator("wm.revert_mainfile", icon='FILE_REFRESH')
-    layout.operator("wm.recover_last_session", icon='RECOVER_LAST')
-    layout.operator("wm.recover_auto_save", text="Recover Auto Save...", icon='RECOVER_AUTO')
-
-    layout.separator()
-
-    layout.operator_context = 'EXEC_AREA' if context.blend_data.is_saved else 'INVOKE_AREA'
-    layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK')
-
-    layout.operator_context = 'INVOKE_AREA'
-    layout.operator("wm.save_as_mainfile", text="Save As...", icon='SAVE_AS')
-    layout.operator_context = 'INVOKE_AREA'
-    layout.operator("wm.save_as_mainfile", text="Save Copy...", icon='SAVE_COPY').copy = True
-
-    layout.separator()
-
-    layout.operator("screen.userpref_show", text="User Preferences...", icon='PREFERENCES')
-
-    layout.operator_context = 'INVOKE_AREA'
-    layout.operator("wm.save_homefile", icon='SAVE_PREFS')
-    layout.operator("wm.bf_load_blenderfds_settings", icon='LOAD_FACTORY')
-
-    layout.separator()
-
-    layout.operator_context = 'INVOKE_AREA'
-    layout.operator("wm.link", text="Link", icon='LINK_BLEND')
-    layout.operator("wm.append", text="Append", icon='APPEND_BLEND')
-
-    layout.separator()
-
-    layout.menu("INFO_MT_file_import", icon='IMPORT')
-    layout.menu("INFO_MT_file_export", icon='EXPORT')
-
-    layout.separator()
-
-    layout.menu("INFO_MT_file_external_data", icon='EXTERNAL_DATA')
-
-    layout.separator()
-
-    layout.operator_context = 'EXEC_AREA'
-    if bpy.data.is_dirty and context.user_preferences.view.use_quit_dialog:
-        layout.operator_context = 'INVOKE_SCREEN'  # quit dialog
-    layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
-
-def _INFO_MT_help_draw(self, context):
-    layout = self.layout
-    layout.operator("wm.url_open", text="BlenderFDS Wiki", icon='HELP').url = "https://github.com/firetools/blenderfds/wiki"
-    layout.operator("wm.url_open", text="BlenderFDS Website", icon='URL').url = "http://www.blenderfds.org"
-    layout.separator()
-    layout.operator("wm.url_open", text="Blender Manual", icon='HELP').url = "http://www.blender.org/manual"
-    layout.operator("wm.url_open", text="Blender Website", icon='URL').url = "http://www.blender.org"
-
-def _INFO_MT_add_draw(self, context):
-    layout = self.layout
-    layout.operator_context = 'EXEC_REGION_WIN'
-    layout.menu("INFO_MT_mesh_add", icon='OUTLINER_OB_MESH')
-    layout.operator("object.empty_add", text="Empty", icon='OUTLINER_OB_EMPTY')
-
-def _VIEW3D_PT_tools_add_object_draw(self, context):
+def _VIEW3D_PT_tools_add_object_draw(self, context):  # FIXME insert into recoded UI
     layout = self.layout
     col = layout.column(align=True)
     self.draw_add_mesh(col, label=True)
 
+
 def _unused_header_draw(self, context):
-    """Generic unused header draw function"""
+    """Draw generic unused header."""
     layout = self.layout
     row = layout.row(align=True)
     row.template_header()
 
-### Rewire space properties
 
 # Rewire space properties header
 
@@ -141,28 +86,29 @@ _sp_items = (
     ('MODIFIER','Modifiers','Object modifiers','MODIFIER',10),
 )
 
+
 def _sp_items_update(self, context):
     # Get the right space on screen (Properties Panel)
     space = context.space_data
-    if space and space.type != 'PROPERTIES': # I am not called by the Properties Panel
+    # When not called by the Properties Panel
+    if space and space.type != 'PROPERTIES':
+        print("_sp_items_update Not called by Properties Panel")  # FIXME
         space = None
         for window in context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type == 'PROPERTIES':
                     space = area.spaces[0]
                     break
-    if not space: return
+    if not space:
+        return
     # Update Properties Panel context
-    try: space.context = self.bf_sp_context
-    except TypeError: self.bf_sp_context = 'SCENE'
+    try:
+        space.context = self.bf_sp_context
+    except TypeError:
+        self.bf_sp_context = 'SCENE'
 
-def _PROPERTIES_HT_header_draw(self, context):
-    layout = self.layout
-    row = layout.row()
-    row.template_header()
-    row.prop(context.window_manager, "bf_sp_context", expand=True, icon_only=True)
 
-### Treat (rewire or unregister) unused Blender bpy.types
+# Treat (rewire or unregister) unused Blender bpy.types
 
 # Configuration
 
@@ -181,48 +127,60 @@ _used_panels = (
     'OBJECT_PT_context_object',
     'OBJECT_PT_BF_MESH', 'OBJECT_PT_BF_EMPTY', 'OBJECT_PT_BF_TMP',
     'MATERIAL_PT_BF',
-    'MATERIAL_PT_context_material','MaterialButtonsPanel',
-    'Cycles_PT_context_material','CyclesButtonsPanel',
+    'MATERIAL_PT_context_material', 'MaterialButtonsPanel',
+    'Cycles_PT_context_material', 'CyclesButtonsPanel',
     'DATA_PT_modifiers', 'RENDER_PT_render',
     'OBJECT_PT_relations',
 )
 
 _unused_panels = (
         "VIEW3D_PT_view3d_shading", "VIEW3D_PT_view3d_motion_tracking",
-        "VIEW3D_PT_transform_orientations", "VIEW3D_PT_view3d_name",
+        "VIEW3D_PT_view3d_name",  # "VIEW3D_PT_transform_orientations",
         "VIEW3D_PT_context_properties",
+        "VIEW3D_PT_tools_meshweight",
+        "VIEW3D_PT_grease_pencil",
     )
 
 _used_panel_by_bl_space_type = "PROPERTIES", "VIEW_3D"
-_used_panel_by_bl_category = "Tools", "Create", "Relations", "Options", "Grease Pencil"
+# Next was: "Create", "Relations", "Options", "Grease Pencil"
+_used_panel_by_bl_category = "Tools",
 _used_panel_by_bl_region_type = "UI"
+
 
 # Treat unused classes
 
 def _treat_unused_bl_classes():
-    """Treat (rewire or unregister) unused Blender bpy.types"""
+    """Treat (rewire or unregister) unused Blender bpy.types ."""
     for bt_name in dir(bpy.types):
         # Init
         bt_cls = getattr(bpy.types, bt_name, None)
         bt_bl_space_type = getattr(bt_cls, "bl_space_type", None)
         # Surely used bts
-        if bt_bl_space_type in _used_bl_space_type: continue
+        if bt_bl_space_type in _used_bl_space_type:
+            continue
         # Other Headers and Panels
         # Panels
         if issubclass(bt_cls, Panel):
-            if bt_name in _used_panels: continue
+            if bt_name in _used_panels:
+                continue
             if bt_name not in _unused_panels and bt_bl_space_type in _used_panel_by_bl_space_type:
                 bt_bl_category = getattr(bt_cls, "bl_category", None)
-                if bt_bl_category and bt_bl_category in _used_panel_by_bl_category: continue
+                if bt_bl_category and bt_bl_category in _used_panel_by_bl_category:
+                    continue
                 bt_bl_region_type = getattr(bt_cls, "bl_region_type", None)
-                if bt_bl_region_type and bt_bl_region_type in _used_panel_by_bl_region_type: continue
+                if bt_bl_region_type and bt_bl_region_type in _used_panel_by_bl_region_type:
+                    continue
             # If nothing else applies, unregister the Panel
-            if DEBUG: print("BFDS: Unregister Panel:", bt_name)
+            if DEBUG:
+                print("BFDS: Unregister Panel:", bt_name)
             bpy.utils.unregister_class(bt_cls)
             continue
         # Headers
         if issubclass(bt_cls, Header):
-            if bt_name in _used_headers: continue
-            if DEBUG: print("BFDS: Rewire Header:", bt_name)
-            bt_cls.draw = _unused_header_draw # Unused header, rewire its draw function
+            if bt_name in _used_headers:
+                continue
+            if DEBUG:
+                print("BFDS: Rewire Header:", bt_name)
+            # Unused header, rewire its draw function
+            bt_cls.draw = _unused_header_draw
             continue
