@@ -4,7 +4,7 @@
 
 # Setup
 
-tag="v4.2.0"
+tag="v4.2.1"
 short_tag=${tag:1}
 release_name="BlenderFDS-$tag"
 
@@ -60,11 +60,11 @@ echo_title "Making <$release_name> release..."
 
 #echo_msg "Downloading <$github_file> from GitHub..."
 cd /tmp
-#if wget $github_url/$github_file; then echo_ok "Done."
-#else
-#    echo_err "Cannot download <$github_file> from GitHub. Aborted."
-#    exit 1
-#fi
+if wget $github_url/$github_file; then echo_ok "Done."
+else
+    echo_err "Cannot download <$github_file> from GitHub. Aborted."
+    exit 1
+fi
 
 # Unzipping and renaming
 

@@ -11,7 +11,7 @@
 
 import subprocess
 
-blender = "blender"
+blender = "../blender/blender-2.79b-linux-glibc219-x86_64/blender"
 examples_dir = "/home/egissi/github/blenderfds/examples"
 test_names = "round-room", "plume", "uni-build"  # list of test names
 # FIXME couch
