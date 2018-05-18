@@ -1347,7 +1347,7 @@ class OP_GEOM(BFProp):
         # scale_length = context.scene.unit_settings.scale_length
         # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
         # Prepare
-        surf_idv_str = ','.join((f"'{s}'" for s in surf_idv))
+        surf_idv_str = ','.join(("'{}'".format(s) for s in surf_idv))
         verts_str = ""
         for v in verts:
             verts_str += "\n            {0[0]:.6f}, {0[1]:.6f}, {0[2]:.6f},".format(v)

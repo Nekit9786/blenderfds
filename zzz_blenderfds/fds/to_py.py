@@ -74,8 +74,8 @@ def tokenize(text):
                 params[par[0]] = (_eval_param(par[1]), par[1])
             except Exception as err:
                 raise BFException(
-                    sender=None,
-                    msg=f'Cannot evaluate parameter:\n{par[0]}={par[1]}',
+                    sender = None,
+                    msg = 'Cannot evaluate parameter:\n{0[0]}={0[1]}'.format(par),
                 )
         tokens.append((nl[1], params, nl[0]))
     return tokens
