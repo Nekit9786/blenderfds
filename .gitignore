@@ -2,4 +2,4 @@ __pycache__/
 *.py[cod~]
 *$py.class
 *.blend[123]
-blender_2.8/
+blender/
