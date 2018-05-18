@@ -1,4 +1,4 @@
-"""BlenderFDS, operators"""
+"""BlenderFDS, operators."""
 
 import bpy, os, sys
 from bpy.types import Operator
@@ -16,7 +16,8 @@ DEBUG = False
 
 # TODO search operators fro MATL_ID, PROP_ID...
 
-### Dialog box operator
+
+# Dialog box operator
 
 class WM_OT_bf_dialog(Operator):
     bl_label = "BlenderFDS"
@@ -43,7 +44,7 @@ class WM_OT_bf_dialog(Operator):
 
     def execute(self, context):
         return {'FINISHED'}
- 
+
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
@@ -58,6 +59,7 @@ class WM_OT_bf_dialog(Operator):
             for description in descriptions:
                 row = col.row()
                 row.label(description)
+
 
 ### Load BlenderFDS Settings
 
@@ -82,6 +84,7 @@ class WM_OT_bf_load_blenderfds_settings(Operator):
         # Report
         self.report({"INFO"}, "Default BlenderFDS settings loaded")
         return {'FINISHED'}
+
 
 ### Set predefined materials, used by handler
 
@@ -119,10 +122,12 @@ def _get_namelist_items(self, context, nl): # TODO move away from here
     ids.sort(key=lambda k:k[1])
     return ids
 
+
 def _get_matl_items(self, context):
-    """Get MATL IDs available in Free Text File"""
+    """Get MATL IDs available in Free Text File."""
     return _get_namelist_items(self, context, "MATL")
-    
+
+
 class MATERIAL_OT_bf_set_matl_id(Operator):
     bl_label = "Choose MATL_ID from Free Text File"
     bl_idname = "material.bf_set_matl_id"
@@ -132,7 +137,7 @@ class MATERIAL_OT_bf_set_matl_id(Operator):
         name="MATL_ID", description="MATL_ID parameter for SURF namelist",
         items=_get_matl_items # Updating function
     )
-          
+
     def execute(self, context):
         ma = context.active_object.active_material
         ma.bf_matl_id = self.bf_matl_id
@@ -165,7 +170,7 @@ class OBJECT_OT_bf_set_devc_prop_id(Operator):
         name="PROP_ID", description="PROP_ID parameter for DEVC namelist",
         items=_get_prop_items # Updating function
     )
-          
+
     def execute(self, context):
         ob = context.active_object
         ob.bf_devc_prop_id = self.bf_devc_prop_id
@@ -195,7 +200,7 @@ class OBJECT_OT_bf_set_devc_quantity(Operator):
         name="QUANTITY", description="QUANTITY parameter for DEVC namelist",
         items=fds.tables.get_quantity_items("D"),
     )
-          
+
     def execute(self, context):
         ob = context.active_object
         ob.bf_quantity = self.bf_quantity
@@ -235,7 +240,7 @@ class OBJECT_OT_bf_set_cell_size(Operator):
         description="Respect FDS Poisson solver restriction on IJK values while setting desired cell sizes (Object may be scaled and moved)",
         default=True,
     )
-    
+
     def draw(self, context):
         layout = self.layout
         ob = context.active_object
@@ -245,7 +250,7 @@ class OBJECT_OT_bf_set_cell_size(Operator):
         row.prop(self, "bf_snap_to_origin")
         row = layout.row()
         row.prop(self, "bf_poisson_restriction")
-        
+
     def execute(self, context):
         ob = context.active_object
         ob_moved = fds.mesh.set_cell_sizes(context, ob, self.bf_cell_sizes, self.bf_snap_to_origin, self.bf_poisson_restriction)
@@ -302,7 +307,7 @@ class _COMMON_bf_show_fds_code():
         for line in bf_fds_code.split("\n"):
             row = layout.row()
             row.label(text=line)
-        
+
     def execute(self, context):
         self.report({"INFO"}, "FDS Code Shown")
         return {'FINISHED'}
@@ -361,7 +366,7 @@ def _bf_props_copy(context, source_element, destination_elements):
         if bf_prop.bf_other.get("copy_protect"): continue # Do not copy protected BFProp
         for destination_element in destination_elements:
             setattr(destination_element, bf_prop.bpy_idname, bpy_value)
-            print("BFDS: Copy: {} -> {}: {}='{}'".format(source_element.name, destination_element.name, bf_prop.bpy_idname, bpy_value)) 
+            print("BFDS: Copy: {} -> {}: {}='{}'".format(source_element.name, destination_element.name, bf_prop.bpy_idname, bpy_value))
 
 class SCENE_OT_bf_copy_props_to_scene(Operator):
     bl_label = "Copy Properties To Scene"
@@ -373,7 +378,7 @@ class SCENE_OT_bf_copy_props_to_scene(Operator):
     def draw(self, context):
         layout = self.layout
         row = layout.row()
-        row.prop_search(self, "bf_destination_element", bpy.data, "scenes")        
+        row.prop_search(self, "bf_destination_element", bpy.data, "scenes")
 
     def execute(self, context):
         # Get source and destination scenes
@@ -419,7 +424,7 @@ class OBJECT_OT_bf_copy_FDS_properties_to_sel_obs(Operator):
         _bf_props_copy(context, source_element, destination_elements)
         self.report({"INFO"}, "Copied to selected objects")
         return {'FINISHED'}
-        
+
 class MATERIAL_OT_bf_assign_BC_to_sel_obs(Operator):
     bl_label = "Assign this boundary condition to selected objects"
     bl_idname = "material.bf_surf_to_sel_obs"
@@ -493,7 +498,7 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
             geometry.from_fds.xyzs_to_ob(xyzs, context, bf_xyz=ob.bf_xyz, name="Shown {} XYZs".format(ob.name)).set_tmp(context, ob)
         # Manage PB*: get coordinates, show them in a tmp object, prepare msg
         pbs  = None
-        msg = None        
+        msg = None
         try: pbs, msg  = geometry.to_fds.ob_to_pbs(context, ob)
         except BFException as err:
             w.cursor_modal_restore()
@@ -557,7 +562,7 @@ class SCENE_OT_bf_restore_all_tmp_objects(Operator):
         return {'FINISHED'}
 
 ### Open text editor with right text displayed
-    
+
 class SCENE_OT_bf_edit_head_free_text(Operator):
     bl_label = "Edit"
     bl_idname = "scene.bf_edit_head_free_text"
@@ -706,14 +711,14 @@ class MATERIAL_OT_bf_load_surf(Operator, ImportHelperSnippet):
     bl_label = "Load SURF"
     bl_idname = "material.bf_load_surf"
     bl_description = "Load a SURF namelist"
-    filepath_predefined = "/predefined/SURFs/"    
+    filepath_predefined = "/predefined/SURFs/"
 
 class SCENE_OT_bf_load_reac(Operator, ImportHelperSnippet):
     bl_label = "Load REAC"
     bl_idname = "scene.bf_load_reac"
     bl_description = "Load a REAC namelist"
     filepath_predefined = "/predefined/REACs/"
-    
+
 class SCENE_OT_bf_load_misc(Operator, ImportHelperSnippet):
     bl_label = "Load MISC"
     bl_idname = "scene.bf_load_misc"
@@ -838,7 +843,7 @@ class export_OT_fds_case(Operator, ExportHelper):
             if not is_writable(filepath):
                 w.cursor_modal_restore()
                 self.report({"ERROR"}, "GE1 file not writable, cannot export")
-                return {'CANCELLED'}              
+                return {'CANCELLED'}
             # Prepare GE1 file
             try: ge1_file = sc.to_ge1(context=context)
             except BFException as err:
@@ -849,7 +854,7 @@ class export_OT_fds_case(Operator, ExportHelper):
             if not write_to_file(filepath, ge1_file):
                 w.cursor_modal_restore()
                 self.report({"ERROR"}, "GE1 file not writable, cannot export")
-                return {'CANCELLED'}      
+                return {'CANCELLED'}
             print("BFDS: export_OT_fds_case: GE1 file written")
 
         # End
@@ -857,4 +862,3 @@ class export_OT_fds_case(Operator, ExportHelper):
         DEBUG and print("BFDS: export_OT_fds_case: End.")
         self.report({"INFO"}, "FDS case exported")
         return {'FINISHED'}
-
