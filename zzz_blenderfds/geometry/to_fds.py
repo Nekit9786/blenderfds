@@ -148,7 +148,7 @@ def ob_to_xyzs(context, ob):
     if not ob.get("ob_to_xyzs_cache"): # ob.is_updated does not work here, checked in the handler
         ob["ob_to_xyzs_cache"] = choose_to_xyzs[ob.bf_xyz](context, ob) # Calculate
     return ob["ob_to_xyzs_cache"]
-    
+
 
 ### to PB
 
@@ -206,7 +206,7 @@ def ob_to_pbs(context, ob):
 
 # Get Material index in FDS format with bmesh for face 5:
 # bm.faces[5].material_index + 1
-    
+
 def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
     """Transform Blender object geometry to new GEOM FDS notation. Never send a None."""
 
@@ -217,36 +217,47 @@ def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
     bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
     bm.transform(ob.matrix_world)
     bmesh.ops.triangulate(bm, faces=bm.faces)
-   
+
     # Check for closed orientable non-intersecting manifolds, no degenerate geometry
     epsilon = .000001 # FIXME global epsilon
     # Check self intersection
     import mathutils
     tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon)
-    if tree.overlap(tree): raise BFException(ob, "Object self intersection detected.")    
+    if tree.overlap(tree):
+        raise BFException(ob, "Object self intersection detected.")
     # Check edges:
     # - manifold, each edge should join two faces, no more no less
     # - contiguous normals, adjoining faces should have normals in the same directions
     # - no degenerate edges, zero lenght edges
     for edge in bm.edges:
-        if not edge.is_manifold: raise BFException(ob, "Non manifold edges detected.")
-        if not edge.is_contiguous: raise BFException(ob, "Adjoining faces have opposite normals.")
-        if edge.calc_length() <= epsilon: raise BFException(ob, "Zero lenght edges detected.")
+        if not edge.is_manifold:
+            raise BFException(ob, "Non manifold or open geometry detected.")
+        if not edge.is_contiguous:
+            raise BFException(ob, "Inconsistent face normals detected.")
+        if edge.calc_length() <= epsilon:
+            raise BFException(ob, "Too short edges detected.")
     # Check degenerate faces, zero area faces
     for face in bm.faces:
-        if face.calc_area() <= epsilon: raise BFException(ob, "Zero area faces detected.")
+        if face.calc_area() <= epsilon: raise BFException(ob, "Too small area faces detected.")
     # Check loose vertices, vertices that have no connectivity
     for vert in bm.verts:
         if not bool(vert.link_edges): raise BFException(ob, "Loose vertices detected.")
+    # Check intersecting geometries # FIXME
+    # Check vertices: # FIXME
+    #  - manifold
+    #  - double Vertices
+    # Check non inverted normals # FIXME
 
     # Get its surf_idv, and check that all used surfs are exported
     surf_idv = []
     for material_slot in ob.material_slots:
         ma = material_slot.material
+        if not ma:
+            raise BFException(ob, "No referenced SURF, add Blender Material.")
         if not ma.bf_export:
             raise BFException(ob, "Referenced SURF ID='{}' is not exported.".format(ma.name))
         surf_idv.append(ma.name)
-        
+
     # Get its vertex coordinates
     verts = [(v.co.x, v.co.y, v.co.z) for v in bm.verts]
 
@@ -263,5 +274,5 @@ def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
 
     # Set up msg
     msg = "{} surf_id, {} vertices, {} faces".format(len(surf_idv),len(verts),len(faces))
-            
+
     return surf_idv, verts, faces, msg
