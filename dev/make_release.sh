@@ -4,7 +4,7 @@
 
 # Setup
 
-tag="v4.2.1"
+tag="v4.2.2"
 short_tag=${tag:1}
 release_name="BlenderFDS-$tag"
 
@@ -46,19 +46,19 @@ echo_title "Making <$release_name> release..."
 
 # Write release notes
 
-#echo_msg "Writing release notes..."
-#google-chrome "https://github.com/firetools/blenderfds/wiki/Release-notes/_edit"
-#echo_ok "Done."
+echo_msg "Writing release notes..."
+google-chrome "https://github.com/firetools/blenderfds/wiki/Release-notes/_edit"
+echo_ok "Done."
 
 # Tag pre-release
 
-#git tag -a $tag -m "Release $tag"
-#git push --tags # FIXME
-#git push --follow-tags
+git tag -a $tag -m "Release $tag"
+git push --tags # FIXME
+git push --follow-tags
 
 # Download from GitHub
 
-#echo_msg "Downloading <$github_file> from GitHub..."
+echo_msg "Downloading <$github_file> from GitHub..."
 cd /tmp
 if wget $github_url/$github_file; then echo_ok "Done."
 else
