@@ -72,9 +72,9 @@ class _BFCommon():
     def __repr__(self):
         return "{__class__.__name__!s}(element={element!r})".format(
             __class__ = self.__class__, **self.__dict__)
-    
+
     # Generated properties
-    
+
     @property
     def bf_prop_free(self):
         for bf_prop in self.bf_props:
@@ -86,7 +86,8 @@ class _BFCommon():
     def register(cls):
         """Register all related Blender properties."""
         DEBUG and print("BFDS: BFProp.register:", cls.__name__)
-        if not cls.bpy_type: raise Exception("No bpy_type in class '{}'".format(str(cls)))
+        if not cls.bpy_type:
+            raise Exception("No bpy_type in class '{}'".format(str(cls)))
         # Register my own Blender property, if needed
         if cls.bpy_prop and cls.bpy_idname and not hasattr(cls.bpy_type, cls.bpy_idname):
             if DEBUG:
@@ -112,7 +113,7 @@ class _BFCommon():
     def _draw_messages(self, context, layout) -> "None":
         """Draw messages."""
         # Check self and trap errors
-        try: self.check(context) 
+        try: self.check(context)
         except BFException as err: err.draw(context, layout)
         # Draw infos
         for info in self.infos:
@@ -140,7 +141,7 @@ class _BFCommon():
         """Set my Blender property to value for element."""
         # Do not raise BFException here. Check is performed by UI, do not add overhead!
         if self.bpy_idname: setattr(self.element, self.bpy_idname, value)
-        
+
     def set_default_value(self, context) -> "any or None":
         """Set my Blender property to default value for element."""
         default = self.bpy_other.get("default")
@@ -164,7 +165,7 @@ class _BFCommon():
 
 class BFProp(_BFCommon):
     """BlenderFDS property, interface between a Blender property and an FDS parameter."""
-       
+
     all = ClsList() # Re-init to obtain specific collection
     all_bf_props = ClsList()
 
@@ -185,12 +186,14 @@ class BFProp(_BFCommon):
             layout_export.prop(self.element, self.bf_prop_export.bpy_idname, text="")
         else:
             layout = layout.column()
-        layout.active = bool(self.get_exported(context)) # if not exported, layout is inactive. Protect it from None
+        # If not exported, layout is inactive. Protect it from None
+        layout.active = bool(self.get_exported(context))
         return layout
 
     def _draw_body(self, context, layout) -> "None":
         """Draw bpy_prop"""
-        if not self.bpy_idname: return
+        if not self.bpy_idname:
+            return
         row = layout.row()
         row.prop(self.element, self.bpy_idname, text=self.label)
 
@@ -208,7 +211,7 @@ class BFProp(_BFCommon):
         #   ID='example' or PI=3.14 or COLOR=3,4,5
         if value is None: return None
         # If value is not an iterable, then put it in a tuple
-        if not is_iterable(value): values = tuple((value,)) 
+        if not is_iterable(value): values = tuple((value,))
         else: values = value
         # Check first element of the iterable and choose formatting
         if   isinstance(values[0], bool):
@@ -247,7 +250,7 @@ class BFProp(_BFCommon):
 
 class BFNamelist(_BFCommon):
     """BlenderFDS namelist, interface between a Blender object and an FDS namelist."""
-       
+
     all = ClsList() # Re-init to obtain specific collection
     all_bf_props = ClsList()
 
@@ -256,7 +259,7 @@ class BFNamelist(_BFCommon):
             str(self.element),
             self.fds_label or self.label or self.__name__,
             )
-    
+
     # UI
 
     @classmethod
@@ -430,16 +433,20 @@ class BFBoolProp(BFProp):
     }
 
     def get_exported(self, context):
-        if self.bf_prop_export: return self.bf_prop_export.get_value()
-        if self.get_value() == self.bpy_other.get("default"): return False
-        return True    
-        
+        if self.bf_prop_export:
+            return self.bf_prop_export.get_value()
+        if self.get_value() == self.bpy_other.get("default"):
+            return False
+        return True
+
+    def _transform_layout(self, context, layout) -> "layout":
+        return layout.row()
 
 class BFExportProp(BFProp):
     """This specialized BFProp is used as type for exporting properties."""
     label = "Export"
     description = "Set if exported to FDS"
-    bpy_type = None # Remember to setup!
+    bpy_type = None  # Remember to setup!
     bpy_idname = "bf_export"
     bpy_prop = BoolProperty
     bpy_other = {
@@ -508,7 +515,7 @@ class BFGeometryProp(BFProp):
         col1, col2 = split.row(), split.column(align=True)
         col1.label(text="{}:".format(self.label))
         return col2
-        
+
     def _draw_body(self, context, layout):
         # Draw enum with allowed items only
         row = layout.row(align=True)
@@ -529,32 +536,30 @@ class BFXYZProp(BFGeometryProp):
     description = "XYZ parameter for namelist geometry"
     fds_label = "XYZ"
     bpy_idname = "bf_xyz"
-       
-        
+
+
 class BFPBProp(BFGeometryProp):
-    """This specialized BFProp is used as type for PB parameters properties."""   
+    """This specialized BFProp is used as type for PB parameters properties."""
     label = "PB*"
     description = "PB* parameter for namelist geometry"
     # fds_label = "PB" Inserted in format (like a free BFProp)
     bpy_idname = "bf_pb"
-  
-    
+
+
 ### Modifiers for derived BFProp
 
-class BFNoAutoUIMod(): # No automatic UI (eg. my UI is managed elsewhere)
+class BFNoAutoUIMod():  # No automatic UI (eg. my UI is managed elsewhere)
     def draw(self, context, layout):
         pass
 
 
-class BFNoAutoExportMod(): # No automatic export (eg. my export is managed elsewhere)
+class BFNoAutoExportMod():  # No automatic export (eg. my export is managed elsewhere)
     def to_fds(self, context):
-        if not self.get_exported(context): return None
+        if not self.get_exported(context):
+            return None
         self.check(context)
 
 
-class BFNoAutoImportMod(): # No automatic import (eg. my import is managed elsewhere)
+class BFNoAutoImportMod():  # No automatic import (eg. my import is managed elsewhere)
     def from_fds(self, context):
         pass
-
-
-

@@ -20,6 +20,7 @@ DEBUG = False
 
 # Object related namelist cls name
 
+
 def update_OP_namelist_cls(self, context):
     # When Object namelist cls is updated:
     self.bf_xb = "NONE"
@@ -27,6 +28,7 @@ def update_OP_namelist_cls(self, context):
     self.bf_pb = "NONE"
     # Set default appearance
     self.set_default_appearance(context)
+
 
 @subscribe
 class OP_namelist_cls(BFProp):
@@ -41,12 +43,14 @@ class OP_namelist_cls(BFProp):
         "default": "ON_OBST",
     }
 
+
 # Material related namelist cls name
 
 def update_MP_namelist_cls(self, context):
     # When Material namelist cls is updated:
     # Set default appearance
     self.set_default_appearance(context)
+
 
 @subscribe
 class MP_namelist_cls(BFProp):
@@ -61,6 +65,7 @@ class MP_namelist_cls(BFProp):
         "default": "MN_SURF",
     }
 
+
 # Object tmp # TODO move to self[""] var? is it saved?
 
 @subscribe
@@ -71,8 +76,9 @@ class OP_is_tmp(BFProp):
     bpy_idname = "bf_is_tmp"
     bpy_prop = BoolProperty
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
+
 
 @subscribe
 class OP_has_tmp(BFProp):
@@ -82,8 +88,9 @@ class OP_has_tmp(BFProp):
     bpy_idname = "bf_has_tmp"
     bpy_prop = BoolProperty
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
+
 
 # File version
 
@@ -102,6 +109,7 @@ class SP_file_version(BFProp):
         "default": config.supported_file_version,
     }
 
+
 # Old object properties from old BlenderFDS to allow transition
 
 @subscribe
@@ -112,7 +120,7 @@ class OP_namelist_old_1(BFStringProp):
     bpy_idname = "bf_nl"
 
 
-### Geometric props
+# Geometric props
 
 # Voxel/Pixel size
 
@@ -121,6 +129,7 @@ def update_bf_xb_voxel_size(self, context):
     # Del my tmp object and cached xbs geometry
     self.remove_tmp_obs(context)
     self["ob_to_xbs_cache"] = False
+
 
 @subscribe
 class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
@@ -133,6 +142,7 @@ class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
         "update": update_bf_xb_voxel_size,
         "default": False,
     }
+
 
 @subscribe
 class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
@@ -151,10 +161,12 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
     }
     # unit = "LENGTH", # correction for scale_length needed before exporting!
 
+
 def update_bf_default_voxel_size(self, context):
     """Update function for bf_xb_custom_voxel"""
     # Del all tmp objects and all cached geometry
-    geometry.tmp_objects.restore_all(context) # TODO use operator?
+    geometry.tmp_objects.restore_all(context)  # TODO use operator?
+
 
 @subscribe
 class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
@@ -163,7 +175,7 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
     bpy_type = Scene
     bpy_idname = "bf_default_voxel_size"
     bpy_prop = FloatProperty
-    bpy_other =  {
+    bpy_other = {
         "step": 1.,
         "precision": 3,
         "min": .001,
@@ -172,6 +184,7 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
         "default": .10,
     }
     # unit = "LENGTH", # correction for scale_length needed before exporting!
+
 
 # MESH alignment TODO develop!
 
@@ -184,8 +197,11 @@ def update_bf_xb(self, context):
     self["ob_to_xbs_cache"] = False
     # Set other geometries to compatible settings
     if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"):
-        if self.bf_xyz == "VERTICES": self.bf_xyz = "NONE"
-        if self.bf_pb == "PLANES": self.bf_pb = "NONE"
+        if self.bf_xyz == "VERTICES":
+            self.bf_xyz = "NONE"
+        if self.bf_pb == "PLANES":
+            self.bf_pb = "NONE"
+
 
 @subscribe
 class OP_XB(BFXBProp):
@@ -200,13 +216,14 @@ class OP_XB(BFXBProp):
             ("PIXELS", "Pixels", "Export pixels from pixelized flat object", 400),
             ("EDGES", "Edges", "Segments, one for each edge of this object", 500),
         ),
-        "default": "NONE", # Cannot be "BBOX", beware in import!
+        "default": "NONE",  # Cannot be "BBOX", beware in import!
     }
     allowed_items = "NONE", "BBOX", "VOXELS", "FACES", "PIXELS", "EDGES"
 
     def _draw_body(self, context, layout):
         super()._draw_body(context, layout)
-        if not self.element.bf_xb in ("VOXELS", "PIXELS"): return
+        if not self.element.bf_xb in ("VOXELS", "PIXELS"):
+            return
         # Draw VOXELS, PIXELS properties
         row = layout.row()
         layout_export, layout_custom = row.column(), row.column()
@@ -247,11 +264,14 @@ class OP_XB(BFXBProp):
         self.check(context)
         # Init
         bf_xb = self.element.bf_xb
-        if bf_xb not in self.allowed_items: return None
+        if bf_xb not in self.allowed_items:
+            return None
         # Get coordinates
         xbs, msg = geometry.to_fds.ob_to_xbs(context, self.element)
-        if msg: self.infos.append(msg)
-        if not xbs: return None
+        if msg:
+            self.infos.append(msg)
+        if not xbs:
+            return None
         # Correct for scale_lenght
         scale_length = context.scene.unit_settings.scale_length
         xbs = [[coo * scale_length for coo in xb] for xb in xbs]
@@ -396,6 +416,7 @@ class OP_XYZ(BFXYZProp):
                 bf_xyz=self.element.bf_xyz
             ) # Send existing self.element.bf_xyz for evaluation
         except: raise BFException(self, "Error while importing '{}' value".format(value))
+
 
 # PB
 
@@ -606,8 +627,8 @@ class SP_TIME_export(BFExportProp):
     bpy_type = Scene
     bpy_idname = "bf_time_export"
     bpy_other = {
-		"default": True, # No damage
-	}
+        "default": True,  # No damage
+    }
 
 @subscribe
 class SP_TIME_T_BEGIN(BFProp):
@@ -625,20 +646,25 @@ class SP_TIME_T_BEGIN(BFProp):
     }
 
     def get_exported(self, context):
-        return not self.element.bf_time_setup_only
+        return not self.element.bf_time_setup_only and self.element.bf_time_t_begin
 
 @subscribe
-class SP_TIME_T_END(SP_TIME_T_BEGIN):
+class SP_TIME_T_END(BFProp):
     label = "T_END [s]"
     description = "Simulation ending time"
     fds_label = "T_END"
+    bpy_type = Scene
     bpy_idname = "bf_time_t_end"
+    bpy_prop = FloatProperty
     bpy_other = {
         "unit": "TIME",
         "step": 100.,
         "precision": 1,
         "default": 1.,
     }
+
+    def get_exported(self, context):
+        return not self.element.bf_time_setup_only
 
     def check(self, context):
         if self.get_exported(context) and self.element.bf_time_t_end < self.element.bf_time_t_begin:
@@ -652,11 +678,12 @@ class SP_TIME_setup_only(BFProp):
     bpy_idname = "bf_time_setup_only"
     bpy_prop = BoolProperty
     bpy_other = {
-		"default": True, # Prevent start of automatic calculation
-	}
+        "default": True,  # Prevent start of automatic calculation
+    }
 
     def to_fds(self, context):
-        if self.element.bf_time_setup_only: return "T_END=0."
+        if self.element.bf_time_setup_only:
+            return "T_END=0."
 
 @subscribe
 class SP_TIME_free(BFFreeProp):
@@ -693,28 +720,27 @@ class SP_MISC_FYI(BFFYIProp):
         row.operator("scene.bf_load_misc", icon="LOAD_FACTORY", text="")
 
 @subscribe
-class SP_MISC_OVERWRITE(BFProp):
+class SP_MISC_OVERWRITE(BFBoolProp):
     label = "OVERWRITE"
     description = "Do not check for the existence of CHID.out and overwrite files"
     fds_label = "OVERWRITE"
     bpy_type = Scene
     bpy_idname = "bf_misc_overwrite"
-    bpy_prop = BoolProperty
     bpy_other = {
-		"default": False,
-	}
+        "default": True,
+    }
+
 
 @subscribe
-class SP_MISC_THICKEN_OBSTRUCTIONS(BFProp):
+class SP_MISC_THICKEN_OBSTRUCTIONS(BFBoolProp):
     label = "THICKEN_OBSTRUCTIONS"
     description = "Do not allow thin sheet obstructions"
     fds_label = "THICKEN_OBSTRUCTIONS"
     bpy_type = Scene
     bpy_idname = "bf_misc_thicken_obstructions"
-    bpy_prop = BoolProperty
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
 
 @subscribe
@@ -838,8 +864,8 @@ class SP_REAC_IDEAL(BFBoolProp):
     bpy_type = Scene
     bpy_idname = "bf_reac_ideal"
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
 @subscribe
 class SP_REAC_free(BFFreeProp):
@@ -865,8 +891,8 @@ class SP_DUMP_export(BFExportProp):
     bpy_type = Scene
     bpy_idname = "bf_dump_export"
     bpy_other = {
-		"default": True, # To have a .ge1 in most cases
-	}
+        "default": True,  # To have a .ge1 in most cases
+    }
 
 @subscribe
 class SP_DUMP_render_file(BFProp):
@@ -877,27 +903,29 @@ class SP_DUMP_render_file(BFProp):
     bpy_idname = "bf_dump_render_file"
     bpy_prop = BoolProperty
     bpy_other = {
-		"default": True, # Always dump a render file
-	}
+        "default": True,  # Always dump a render file
+    }
 
     def to_fds(self, context):
         if self.element.bf_dump_render_file: return "RENDER_FILE='{}.ge1'".format(self.element.name)
 
-    def from_fds(self, context, value): # In FDS this parameter contains a string, here it is a bool
-        if value: super().from_fds(context, True)
-        else: super().from_fds(context, False)
+    def from_fds(self, context, value):  # In FDS this parameter contains a string, here it is a bool
+        if value:
+            super().from_fds(context, True)
+        else:
+            super().from_fds(context, False)
 
 @subscribe
-class SP_DUMP_STATUS_FILES(BFProp):
+class SP_DUMP_STATUS_FILES(BFBoolProp):
     label = "STATUS_FILES"
     description = "Export status file (*.notready), deleted when the simulation is completed successfully"
     fds_label = "STATUS_FILES"
     bpy_type = Scene
     bpy_idname = "bf_dump_status_files"
-    bpy_prop = BoolProperty
     bpy_other = {
-		"default": True, # Always dump a status file
-	}
+        "default": False,
+    }
+
 
 @subscribe
 class SP_DUMP_NFRAMES(BFProp):
@@ -915,8 +943,10 @@ class SP_DUMP_NFRAMES(BFProp):
     def check(self, context):
         if self.get_exported(context):
             interval = (self.element.bf_time_t_end - self.element.bf_time_t_begin) / self.element.bf_dump_nframes # NFRAMES always > 0
-            if interval <= 0. : self.infos.append("Due to simulation time, output is not dumped")
-            else: self.infos.append("Output is dumped every {:.2f} s".format(interval))
+            if interval <= 0.:
+                self.infos.append("Due to simulation time, output is not dumped")
+            else:
+                self.infos.append("Output is dumped every {:.2f} s".format(interval))
 
     def get_exported(self, context):
         return not self.element.bf_dump_set_frequency
@@ -929,8 +959,8 @@ class SP_DUMP_set_frequency(BFProp):
     bpy_idname = "bf_dump_set_frequency"
     bpy_prop = BoolProperty
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
     def check(self, context):
         if self.element.bf_dump_set_frequency and round(self.element.bf_time_t_end - self.element.bf_time_t_begin) < 1:
@@ -1313,8 +1343,8 @@ class OP_OBST_THICKEN(BFBoolProp):
     bpy_type = Object
     bpy_idname = "bf_obst_thicken"
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
 @subscribe
 class ON_OBST(BFNamelist):
@@ -1478,8 +1508,8 @@ class OP_DEVC_INITIAL_STATE(BFBoolProp):
     bpy_type = Object
     bpy_idname = "bf_devc_initial_state"
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
 @subscribe
 class OP_DEVC_LATCH(BFBoolProp):
@@ -1489,8 +1519,8 @@ class OP_DEVC_LATCH(BFBoolProp):
     bpy_type = Object
     bpy_idname = "bf_devc_latch"
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
 @subscribe
 class OP_DEVC_PROP_ID(BFStringProp):
@@ -1529,8 +1559,8 @@ class OP_SLCF_VECTOR(BFBoolProp):
     bpy_type = Object
     bpy_idname = "bf_slcf_vector"
     bpy_other = {
-		"default": False,
-	}
+        "default": False,
+    }
 
 @subscribe
 class ON_SLCF(BFNamelist):
@@ -1731,4 +1761,3 @@ if DEBUG:
     print("\nBFNamelist.all:\n",BFNamelist.all)
     print("\nBFProp.all:\n",BFProp.all)
     print()
-
