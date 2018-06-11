@@ -39,6 +39,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         layout.label("Add a modifier:")
         row = layout.row(align=True)
+        row.operator("object.modifier_add", text='Array', icon='MOD_ARRAY').type = 'ARRAY'
         row.operator("object.modifier_add", text='Boolean', icon='MOD_BOOLEAN').type = 'BOOLEAN'
         row.operator("object.modifier_add", text='Decimate', icon='MOD_DECIM').type = 'DECIMATE'
         row.operator("object.modifier_add", text='Edge Split', icon='MOD_EDGESPLIT').type = 'EDGE_SPLIT'
