@@ -12,3 +12,6 @@
 *.prt5
 *.notready
 *.sinfo
+*.binfo
+*.ge
+*~
