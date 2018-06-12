@@ -211,7 +211,7 @@ class BFScene():
         # Init
         bodies = list()
         # Materials
-        bodies.append("! --- Boundary conditions (from Blender Materials)\n")
+        bodies.append("\n! --- Boundary conditions (from Blender Materials)\n")
         mas = [ma for ma in bpy.data.materials]
         mas.sort(key=lambda k: k.name)  # Alphabetic order by element name
         for ma in mas:
@@ -219,9 +219,8 @@ class BFScene():
             if body:
                 bodies.append(body)
         # Objects
-        bodies.append("\n! --- Geometric entities (from Blender Objects)\n\n")
+        bodies.append("\n! --- Geometric entities (from Blender Objects)\n")
         bodies.extend(Object._children_to_fds(self=None, context=context))
-        bodies.append("\n")
         # Return
         return bodies
 
