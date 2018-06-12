@@ -211,16 +211,15 @@ class BFScene():
         # Init
         bodies = list()
         # Materials
-        bodies.append("! --- Boundary conditions (from Blender Materials)\n\n")
+        bodies.append("! --- Boundary conditions (from Blender Materials)\n")
         mas = [ma for ma in bpy.data.materials]
         mas.sort(key=lambda k: k.name)  # Alphabetic order by element name
         for ma in mas:
             body = ma.to_fds(context)
             if body:
                 bodies.append(body)
-        bodies.append("\n")
         # Objects
-        bodies.append("! --- Geometric entities (from Blender Objects)\n\n")
+        bodies.append("\n! --- Geometric entities (from Blender Objects)\n\n")
         bodies.extend(Object._children_to_fds(self=None, context=context))
         bodies.append("\n")
         # Return
@@ -248,13 +247,13 @@ class BFScene():
         bodies = list()
         # HEAD BFNnamelist traps my errors
         if self.bf_head_free_text:
-            bodies.append("! --- Free text: '{}'\n\n".format(
-                self.bf_head_free_text))
+            free_text = bpy.data.texts[self.bf_head_free_text].as_string()
+            if not free_text:
+                return bodies
+            bodies.append("! --- Free text: '{}'\n".format(self.bf_head_free_text))
             bodies.append(bpy.data.texts[self.bf_head_free_text].as_string())
-            if bodies[-1][-1:] == "\n":
+            if bodies[-1][-1:] != "\n":
                 bodies.append("\n")
-            else:
-                bodies.append("\n\n")
         return bodies
 
     def to_fds(self, context, with_children=False) -> "str or None":

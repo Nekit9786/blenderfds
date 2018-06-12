@@ -47,6 +47,8 @@ class _BFCommon():
     description = "No desc"   # Object description
     enum_id = 0               # Unique integer id for EnumProperty
     fds_label = None          # FDS label as "OBST", "ID", ...
+    fds_separator = " "       # FDS separator between parameters
+    fds_cr = "\n      "       # FDS carriage return
 
     bf_prop_export = None     # Class of type BFExportProp, used for setting if exported
     bf_props =  ClsList()     # Collection of related BFProp
@@ -303,8 +305,6 @@ class BFNamelist(_BFCommon):
         # &OBST ID='example' XB=... /\n
         # &OBST ID='example' XB=... /\n
 
-        # Set separator
-        separator = config.namelist_separator
         # Set fds_label, if empty use first param (OP_free_namelist)
         fds_label = "".join(("&", self.fds_label or params.pop(0), " "))
         # Set info
@@ -324,12 +324,12 @@ class BFNamelist(_BFCommon):
                 break
         # ... and join remaining params + namelist closure
         params.append("/\n")
-        param = separator.join(params)
+        param = self.fds_separator.join(params)
         # Build namelists, set body
         # &fds_label multiparam param /
         if multiparams:
             body = "".join((
-                separator.join(("".join((fds_label, multiparam)), param)) for multiparam in multiparams
+                self.fds_separator.join(("".join((fds_label, multiparam)), param)) for multiparam in multiparams
             ))
         else:
             body = "".join((fds_label, param))

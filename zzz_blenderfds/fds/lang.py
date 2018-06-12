@@ -616,6 +616,7 @@ class SN_HEAD(BFNamelist):
     description = "FDS case header"
     enum_id = 3001
     fds_label = "HEAD"
+    fds_separator = "\n      "
     bpy_type = Scene
     bf_props = SP_HEAD_CHID, SP_HEAD_TITLE, SP_HEAD_directory, SP_default_voxel_size, SP_HEAD_free_text
 
@@ -696,6 +697,7 @@ class SN_TIME(BFNamelist):
     description = "Simulation time settings"
     enum_id = 3002
     fds_label = "TIME"
+    fds_separator = "\n      "
     bf_prop_export = SP_TIME_export
     bpy_type = Scene
     bf_props = SP_TIME_T_BEGIN, SP_TIME_T_END, SP_TIME_setup_only, SP_TIME_free
@@ -754,6 +756,7 @@ class SN_MISC(BFNamelist):
     description = "Miscellaneous parameters"
     enum_id = 3003
     fds_label = "MISC"
+    fds_separator = "\n      "
     bf_prop_export = SP_MISC_export
     bpy_type = Scene
     bf_props = SP_MISC_FYI, SP_MISC_OVERWRITE, SP_MISC_THICKEN_OBSTRUCTIONS, SP_MISC_free
@@ -878,6 +881,7 @@ class SN_REAC(BFNamelist):
     description = "Reaction"
     enum_id = 3004
     fds_label = "REAC"
+    fds_separator = "\n      "
     bf_prop_export = SP_REAC_export
     bf_props = SP_REAC_FUEL, SP_REAC_FYI, SP_REAC_FORMULA, SP_REAC_CO_YIELD, SP_REAC_SOOT_YIELD, SP_REAC_HEAT_OF_COMBUSTION, SP_REAC_IDEAL, SP_REAC_free
     bpy_type = Scene
@@ -996,6 +1000,7 @@ class SN_DUMP(BFNamelist):
     description = "Output parameters"
     enum_id = 3005
     fds_label = "DUMP"
+    fds_separator = "\n      "
     bf_prop_export = SP_DUMP_export
     bf_props = SP_DUMP_render_file, SP_DUMP_STATUS_FILES, SP_DUMP_NFRAMES, SP_DUMP_set_frequency, SP_DUMP_DT_RESTART, SP_DUMP_free
     bpy_type = Scene
@@ -1214,6 +1219,7 @@ class MN_SURF(BFNamelist):
     description = "Generic Boundary Condition"
     enum_id = 2000
     fds_label = "SURF"
+    fds_separator = "\n      "
     bpy_type = Material
     bf_prop_export = MP_export
     bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_MATL_ID, MP_THICKNESS, MP_BACKING, MP_free
@@ -1224,6 +1230,7 @@ class MN_SURF_burner(BFNamelist):
     description = "Spec'd rate burner"
     enum_id = 2001
     fds_label = "SURF"
+    fds_separator = "\n      "
     bpy_type = Material
     bf_prop_export = MP_export
     bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_HRRPUA, MP_TAU_Q, MP_free
@@ -1234,6 +1241,7 @@ class MN_SURF_solid(BFNamelist):
     description = "Spec'd rate burning solid"
     enum_id = 2002
     fds_label = "SURF"
+    fds_separator = "\n      "
     bpy_type = Material
     bf_prop_export = MP_export
     bf_props = MP_ID, MP_FYI, MP_RGB, MP_TRANSPARENCY, MP_HRRPUA, MP_TAU_Q, MP_MATL_ID, MP_IGNITION_TEMPERATURE, MP_THICKNESS, MP_BACKING, MP_free
