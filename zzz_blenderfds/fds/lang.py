@@ -1571,6 +1571,23 @@ class OP_SLCF_VECTOR(BFBoolProp):
     }
 
 @subscribe
+class OP_SLCF_CELL_CENTERED(BFBoolProp):
+    label = "CELL_CENTERED"
+    description = "Output the actual cell-centered data with no averaging"
+    fds_label = "CELL_CENTERED"
+    bpy_type = Object
+    bpy_idname = "bf_slcf_cell_centered"
+    bpy_other = {
+        "default": False,
+    }
+
+    def check(self, context):
+        if self.element.bf_slcf_cell_centered and \
+           self.element.bf_slcf_vector and \
+           not self.element.bf_quantity == 'VELOCITY': 
+            raise BFException(self, "Cannot set CELL_CENTERED and VECTOR")
+
+@subscribe
 class ON_SLCF(BFNamelist):
     label = "SLCF"
     description = "Slice File"
@@ -1578,7 +1595,7 @@ class ON_SLCF(BFNamelist):
     fds_label = "SLCF"
     bpy_type = Object
     bf_prop_export = OP_export
-    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_SLCF_VECTOR, OP_XB_faces, OP_PB, OP_id_suffix, OP_free
+    bf_props = OP_ID, OP_FYI, OP_DEVC_QUANTITY, OP_SLCF_VECTOR, OP_SLCF_CELL_CENTERED, OP_XB_faces, OP_PB, OP_id_suffix, OP_free
     bf_other = {
         "draw_type": "WIRE",
     }
