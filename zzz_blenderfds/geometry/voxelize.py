@@ -6,23 +6,20 @@ from time import time
 from math import floor, ceil
 
 from ..types import BFException
-from .geom_utils import * 
+from .geom_utils import *
 from . import tmp_objects
 
 DEBUG = True
 
-# TODO port to numpy for speed
-# TODO port to bmesh
-
 # "global" coordinates are absolute coordinate referring to Blender main origin of axes,
 # that are directly transformed to FDS coordinates (that refers its coordinates to the
-# one and only origin of axes) 
+# one and only origin of axes)
 
 def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
     """Pixelize object."""
     print("BFDS: voxelize.pixelize:", ob.name)
     # Init
-    voxel_size = _get_voxel_size(context, ob)    
+    voxel_size = _get_voxel_size(context, ob)
     ob_global = get_new_object(
         context,
         context.scene,
@@ -48,7 +45,7 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
         ob_solid.set_tmp(context, ob)
     else:
         bpy.data.objects.remove(ob_global, do_unlink=True)
-        bpy.data.objects.remove(ob_solid, do_unlink=True)        
+        bpy.data.objects.remove(ob_solid, do_unlink=True)
     # Return
     return xbs, voxel_size, ts
 
@@ -94,20 +91,22 @@ def voxelize(context, ob) -> "(xbs, voxel_size, timing)":
     # Better use the smallest collection first!
     t2 = time()
     choose = [
-        (len(x_tessfaces), x_tessfaces, _x_tessfaces_to_boxes, _grow_boxes_along_x, _x_boxes_to_xbs),
-        (len(y_tessfaces), y_tessfaces, _y_tessfaces_to_boxes, _grow_boxes_along_y, _y_boxes_to_xbs),
-        (len(z_tessfaces), z_tessfaces, _z_tessfaces_to_boxes, _grow_boxes_along_z, _z_boxes_to_xbs),
+        (len(x_tessfaces), x_tessfaces, _x_tessfaces_to_boxes, _grow_boxes_along_x, _x_boxes_to_xbs, 0),
+        (len(y_tessfaces), y_tessfaces, _y_tessfaces_to_boxes, _grow_boxes_along_y, _y_boxes_to_xbs, 2),
+        (len(z_tessfaces), z_tessfaces, _z_tessfaces_to_boxes, _grow_boxes_along_z, _z_boxes_to_xbs, 4),
     ]
     choose.sort(key=lambda k:k[0]) # sort by len(tessfaces)
+    first_sort_by = choose[2][5]
+    second_sort_by =  choose[1][5]
     # Build minimal boxes along 1st axis, using floors
     t3 = time()
     boxes, origin = choose[0][2](choose[0][1], voxel_size) # eg. _x_tessfaces_to_boxes(x_tessfaces, voxel_size)
     # Grow boxes along 2nd axis
     t4 = time()
-    boxes = choose[1][3](boxes) # eg. _grow_boxes_along_y(boxes)
+    boxes = choose[1][3](boxes, first_sort_by) # eg. _grow_boxes_along_y(boxes)
     # Grow boxes along 3rd axis
     t5 = time()
-    boxes = choose[2][3](boxes) # eg. _grow_boxes_along_z(boxes)
+    boxes = choose[2][3](boxes, second_sort_by) # eg. _grow_boxes_along_z(boxes)
     ## Make xbs
     # Transform grown boxes in xbs
     t6 = time()
@@ -120,7 +119,7 @@ def voxelize(context, ob) -> "(xbs, voxel_size, timing)":
         bpy.data.objects.remove(ob_norm, do_unlink=True)
         bpy.data.objects.remove(ob_remesh, do_unlink=True)
     ## Return
-    return xbs, voxel_size, (t2-t1, t4-t3, t5-t4, t6-t5) # this is timing: sort, 1b, 2g, 3g 
+    return xbs, voxel_size, (t2-t1, t4-t3, t5-t4, t6-t5) # this is timing: sort, 1b, 2g, 3g
 
 def _get_voxel_size(context, ob) -> "voxel_size":
     """Get voxel size for object."""
@@ -129,7 +128,7 @@ def _get_voxel_size(context, ob) -> "voxel_size":
 
 def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     """Get a new, global, unlinked object with normalized bbox."""
-    # Get global mesh (absolute origin, all modifiers applied) and create a new object    
+    # Get global mesh (absolute origin, all modifiers applied) and create a new object
     me_norm = get_global_mesh(context, ob)
     ob_norm = get_new_object(
         context,
@@ -182,7 +181,7 @@ def _get_normalized_ob(context, ob, voxel_size) -> "ob":
     return ob_norm
 
 # When appling a remesh box modifier, object max dimension is scaled up
-# and subdivided in 2 ** octree_depth voxels - 1 cubic voxels 
+# and subdivided in 2 ** octree_depth voxels - 1 cubic voxels
 # Example: dimension = 4.2, voxel_size = 0.2, octree_depth = 5, number of voxels = 2^5-1 = 31, scale = 3/4 = 0.75
 # |-----|-----|-----|-----| voxels, dimension / scale
 #    |=====.=====.=====|    dimension
@@ -275,7 +274,7 @@ def _x_tessfaces_to_boxes(x_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0
         while ixs:
             ix1 = ixs.pop() # pop from top to bottom in -x direction
             ix0 = ixs.pop()
-            boxes.append((ix0, ix1, iy, iy, iz, iz,))
+            boxes.append([ix0, ix1, iy, iy, iz, iz,])  #FIXME
     return boxes, origin
 
 def _y_tessfaces_to_boxes(y_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0, iz1), ...], origin":
@@ -299,7 +298,7 @@ def _y_tessfaces_to_boxes(y_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0
         while iys:
             iy1 = iys.pop() # pop from top to bottom in -y direction
             iy0 = iys.pop()
-            boxes.append((ix, ix, iy0, iy1, iz, iz,))
+            boxes.append([ix, ix, iy0, iy1, iz, iz,])  #FIXME
     return boxes, origin
 
 def _z_tessfaces_to_boxes(z_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0, iz1), ...], origin":
@@ -315,7 +314,7 @@ def _z_tessfaces_to_boxes(z_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0
         iz = round((center[2] - origin[2]) / voxel_size)
         try: floors[(ix, iy)].append(iz) # append face iz to existing list of izs
         except KeyError: floors[(ix, iy)] = [iz,] # or create new list of izs from face iz
-    # Create minimal boxes  
+    # Create minimal boxes
     boxes = list()
     while floors:
         (ix, iy), izs = floors.popitem()
@@ -323,66 +322,69 @@ def _z_tessfaces_to_boxes(z_tessfaces, voxel_size) -> "[(ix0, ix1, iy0, iy1, iz0
         while izs:
             iz1 = izs.pop() # pop from top to bottom in -z direction
             iz0 = izs.pop()
-            boxes.append((ix, ix, iy, iy, iz0, iz1,))
+            boxes.append([ix, ix, iy, iy, iz0, iz1,])  #FIXME
     return boxes, origin
 
 # Merge each minimal box with available neighbour boxes in axis direction
 
-def _grow_boxes_along_x(boxes) -> "[(ix0, ix1, iy0, iy1, iz0, iz1), ...]":
+def _grow_boxes_along_x(boxes, sort_by):
     """Grow boxes by merging neighbours along x axis."""
     print("BFDS: _grow_boxes_along_x:", len(boxes))
+    # Sort boxes by iy0 and ix0
+    boxes.sort(key=lambda box: (box[sort_by], box[0]))
+    # Grow boxes in -x direction, starting from last one
     boxes_grown = list()
+    box = boxes.pop()
     while boxes:
-        ix0, ix1, iy0, iy1, iz0, iz1 = boxes.pop()
-        while True: # grow into +x direction
-            box_desired = (ix1+1, ix1+1, iy0, iy1, iz0, iz1,)
-            try: boxes.remove(box_desired)
-            except ValueError: break
-            ix1 += 1
-        while True: # grow into -x direction
-            box_desired = (ix0 - 1, ix0 - 1, iy0, iy1, iz0, iz1,)
-            try: boxes.remove(box_desired)
-            except ValueError: break
-            ix0 -= 1
-        boxes_grown.append((ix0, ix1, iy0, iy1, iz0, iz1))
+        abox = boxes.pop()
+        if abox[4] == box[4] and abox[5] == box[5] and \
+           abox[2] == box[2] and abox[3] == box[3] and \
+           abox[1] + 1 == box[0]:
+            box[0] = abox[0]
+        else:
+            boxes_grown.append(box)
+            box = abox
+    boxes_grown.append(box)
     return boxes_grown
 
-def _grow_boxes_along_y(boxes) -> "[(ix0, ix1, iy0, iy1, iz0, iz1), ...]":
+def _grow_boxes_along_y(boxes, sort_by):
     """Grow boxes by merging neighbours along y axis."""
     print("BFDS: _grow_boxes_along_y:", len(boxes))
+    # Sort boxes by ix0 and iy0
+    boxes.sort(key=lambda box: (box[sort_by], box[2]))
+    # Grow boxes in -y direction, starting from last one
     boxes_grown = list()
+    box = boxes.pop()
     while boxes:
-        ix0, ix1, iy0, iy1, iz0, iz1 = boxes.pop()
-        while True: # grow into +y direction
-            box_desired = (ix0, ix1, iy1+1, iy1+1, iz0, iz1)
-            try: boxes.remove(box_desired)
-            except ValueError: break
-            iy1 += 1
-        while True: # grow into -y direction
-            box_desired = (ix0, ix1, iy0 - 1, iy0 - 1, iz0, iz1)
-            try: boxes.remove(box_desired)
-            except ValueError: break
-            iy0 -= 1
-        boxes_grown.append((ix0, ix1, iy0, iy1, iz0, iz1))
+        abox = boxes.pop()
+        if abox[4] == box[4] and abox[5] == box[5] and \
+           abox[0] == box[0] and abox[1] == box[1] and \
+           abox[3] + 1 == box[2]:
+            box[2] = abox[2]
+        else:
+            boxes_grown.append(box)
+            box = abox
+    boxes_grown.append(box)
     return boxes_grown
 
-def _grow_boxes_along_z(boxes) -> "[(ix0, ix1, iy0, iy1, iz0, iz1), ...]":
+def _grow_boxes_along_z(boxes, sort_by):
     """Grow boxes by merging neighbours along z axis."""
     print("BFDS: _grow_boxes_along_z:", len(boxes))
+    # Sort boxes by ix0 and iz0
+    boxes.sort(key=lambda box: (box[sort_by], box[4]))
+    # Grow boxes in -z direction, starting from last one
     boxes_grown = list()
+    box = boxes.pop()
     while boxes:
-        ix0, ix1, iy0, iy1, iz0, iz1 = boxes.pop()
-        while True: # grow into +z direction
-            box_desired = (ix0, ix1, iy0, iy1, iz1+1, iz1+1)
-            try: boxes.remove(box_desired)
-            except ValueError: break
-            iz1 += 1
-        while True: # grow into -z direction
-            box_desired = (ix0, ix1, iy0, iy1, iz0 - 1, iz0 - 1)
-            try: boxes.remove(box_desired)
-            except ValueError: break
-            iz0 -= 1
-        boxes_grown.append((ix0, ix1, iy0, iy1, iz0, iz1))
+        abox = boxes.pop()
+        if abox[2] == box[2] and abox[3] == box[3] and \
+           abox[0] == box[0] and abox[1] == box[1] and \
+           abox[5] + 1 == box[4]:
+            box[4] = abox[4]
+        else:
+            boxes_grown.append(box)
+            box = abox
+    boxes_grown.append(box)
     return boxes_grown
 
 # Trasform boxes in int coordinates to xbs in global coordinates
@@ -470,7 +472,7 @@ def _x_flatten_xbs(xbs, flat_origin) -> "[(l0, l0, y0, y1, z0, z1), ...]":
     """Flatten voxels to obtain pixels (normal to x axis) at flat_origin height."""
     print("BFDS: _x_flatten_xbs:", len(xbs))
     return [[flat_origin[0], flat_origin[0], xb[2], xb[3], xb[4], xb[5]] for xb in xbs]
-        
+
 def _y_flatten_xbs(xbs, flat_origin) -> "[(x0, x1, l0, l0, z0, z1), ...]":
     """Flatten voxels to obtain pixels (normal to y axis) at flat_origin height."""
     print("BFDS: _y_flatten_xbs:", len(xbs))
