@@ -20,7 +20,6 @@ DEBUG = False
 
 # Object related namelist cls name
 
-
 def update_OP_namelist_cls(self, context):
     # When Object namelist cls is updated:
     self.bf_xb = "NONE"
@@ -66,7 +65,7 @@ class MP_namelist_cls(BFProp):
     }
 
 
-# Object tmp # TODO move to self[""] var? is it saved?
+# Object tmp
 
 @subscribe
 class OP_is_tmp(BFProp):
@@ -305,7 +304,8 @@ class OP_XB(BFXBProp):
                 bf_xb=self.element.bf_xb
             ) # Send existing element.bf_xb for evaluation.
         # TODO: EDGE recognition!
-        except: raise BFException(self, "Error while importing '{}' value".format(value))
+        except:
+            raise BFException(self, "Error while importing '{}' value".format(value))
 
 @subscribe
 class OP_XB_bbox(OP_XB):
@@ -328,8 +328,10 @@ def update_bf_xyz(self, context):
     self["ob_to_xyzs_cache"] = False
     # Set other geometries to compatible settings
     if self.bf_xyz == "VERTICES":
-        if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"): self.bf_xb = "NONE"
-        if self.bf_pb == "PLANES": self.bf_pb = "NONE"
+        if self.bf_xb in ("VOXELS", "FACES", "PIXELS", "EDGES"):
+            self.bf_xb = "NONE"
+        if self.bf_pb == "PLANES":
+            self.bf_pb = "NONE"
 
 @subscribe
 class OP_XYZ(BFXYZProp):
@@ -415,7 +417,8 @@ class OP_XYZ(BFXYZProp):
                 ob=self.element,
                 bf_xyz=self.element.bf_xyz
             ) # Send existing self.element.bf_xyz for evaluation
-        except: raise BFException(self, "Error while importing '{}' value".format(value))
+        except:
+            raise BFException(self, "Error while importing '{}' value".format(value))
 
 
 # PB
@@ -472,16 +475,19 @@ class OP_PB(BFPBProp):
         self.check(context)
         # Init
         bf_pb = self.element.bf_pb
-        if bf_pb not in self.allowed_items: return None
+        if bf_pb not in self.allowed_items:
+            return None
         # Get coordinates
         pbs, msg = geometry.to_fds.ob_to_pbs(context, self.element)
         if msg: self.infos.append(msg)
-        if not pbs: return None
+        if not pbs:
+            return None
         # Correct for scale_lenght
         scale_length = context.scene.unit_settings.scale_length
         pbs = [[pb[0], pb[1] * scale_length] for pb in pbs]
         # Prepare
-        if len(pbs) == 1: return self._format_pb(pbs[0])
+        if len(pbs) == 1:
+            return self._format_pb(pbs[0])
         else:
             _format_pb = { # TODO risk of name clash _format_pb self._format_pb. Elsewhere?
                 "IDI" :   self._format_pb_idi,
@@ -502,16 +508,20 @@ class OP_PB(BFPBProp):
             value = value / context.scene.unit_settings.scale_length
             # Set value
             fds_label = self.fds_label
-            if   fds_label == "PBX": pbs = ((0, value),) # PBX is 0, eg: ((0, 3.4),)
-            elif fds_label == "PBY": pbs = ((1, value),) # PBY is 1, eg: ((1, 3.4),)
-            elif fds_label == "PBZ": pbs = ((2, value),) # PBZ is 2, eg: ((2, 3.4),)
+            if   fds_label == "PBX":
+                pbs = ((0, value),) # PBX is 0, eg: ((0, 3.4),)
+            elif fds_label == "PBY":
+                pbs = ((1, value),) # PBY is 1, eg: ((1, 3.4),)
+            elif fds_label == "PBZ":
+                pbs = ((2, value),) # PBZ is 2, eg: ((2, 3.4),)
             geometry.from_fds.pbs_to_ob(
                 pbs=pbs,
                 context=context,
                 ob=self.element,
                 bf_pb=self.element.bf_pb
             ) # Send existing self.element.bf_pb for evaluation
-        except: raise BFException(self, "Error while importing '{}' value".format(value))
+        except:
+            raise BFException(self, "Error while importing '{}' value".format(value))
 
 
 @subscribe
@@ -1584,7 +1594,7 @@ class OP_SLCF_CELL_CENTERED(BFBoolProp):
     def check(self, context):
         if self.element.bf_slcf_cell_centered and \
            self.element.bf_slcf_vector and \
-           not self.element.bf_quantity == 'VELOCITY': 
+           not self.element.bf_quantity == 'VELOCITY':
             raise BFException(self, "Cannot set CELL_CENTERED and VECTOR")
 
 @subscribe

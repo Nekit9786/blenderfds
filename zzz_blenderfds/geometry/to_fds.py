@@ -6,7 +6,7 @@ from .geom_utils import *
 from .voxelize import voxelize, pixelize
 from ..exceptions import BFException
 
-DEBUG = False
+DEBUG = True
 
 ### to None
 
@@ -22,8 +22,8 @@ def ob_to_xbs_voxels(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     t0 = time()
     xbs, voxel_size, timing = voxelize(context, ob)
     if not xbs: return (), "No voxel created"
-    msg = "{0} voxels, resolution {1:.3f} m, in {2:.0f} s".format(len(xbs), voxel_size, time()-t0)
-    if DEBUG: msg += " (s:{0[0]:.0f} 1f:{0[1]:.0f}, 2g:{0[2]:.0f}, 3g:{0[3]:.0f})".format(timing)
+    msg = "{0} voxels, resolution {1:.3f} m, in {2:.3f} s".format(len(xbs), voxel_size, time()-t0)
+    if DEBUG: msg += " (s:{0[0]:.3f} 1f:{0[1]:.3f}, 2g:{0[2]:.3f}, 3g:{0[3]:.3f})".format(timing)
     return xbs, msg
 
 def ob_to_xbs_pixels(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
@@ -222,9 +222,9 @@ def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
     epsilon = .000001 # FIXME global epsilon
     # Check self intersection
     import mathutils
-    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon)
-    if tree.overlap(tree):
-        raise BFException(ob, "Object self intersection detected.")
+#    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon)
+#    if tree.overlap(tree):
+#        raise BFException(ob, "Object self intersection detected.")
     # Check edges:
     # - manifold, each edge should join two faces, no more no less
     # - contiguous normals, adjoining faces should have normals in the same directions
@@ -237,8 +237,8 @@ def ob_to_geom(context, ob) -> "surf_idv, verts, faces":
         if edge.calc_length() <= epsilon:
             raise BFException(ob, "Too short edges detected.")
     # Check degenerate faces, zero area faces
-    for face in bm.faces:
-        if face.calc_area() <= epsilon: raise BFException(ob, "Too small area faces detected.")
+#    for face in bm.faces:
+#        if face.calc_area() <= epsilon: raise BFException(ob, "Too small area faces detected.")
     # Check loose vertices, vertices that have no connectivity
     for vert in bm.verts:
         if not bool(vert.link_edges): raise BFException(ob, "Loose vertices detected.")
