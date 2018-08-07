@@ -9,6 +9,19 @@ epsilon = .001
 
 ### Working on Blender objects
 
+def object_get_global_copy(ob, context, link=False, suffix='_tmp'):  # Prep for BF 2.8
+    """Copy object, apply modifiers, apply transformations."""
+    me_tmp = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER",
+        calc_tessface=True,
+        calc_undeformed=False,
+    )
+    me_tmp.transform(ob.matrix_world)
+    ob_tmp = bpy.data.objects.new(ob.name + suffix, me_tmp)
+    if link:
+        scene = context.scene
+        scene.objects.link(ob_tmp)
+    return ob_tmp
+
 def get_global_mesh(context, ob) -> "Mesh":
     """Return object mesh modified and transformed in global coordinates."""
     me = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER") # apply modifiers (as in RENDER, not PREVIEW)
