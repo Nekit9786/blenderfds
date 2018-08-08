@@ -6,13 +6,13 @@ import bpy
 from bpy.types import Scene, Object, Material
 from bpy.props import *
 
-from ..types import *
-from .. import geometry
-from . import tables, mesh
+from .types import *
+from . import geometry
+from .fds import tables, mesh
 
-from .. import config
+from . import config
 
-DEBUG = False
+DEBUG = True
 
 # TODO: evacuation namelists
 
@@ -552,6 +552,15 @@ subscribe(OP_PB)
 # HEAD
 
 @subscribe
+class SP_HEAD_export(BFExportProp):
+    description = "Set if HEAD namelist is exported to FDS"
+    bpy_type = Scene
+    bpy_idname = "bf_head_export"
+    bpy_other = {
+        "default": True,
+    }
+
+@subscribe
 class SP_HEAD_CHID(BFStringProp):
     label = "CHID"
     description = "Case identificator"
@@ -615,7 +624,8 @@ class SP_HEAD_free_text(BFNoAutoExportMod, BFProp):
 
     def check(self, context):
         bf_head_free_text = self.element.bf_head_free_text
-        if not bf_head_free_text: return None
+        if not bf_head_free_text:
+            return None
         # Check existence
         if bf_head_free_text not in bpy.data.texts:
             raise BFException(self, "Free text file not existing")
@@ -623,12 +633,61 @@ class SP_HEAD_free_text(BFNoAutoExportMod, BFProp):
 @subscribe
 class SN_HEAD(BFNamelist):
     label = "HEAD"
-    description = "FDS case header"
+    description = "Case header"
     enum_id = 3001
     fds_label = "HEAD"
     fds_separator = "\n      "
+    bf_prop_export = SP_HEAD_export
     bpy_type = Scene
-    bf_props = SP_HEAD_CHID, SP_HEAD_TITLE, SP_HEAD_directory, SP_default_voxel_size, SP_HEAD_free_text
+    bf_props = SP_HEAD_CHID, SP_HEAD_TITLE, SP_HEAD_directory, SP_default_voxel_size, SP_HEAD_free_text  # FIXME remove voxel_size
+
+# config panel
+
+@subscribe
+class SP_config_min_edge_length(BFProp):
+    label = "Min Edge Length"
+    description = "Minimum edge length allowed"
+    bpy_type = Scene
+    bpy_idname = "bf_config_min_edge_length"
+    bpy_prop = FloatProperty
+    bpy_other = {
+        "unit": "LENGTH",
+        "default": 1E-05,
+    }
+
+@subscribe
+class SP_config_min_face_area(BFProp):
+    label = "Min Face Area"
+    description = "Minimum face area allowed"
+    bpy_type = Scene
+    bpy_idname = "bf_config_min_face_area"
+    bpy_prop = FloatProperty
+    bpy_other = {
+        "unit": "AREA",
+        "default": 1E-08,
+    }
+
+@subscribe
+class SP_config_decimal_places(BFProp):
+    label = "Decimal Places"
+    description = "Number of decimal digits exported to the FDS file"
+    bpy_type = Scene
+    bpy_idname = "bf_config_decimal_places"
+    bpy_prop = IntProperty
+    bpy_other = {
+        "min": 3,
+        "default": 6,
+    }
+
+
+@subscribe
+class SN_config(BFNamelist):
+    label = "Config"
+    description = "Case configuration"
+    enum_id = 3090
+    bpy_type = Scene
+    bf_props = SP_config_min_edge_length, SP_config_min_face_area, SP_config_decimal_places, SP_HEAD_directory, SP_default_voxel_size
+
 
 # TIME
 
@@ -1226,7 +1285,7 @@ class MP_BACKING(BFProp):
 @subscribe
 class MN_SURF(BFNamelist):
     label = "SURF"
-    description = "Generic Boundary Condition"
+    description = "Boundary condition"
     enum_id = 2000
     fds_label = "SURF"
     fds_separator = "\n      "
@@ -1270,7 +1329,7 @@ class OP_export(BFExportProp):
 @subscribe
 class OP_show_transparent(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_props_copy operator
     label = "Show Object Transparency"
-    description = "Show Object Transparency"
+    description = "Show Object transparency"
     bpy_type = Object
     bpy_prop = None # Do not register
     bpy_idname = "show_transparent"
@@ -1349,8 +1408,10 @@ class OP_SURF_ID(BFProp):
         if self.get_exported(context): return "SURF_ID='{}'".format(self.element.active_material.name)
 
     def from_fds(self, context, value):
-        try: self.element.active_material = geometry.geom_utils.get_material(context, str(value))
-        except: raise BFException(self, "Error while setting '{}' Blender material".format(value))
+        try:
+            self.element.active_material = geometry.utils.get_material(context, str(value))
+        except:
+            raise BFException(self, "Error while setting '{}' Blender material".format(value))
 
 
 @subscribe
@@ -1456,7 +1517,7 @@ class ON_GEOM(BFNamelist):
 @subscribe
 class ON_HOLE(BFNamelist):
     label = "HOLE"
-    description = "Obstruction Cutout"
+    description = "Obstruction cutout"
     enum_id = 1009
     fds_label = "HOLE"
     bpy_type = Object
@@ -1472,7 +1533,7 @@ class ON_HOLE(BFNamelist):
 @subscribe
 class ON_VENT(BFNamelist):
     label = "VENT"
-    description = "Boundary Condition Patch"
+    description = "Boundary condition patch"
     enum_id = 1010
     fds_label = "VENT"
     bpy_type = Object
@@ -1600,7 +1661,7 @@ class OP_SLCF_CELL_CENTERED(BFBoolProp):
 @subscribe
 class ON_SLCF(BFNamelist):
     label = "SLCF"
-    description = "Slice File"
+    description = "Slice file"
     enum_id = 1012
     fds_label = "SLCF"
     bpy_type = Object
@@ -1616,7 +1677,7 @@ class ON_SLCF(BFNamelist):
 @subscribe
 class ON_PROF(BFNamelist):
     label = "PROF"
-    description = "Wall Profile Output"
+    description = "Wall profile output"
     enum_id = 1013
     fds_label = "PROF"
     bpy_type = Object
@@ -1735,7 +1796,7 @@ class ON_ZONE(BFNamelist):
 @subscribe
 class ON_HVAC(BFNamelist):
     label = "HVAC"
-    description = "HVAC System Definition"
+    description = "HVAC system definition"
     enum_id = 1017
     fds_label = "HVAC"
     bpy_type = Object
@@ -1772,7 +1833,7 @@ class OP_free_namelist(BFProp):
 @subscribe
 class ON_free(BFNamelist):
     label = "Free Namelist"
-    description = "Free Namelist"
+    description = "Free namelist"
     enum_id = 1007
     fds_label = None
     bpy_type = Object

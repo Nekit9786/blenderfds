@@ -2,7 +2,7 @@
 
 from bpy.types import Panel
 
-from ..fds.lang import SN_HEAD, SN_TIME, SN_DUMP, SN_MISC, SN_REAC, OP_SURF_ID, OP_GEOM # TODO migrate to new search [" "]
+from ..lang import SN_HEAD, SN_TIME, SN_DUMP, SN_MISC, SN_REAC, SN_config, OP_SURF_ID, OP_GEOM # TODO migrate to new search [" "]
 
 ### Scene panels
 
@@ -60,6 +60,9 @@ class SCENE_PT_BF_DUMP(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_DUMP"
     bf_namelist = SN_DUMP
 
+class SCENE_PT_BF_config(SCENE_PT_BF, Panel):
+    bl_idname = "SCENE_PT_BF_config"
+    bf_namelist = SN_config
 
 ### Object panel
 
