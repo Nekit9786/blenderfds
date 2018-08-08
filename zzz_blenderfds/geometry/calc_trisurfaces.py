@@ -62,6 +62,7 @@ def check_mesh_quality(context, ob):
     """Check that Object is a closed orientable manifold,
     with no degenerate geometry."""
     # Init
+    DEBUG and print("BFDS: check_mesh_quality")
     bpy.ops.object.mode_set(mode='OBJECT')
     bm = bmesh.new()
     bm.from_mesh(ob.data)
@@ -70,7 +71,6 @@ def check_mesh_quality(context, ob):
     bm.edges.ensure_lookup_table()  # update bmesh index
     epsilon_len = context.scene.bf_config_min_edge_length
     epsilon_area = context.scene.bf_config_min_face_area
-    print("eps:",epsilon_area,epsilon_len)
     bad_verts, bad_edges, bad_faces= list(), list(), list()
     # Check manifold edges, each edge should join two faces, no more no less
     for edge in bm.edges:
@@ -122,7 +122,6 @@ def check_mesh_quality(context, ob):
 
 def _check_duplicate_vertices(context, ob, bm, epsilon_len):
     """Check duplicate vertices."""
-    DEBUG and print("BFDS: check_quality: duplicate verts:", ob.name)
     bad_verts = list()
     size = len(bm.verts)
     kd = mathutils.kdtree.KDTree(size)  # create a kd-tree from a mesh
@@ -139,7 +138,7 @@ def _check_duplicate_vertices(context, ob, bm, epsilon_len):
     msg = "Duplicate vertices detected, bad vertices selected."
     _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
 
-def check_intersections(obs, context):
+def check_intersections(obs, context):  # FIXME test and make operator
     """Check self and mutual intersection of objects."""
     DEBUG and print("BFDS: check_quality: intersection:", obs)
     for i, ob in enumerate(obs):
