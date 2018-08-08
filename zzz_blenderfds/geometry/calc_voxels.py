@@ -373,15 +373,15 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
     print("BFDS: voxelize.pixelize:", ob.name)
     # Init
     voxel_size = _get_voxel_size(context, ob)
-    ob_global = get_new_object(
+    ob_global = utils.get_new_object(
         context,
         context.scene,
         "global_ob",
-        get_global_mesh(context, ob),
+        utils.get_global_mesh(context, ob),
         linked=False,
     )
     flat_axis = _get_flat_axis(ob_global)
-    bbox = get_global_bbox(context,ob_global)
+    bbox = utils.get_global_bbox(context,ob_global)
     flat_origin = bbox[0],bbox[2],bbox[4]
     choose_flatten = (_x_flatten_xbs, _y_flatten_xbs, _z_flatten_xbs)[flat_axis]
     # Solidify
@@ -404,7 +404,7 @@ def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
 
 def _get_solidify_ob(context, ob, thickness) -> "ob":
     """Get a new unlinked obj with solidify modifier for voxelization applied."""
-    ob_new = get_new_object(
+    ob_new = utils.get_new_object(
         context,
         context.scene,
         "solidified_tmp",
