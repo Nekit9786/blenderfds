@@ -78,6 +78,12 @@ def check_mesh_quality(context, ob):
             bad_edges.append(edge)
     msg = "Non manifold or open geometry detected, bad edges selected."
     _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
+    # Check manifold vertices
+    for vert in bm.verts:
+        if not vert.is_manifold:
+            bad_verts.append(vert)
+    msg = "Non manifold vertices detected, bad vertices selected."
+    _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
     # Check contiguous normals, adjoining faces should have normals
     # in the same directions
     for edge in bm.edges:
@@ -111,8 +117,6 @@ def check_mesh_quality(context, ob):
     if original_normal.dot(bm.faces[0].normal) < 0.:  # opposed normals?
         raise BFException(ob, "Face normals are pointing towards the inside, "
             "update needed.")
-    # Check manifold vertices
-    pass  # FIXME
     # Close
     bm.free()
 
