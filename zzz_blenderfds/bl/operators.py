@@ -470,50 +470,65 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
         # Init
         w = context.window_manager.windows[0]
         w.cursor_modal_set("WAIT")
-        if context.mode != 'OBJECT': bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        if context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         ob = context.object
         msgs = list()
         err_msgs = list()
-        # Manage XB: get coordinates, show them in a tmp object, prepare msg
-        xbs = None
-        msg = None
-        try:  xbs, msg  = geometry.to_fds.ob_to_xbs(context, ob)
-        except BFException as err:
-            w.cursor_modal_restore()
-            self.report({"ERROR"}, str(err))
-            return{'CANCELLED'}
-        if msg: msgs.append(msg)
-        if xbs:
-            geometry.from_fds.xbs_to_ob(xbs, context, bf_xb=ob.bf_xb, name="Shown {} XBs".format(ob.name)).set_tmp(context, ob)
-        # Manage XYZ: get coordinates, show them in a tmp object, prepare msg
-        xyzs = None
-        msg = None
-        try: xyzs, msg = geometry.to_fds.ob_to_xyzs(context, ob)
-        except BFException as err:
-            w.cursor_modal_restore()
-            self.report({"ERROR"}, str(err))
-            return{'CANCELLED'}
-        if msg: msgs.append(msg)
-        if xyzs:
-            geometry.from_fds.xyzs_to_ob(xyzs, context, bf_xyz=ob.bf_xyz, name="Shown {} XYZs".format(ob.name)).set_tmp(context, ob)
-        # Manage PB*: get coordinates, show them in a tmp object, prepare msg
-        pbs  = None
-        msg = None
-        try: pbs, msg  = geometry.to_fds.ob_to_pbs(context, ob)
-        except BFException as err:
-            w.cursor_modal_restore()
-            self.report({"ERROR"}, str(err))
-            return{'CANCELLED'}
-        if msg: msgs.append(msg)
-        if pbs:
-            geometry.from_fds.pbs_to_ob(pbs, context, bf_pb=ob.bf_pb, name="Shown {} PBs".format(ob.name)).set_tmp(context, ob)
-        # Prepare result and report
+        # Start
+        fds_faces, xbs, xyzs, pbs = None, None, None, None
         if ob.bf_namelist_cls == 'ON_GEOM':
-            report = {"INFO"}, "GEOM is exported as it is"
-        elif msgs:
+            # Manage GEOM: get coordinates, show them in a tmp object, prepare msg
+            msg = None
+            try:
+                fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, ob)
+            except BFException as err:
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, str(err))
+                return{'CANCELLED'}
+            if msg:
+                msgs.append(msg)
+            if fds_faces:
+                geometry.from_fds.geom_to_ob(fds_surfids, fds_verts, fds_faces, context, name="Tmp Object {} GEOM".format(ob.name)).set_tmp(context, ob)
+        else:
+            # Manage XB: get coordinates, show them in a tmp object, prepare msg
+            msg = None
+            try:  xbs, msg  = geometry.to_fds.ob_to_xbs(context, ob)
+            except BFException as err:
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, str(err))
+                return{'CANCELLED'}
+            if msg:
+                msgs.append(msg)
+            if xbs:
+                geometry.from_fds.xbs_to_ob(xbs, context, bf_xb=ob.bf_xb, name="Tmp Object {} XBs".format(ob.name)).set_tmp(context, ob)
+            # Manage XYZ: get coordinates, show them in a tmp object, prepare msg
+            msg = None
+            try: xyzs, msg = geometry.to_fds.ob_to_xyzs(context, ob)
+            except BFException as err:
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, str(err))
+                return{'CANCELLED'}
+            if msg:
+                msgs.append(msg)
+            if xyzs:
+                geometry.from_fds.xyzs_to_ob(xyzs, context, bf_xyz=ob.bf_xyz, name="Tmp Object {} XYZs".format(ob.name)).set_tmp(context, ob)
+            # Manage PB*: get coordinates, show them in a tmp object, prepare msg
+            msg = None
+            try: pbs, msg  = geometry.to_fds.ob_to_pbs(context, ob)
+            except BFException as err:
+                w.cursor_modal_restore()
+                self.report({"ERROR"}, str(err))
+                return{'CANCELLED'}
+            if msg:
+                msgs.append(msg)
+            if pbs:
+                geometry.from_fds.pbs_to_ob(pbs, context, bf_pb=ob.bf_pb, name="Tmp Object {} PBs".format(ob.name)).set_tmp(context, ob)
+        # Prepare result and report
+        if msgs:
             report = {"INFO"}, "; ".join(msgs)
             ob.show_tmp_obs(context)
-        elif xbs or xyzs or pbs:
+        elif xbs or xyzs or pbs or faces:
             report = {"INFO"}, "FDS geometry shown"
             ob.show_tmp_obs(context)
         else:

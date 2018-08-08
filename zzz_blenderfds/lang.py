@@ -157,9 +157,8 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
         "max": 20.,
         "update": update_bf_xb_voxel_size,
         "default": .10,
-    }
-    # unit = "LENGTH", # correction for scale_length needed before exporting!
-
+        "unit": 'LENGTH',
+    }  # FIXME unit
 
 def update_bf_default_voxel_size(self, context):
     """Update function for bf_xb_custom_voxel"""
@@ -181,8 +180,9 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
         "max": 20.,
         "update": update_bf_default_voxel_size,
         "default": .10,
+        "unit": 'LENGTH',
     }
-    # unit = "LENGTH", # correction for scale_length needed before exporting!
+    # FIXME unit = "LENGTH", # correction for scale_length needed before exporting!
 
 
 # MESH alignment TODO develop!
@@ -232,31 +232,31 @@ class OP_XB(BFXBProp):
         layout_custom.active = self.element.bf_xb_custom_voxel
 
     def _format_xb(self, value):
-        return "XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value)
+        return "XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value)
 
     def _format_xb_idi(self, value, name, i):
-        return "ID='{1}_{2}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name, i)
+        return "ID='{1}_{2}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name, i)
 
     def _format_xb_idx(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def _format_xb_idy(self, value, name, i):
-        return "ID='{1}_Y{0[2]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[2]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def _format_xb_idz(self, value, name, i):
-        return "ID='{1}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Z{0[4]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def _format_xb_idxy(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def _format_xb_idxz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def _format_xb_idyz(self, value, name, i):
-        return "ID='{1}_Y{0[2]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[2]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def _format_xb_idxyz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.3f},{0[1]:.3f},{0[2]:.3f},{0[3]:.3f},{0[4]:.3f},{0[5]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[2]:+.3f}_Z{0[4]:+.3f}' XB={0[0]:.6f},{0[1]:.6f},{0[2]:.6f},{0[3]:.6f},{0[4]:.6f},{0[5]:.6f}".format(value, name)
 
     def to_fds(self, context):
         # Check
@@ -349,31 +349,31 @@ class OP_XYZ(BFXYZProp):
     allowed_items = "NONE", "CENTER", "VERTICES"
 
     def _format_xyz(self, value):
-        return "XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value)
+        return "XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value)
 
     def _format_xyz_idi(self, value, name, i):
-        return "ID='{1}_{2}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name, i)
+        return "ID='{1}_{2}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name, i)
 
     def _format_xyz_idx(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def _format_xyz_idy(self, value, name, i):
-        return "ID='{1}_Y{0[1]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[1]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def _format_xyz_idz(self, value, name, i):
-        return "ID='{1}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Z{0[2]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def _format_xyz_idxy(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def _format_xyz_idxz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def _format_xyz_idyz(self, value, name, i):
-        return "ID='{1}_Y{0[1]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_Y{0[1]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def _format_xyz_idxyz(self, value, name, i):
-        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.3f},{0[1]:.3f},{0[2]:.3f}".format(value, name)
+        return "ID='{1}_X{0[0]:+.3f}_Y{0[1]:+.3f}_Z{0[2]:+.3f}' XYZ={0[0]:.6f},{0[1]:.6f},{0[2]:.6f}".format(value, name)
 
     def to_fds(self, context):
         # Check
@@ -450,25 +450,25 @@ class OP_PB(BFPBProp):
     allowed_items = "NONE", "PLANES"
 
     def _format_pb(self, value):
-        if   value[0] == 0: return "PBX={0[1]:.3f}".format(value) # PBX is 0
-        elif value[0] == 1: return "PBY={0[1]:.3f}".format(value) # PBY is 1
-        elif value[0] == 2: return "PBZ={0[1]:.3f}".format(value) # PBZ is 2
+        if   value[0] == 0: return "PBX={0[1]:.6f}".format(value) # PBX is 0
+        elif value[0] == 1: return "PBY={0[1]:.6f}".format(value) # PBY is 1
+        elif value[0] == 2: return "PBZ={0[1]:.6f}".format(value) # PBZ is 2
 
     def _format_pb_idi(self, value, name, i):
         if   value[0] == 0:
-            return "ID='{1}_{2}' PBX={0[1]:.3f}".format(value, name, i) # PBX is 0
+            return "ID='{1}_{2}' PBX={0[1]:.6f}".format(value, name, i) # PBX is 0
         elif value[0] == 1:
-            return "ID='{1}_{2}' PBY={0[1]:.3f}".format(value, name, i) # PBY is 1
+            return "ID='{1}_{2}' PBY={0[1]:.6f}".format(value, name, i) # PBY is 1
         elif value[0] == 2:
-            return "ID='{1}_{2}' PBZ={0[1]:.3f}".format(value, name, i) # PBZ is 2
+            return "ID='{1}_{2}' PBZ={0[1]:.6f}".format(value, name, i) # PBZ is 2
 
     def _format_pb_idxyz(self, value, name, i):
         if   value[0] == 0:
-            return "ID='{1}_X{0[1]:+.3f}' PBX={0[1]:.3f}".format(value, name) # PBX is 0
+            return "ID='{1}_X{0[1]:+.3f}' PBX={0[1]:.6f}".format(value, name) # PBX is 0
         elif value[0] == 1:
-            return "ID='{1}_Y{0[1]:+.3f}' PBY={0[1]:.3f}".format(value, name) # PBY is 1
+            return "ID='{1}_Y{0[1]:+.3f}' PBY={0[1]:.6f}".format(value, name) # PBY is 1
         elif value[0] == 2:
-            return "ID='{1}_Z{0[1]:+.3f}' PBZ={0[1]:.3f}".format(value, name) # PBZ is 2
+            return "ID='{1}_Z{0[1]:+.3f}' PBZ={0[1]:.6f}".format(value, name) # PBZ is 2
 
     def to_fds(self, context):
         # Check
@@ -639,7 +639,7 @@ class SN_HEAD(BFNamelist):
     fds_separator = "\n      "
     bf_prop_export = SP_HEAD_export
     bpy_type = Scene
-    bf_props = SP_HEAD_CHID, SP_HEAD_TITLE, SP_HEAD_directory, SP_default_voxel_size, SP_HEAD_free_text  # FIXME remove voxel_size
+    bf_props = SP_HEAD_CHID, SP_HEAD_TITLE, SP_HEAD_directory, SP_HEAD_free_text
 
 # config panel
 
@@ -668,25 +668,12 @@ class SP_config_min_face_area(BFProp):
     }
 
 @subscribe
-class SP_config_decimal_places(BFProp):
-    label = "Decimal Places"
-    description = "Number of decimal digits exported to the FDS file"
-    bpy_type = Scene
-    bpy_idname = "bf_config_decimal_places"
-    bpy_prop = IntProperty
-    bpy_other = {
-        "min": 3,
-        "default": 6,
-    }
-
-
-@subscribe
 class SN_config(BFNamelist):
     label = "Config"
     description = "Case configuration"
     enum_id = 3090
     bpy_type = Scene
-    bf_props = SP_config_min_edge_length, SP_config_min_face_area, SP_config_decimal_places, SP_HEAD_directory, SP_default_voxel_size
+    bf_props = SP_config_min_edge_length, SP_config_min_face_area, SP_default_voxel_size
 
 
 # TIME
@@ -1177,7 +1164,7 @@ class MP_THICKNESS(BFProp):
         "min": .001,
         "default": .01,
     }
-    # "unit": "LENGTH", # correction for scale_length needed before exporting!
+    # FIXME "unit": "LENGTH", # correction for scale_length needed before exporting!
 
 @subscribe
 class MP_HRRPUA(BFProp):
@@ -1441,29 +1428,34 @@ class ON_OBST(BFNamelist):
 # GEOM
 
 @subscribe
-class OP_GEOM(BFProp):
+class OP_GEOM(BFProp):  # FIXME FIXME FIXME this is an hack!
     label = "Triangulated geometry"
     description = "Triangulated geometry vertices and faces"
     bpy_type = Object
 
-    def to_fds(self, context):
+    def to_fds(self, context):  # FIXME
         # Check is performed while exporting
         # Get surf_idv, verts and faces
-        surf_idv, verts, faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
-        if msg: self.infos.append(msg)
-        if not verts: return None
-        # Correct for scale_lenght TODO
-        # scale_length = context.scene.unit_settings.scale_length
-        # xbs = [[coo * scale_length for coo in xb] for xb in xbs]
+        fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
+        if msg:
+            self.infos.append(msg)
+        if not fds_faces:
+            return None
+        # Correct for scale_lenght
+        scale_length = context.scene.unit_settings.scale_length
+        fds_verts = [coo * scale_length for coo in fds_verts]
+        # Group by 3 and 4
+        verts = [t for t in zip(*[iter(fds_verts)]*3)]
+        faces = [t for t in zip(*[iter(fds_faces)]*4)]
         # Prepare
-        surf_idv_str = ','.join(("'{}'".format(s) for s in surf_idv))
+        surfids_str = ','.join(("'{}'".format(s) for s in fds_surfids))
         verts_str = ""
         for v in verts:
             verts_str += "\n            {0[0]:.6f}, {0[1]:.6f}, {0[2]:.6f},".format(v)
         faces_str = ""
         for f in faces:
             faces_str += "\n            {0[0]},{0[1]},{0[2]}, {0[3]},".format(f)
-        return "SURF_ID={}\n      VERTS={}\n      FACES={}".format(surf_idv_str,verts_str,faces_str)
+        return "SURF_ID={}\n      VERTS={}\n      FACES={}".format(surfids_str, verts_str, faces_str)
 
 @subscribe
 class ON_GEOM(BFNamelist):

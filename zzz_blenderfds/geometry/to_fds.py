@@ -23,7 +23,8 @@ def ob_to_xbs_voxels(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     t0 = time()
     xbs, voxel_size, timing = get_voxels(context, ob)
     if not xbs: return (), "No voxel created"
-    msg = "{0} voxels, resolution {1:.3f} m, in {2:.3f} s".format(len(xbs), voxel_size, time()-t0)
+    scale_length = context.scene.unit_settings.scale_length
+    msg = "{0} voxels, resolution {1:.3f} m, in {2:.3f} s".format(len(xbs), voxel_size * scale_length, time()-t0)
     if DEBUG: msg += " (s:{0[0]:.3f} 1f:{0[1]:.3f}, 2g:{0[2]:.3f}, 3g:{0[3]:.3f})".format(timing)
     return xbs, msg
 
@@ -33,14 +34,15 @@ def ob_to_xbs_pixels(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
     t0 = time()
     xbs, voxel_size, timing = pixelize(context, ob)
     if not xbs: return (), "No pixel created"
-    msg = "{0} pixels, resolution {1:.3f} m, in {2:.0f} s".format(len(xbs), voxel_size, time()-t0)
+    scale_length = context.scene.unit_settings.scale_length
+    msg = "{0} pixels, resolution {1:.3f} m, in {2:.0f} s".format(len(xbs), voxel_size * scale_length, time()-t0)
     if DEBUG: msg += " (s:{0[0]:.0f} 1f:{0[1]:.0f}, 2g:{0[2]:.0f}, 3g:{0[3]:.0f})".format(timing)
     return xbs, msg
 
 def ob_to_xbs_bbox(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     """Transform ob solid geometry in XBs notation (bounding box). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_bbox:", ob.name)
-    x0, x1, y0, y1, z0, z1 = get_global_bbox(context, ob)
+    x0, x1, y0, y1, z0, z1 = utils.get_global_bbox(context, ob)
     return [(x0, x1, y0, y1, z0, z1,),], ""
 
 def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
@@ -48,8 +50,8 @@ def ob_to_xbs_faces(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
     DEBUG and print("BFDS: geometry.ob_to_xbs_faces:", ob.name)
     # Init
     result = list()
-    me = get_global_mesh(context, ob)
-    tessfaces = get_tessfaces(context, me)
+    me = utils.get_global_mesh(context, ob)
+    tessfaces = utils.get_tessfaces(context, me)
     # For each tessface...
     for tessface in tessfaces:
         vertices = [me.vertices[vertex] for vertex in tessface.vertices]
@@ -81,7 +83,7 @@ def ob_to_xbs_edges(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     DEBUG and print("BFDS: geometry.ob_to_xbs_edges:", ob.name)
     # Init
     result = list()
-    me = get_global_mesh(context, ob)
+    me = utils.get_global_mesh(context, ob)
     # For each edge...
     for edge in me.edges:
         pt0x, pt0y, pt0z = me.vertices[edge.vertices[0]].co
@@ -120,7 +122,7 @@ def ob_to_xyzs_vertices(context, ob) -> "((x0,y0,z0,), ...), 'Message'":
     DEBUG and print("BFDS: geometry.ob_to_xyzs_vertices:", ob.name)
     # Init
     result = list()
-    me = get_global_mesh(context, ob)
+    me = utils.get_global_mesh(context, ob)
     # For each vertex...
     for vertex in me.vertices:
         pt0x, pt0y, pt0z = vertex.co
@@ -195,8 +197,10 @@ def ob_to_pbs(context, ob):
 
 #++ to GEOM
 
-def ob_to_geom(context, ob) -> "mas, verts, faces, msg":
+def ob_to_geom(context, ob) -> "mas, fds_verts, fds_faces, msg":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
     mas, verts, faces = get_trisurface(context, ob)
     msg = "{} vertices, {} faces".format(len(verts), len(faces))
-    return mas, verts, faces, msg  # FIXME add caching of results
+    fds_verts = [coo for vert in verts for coo in vert]
+    fds_faces = [i for face in faces for i in face]
+    return mas, fds_verts, fds_faces, msg  # FIXME add caching of results
