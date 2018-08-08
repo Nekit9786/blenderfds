@@ -18,9 +18,7 @@
 # Import
 
 import bpy
-from .types import BFNamelist, BFProp
-from .fds import lang  # Import the FDS language
-from .bl import ui, handlers
+from . import lang, bl
 
 print("""
     BlenderFDS  Copyright (C) 2013-2018 Emanuele Gissi, http://www.blenderfds.org
@@ -52,25 +50,30 @@ def register():
     # Register module
     bpy.utils.register_module(__name__)
     # Register all BFProps
-    for bf_namelist in BFNamelist.all:
+    for bf_namelist in lang.BFNamelist.all:
         bf_namelist.register()  # may contain a bpy_idname
-    for bf_prop in BFProp.all:
+    for bf_prop in lang.BFProp.all:
         bf_prop.register()
+    # Register extensions
+    lang.BFScene.register()
+    lang.BFObject.register()
+    lang.BFMaterial.register()
     # Blender things
-    ui.register()
-    handlers.register()
+    bl.ui.register()
+    bl.handlers.register()
 
 
 def unregister():
     """Unregister Blender types."""
     # Blender things
-    ui.unregister()
-    handlers.unregister()
+    bl.ui.unregister()
+    bl.handlers.unregister()
     bpy.utils.unregister_module(__name__)
     # Unregister all bf_namelists
     for bf_namelist in BFProp.all:
         bf_namelist.unregister()
-
+    # Unregister extensions
+    # FIXME
 
 if __name__ == "__main__":
     register()
