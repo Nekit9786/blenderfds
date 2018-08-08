@@ -636,7 +636,7 @@ class MATERIAL_OT_bf_set_tau_q(Operator):
             if ob.type == "MESH" and ob.bf_export \
             and ob.active_material == ma \
             and ob.bf_namelist.all_bf_props.get("OP_SURF_ID"))
-        for ob in obs: burner_area += geometry.geom_utils.get_global_area(context, ob)
+        for ob in obs: burner_area += geometry.utils.get_global_area(context, ob)
         # Set defaults to estimated values
         self.bf_burner_area = burner_area
         self.bf_hrr_max = ma.bf_hrrpua * burner_area

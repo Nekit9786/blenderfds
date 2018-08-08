@@ -1,23 +1,22 @@
 """BlenderFDS, FDS MESH routines"""
 
 from .. import geometry
-from ..geometry.geom_utils import epsilon
 
 def _factor(n):
     """Generator for prime factors of n.
 Many thanks Dhananjay Nene (http://dhananjaynene.com/)
 for publishing this code"""
-    yield 1  
-    i = 2  
-    limit = n**0.5  
+    yield 1
+    i = 2
+    limit = n**0.5
     while i <= limit:
         if n % i == 0:
             yield i
             n = n / i
-            limit = n**0.5  
+            limit = n**0.5
         else:
-            i += 1  
-    if n > 1:  
+            i += 1
+    if n > 1:
         yield int(n)
 
 def _n_for_poisson(n):
@@ -36,13 +35,13 @@ def get_cell_sizes(context, ob):
     """Get MESH cell sizes from object"""
     # Init
     bf_mesh_ijk = ob.bf_mesh_ijk
-    dimensions = geometry.geom_utils.get_global_dimensions(context, ob)
+    dimensions = geometry.utils.get_global_dimensions(context, ob)
     return [
         dimensions[0] / bf_mesh_ijk[0],
         dimensions[1] / bf_mesh_ijk[1],
         dimensions[2] / bf_mesh_ijk[2],
     ]
-    
+
 def set_cell_sizes(context, ob, desired_cell_sizes, snap_to_origin=True, poisson_restriction=True):
     """Set exact MESH cell size to Blender object by adapting its dimensions.
     Apply Poisson Solver restriction on IJK and snap to global origin of axis, if requested."""
@@ -69,9 +68,10 @@ def set_cell_sizes(context, ob, desired_cell_sizes, snap_to_origin=True, poisson
     ob.bf_mesh_ijk = new_ijk
     geometry.from_fds.xbs_to_ob(((x0, x1, y0, y1, z0, z1),), context, ob, bf_xb="BBOX", update_center=False)
     # Verify Object movement and return moved or not
+    epsilon = 1E-6
     ob_moved = any(map(lambda x, y: x - y > epsilon, (x0, x1, y0, y1, z0, z1), current_xbs[0]))
     return ob_moved
-  
+
 def get_cell_infos(context, ob):
     """Get many cell infos from object"""
     # Init
@@ -91,4 +91,4 @@ def get_cell_infos(context, ob):
     except ZeroDivisionError: cell_aspect_ratio = 999.
     # Return
     return has_good_ijk, cell_sizes, cell_number, cell_aspect_ratio
-    
+

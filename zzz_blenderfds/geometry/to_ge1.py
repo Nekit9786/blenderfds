@@ -2,7 +2,7 @@
 
 import bpy
 
-from .geom_utils import *
+from .utils import *
 
 # GE1 file format:
 
@@ -36,7 +36,7 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
         appearances.append(
             "{desc}\n{i} {r} {g} {b} 0. 0. {alpha:.3f} 0. 0. 0.\n\n".format(
                 desc=ma.name, i=index,
-                r=int(ma.diffuse_color[0]*255), g=int(ma.diffuse_color[1]*255), b=int(ma.diffuse_color[2]*255), 
+                r=int(ma.diffuse_color[0]*255), g=int(ma.diffuse_color[1]*255), b=int(ma.diffuse_color[2]*255),
                 alpha=ma.alpha,
             )
         )
@@ -45,7 +45,7 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
     appearances.append(
         "{desc}\n{i} {r} {g} {b} 0. 0. {alpha:.3f} 0. 0. 0.\n\n".format(
             desc="BF_HOLE", i=index+1,
-            r=150, g=150, b=150, 
+            r=150, g=150, b=150,
             alpha=.5,
         )
     )
@@ -86,7 +86,7 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
             items.append(appearance_index)
             # Append GE1 face
             gefaces.append(" ".join(items))
-            
+
     # Prepare GE1 file and return
     ge1_file_a = "[APPEARANCE]\n{}\n{}".format(len(appearances), "".join(appearances))
     ge1_file_f = "[FACES]\n{}\n{}".format(len(gefaces), "".join(gefaces))

@@ -1,7 +1,7 @@
 """BlenderFDS, preferences panel"""
 
 from bpy.types import AddonPreferences
-from bpy.props import BoolProperty, StringProperty
+from bpy.props import BoolProperty, StringProperty, FloatProperty, IntProperty
 
 # Get preference value like this:
 # bpy.context.user_preferences.addons["zzz_blenderfds"].preferences.bf_pref_simplify_ui
@@ -10,27 +10,30 @@ class BFPreferences(AddonPreferences):
     bl_idname = "zzz_blenderfds"
 
     bf_pref_simplify_ui = BoolProperty(
-            name="Simplify Blender User Interface (Blender restart needed)",
-            description="Simplify Blender User Interface (Blender restart needed)",
+            name="Simplify User Interface, restart needed",
+            description="Simplify BlenderFDS user interface, Blender restart needed",
             default=True,
             )
 
     bf_pref_use_custom_snippet_path = BoolProperty(
             name="Use Custom Snippets Path",
-            description="Use Custom Snippets Path",
+            description="Use custom FDS code snippets path",
             default=False,
             )
 
     bf_pref_custom_snippet_path = StringProperty(
             name="Custom Snippets Path",
-            description="Custom Snippets Path",
+            description="Custom FDS code snippets path",
             subtype="DIR_PATH",
             maxlen=1024,
             )
 
     def draw(self, context):
         layout = self.layout
+
         # UI
+        row = layout.row()
+        row.label("User Interface:")
         row = layout.split(.3)
         row.operator("wm.bf_load_blenderfds_settings", icon='LOAD_FACTORY')
         layout.prop(self, "bf_pref_simplify_ui")
