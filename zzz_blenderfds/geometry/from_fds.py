@@ -3,19 +3,20 @@
 import bpy
 from time import time
 
-from .geom_utils import *
+from . import utils
 
-### from None
+#++ from None
 
 def none_to_mesh(value=None, me=None) -> "Mesh":
     """Transform nothing to Blender mesh."""
     return me or bpy.data.meshes.new("none")
 
-### from XB
+#++ from XB
 
 def xbs_edges_to_mesh(xbs, me=None) -> "Mesh":
     """Translate XB edges ((x0,x1,y0,y1,z0,z1,), ...) to Blender mesh."""
-    if not me: me = bpy.data.meshes.new("xbs_edges")
+    if not me:
+        me = bpy.data.meshes.new("xbs_edges")
     verts, edges, faces = list(), list(), list()
     for i, xb in enumerate(xbs):
         x0, x1, y0, y1, z0, z1 = xb
@@ -27,14 +28,19 @@ def xbs_edges_to_mesh(xbs, me=None) -> "Mesh":
 
 def xbs_faces_to_mesh(xbs, me=None) -> "Mesh":
     """Translate XB faces ((x0,x1,y0,y1,z0,z1,), ...) to Blender mesh."""
-    if not me: me = bpy.data.meshes.new("xbs_faces")
+    epsilon = 1E-5
+    if not me:
+        me = bpy.data.meshes.new("xbs_faces")
     verts, edges, faces = list(), list(), list()
     for i, xb in enumerate(xbs):
         x0, x1, y0, y1, z0, z1 = xb
         j = i * 4
-        if   abs(x1 - x0) < epsilon: verts.extend(((x0,y0,z0), (x0,y1,z0), (x0,y1,z1), (x0,y0,z1)))
-        elif abs(y1 - y0) < epsilon: verts.extend(((x0,y0,z0), (x1,y0,z0), (x1,y0,z1), (x0,y0,z1)))
-        elif abs(z1 - z0) < epsilon: verts.extend(((x0,y0,z0), (x0,y1,z0), (x1,y1,z0), (x1,y0,z0)))
+        if   abs(x1 - x0) < epsilon:
+            verts.extend(((x0,y0,z0), (x0,y1,z0), (x0,y1,z1), (x0,y0,z1)))
+        elif abs(y1 - y0) < epsilon:
+            verts.extend(((x0,y0,z0), (x1,y0,z0), (x1,y0,z1), (x0,y0,z1)))
+        elif abs(z1 - z0) < epsilon:
+            verts.extend(((x0,y0,z0), (x0,y1,z0), (x1,y1,z0), (x1,y0,z0)))
         else:
             print("BFDS: from_fds.xbs_faces_to_ob: this XB is not a face:", xb)
             continue
@@ -44,7 +50,8 @@ def xbs_faces_to_mesh(xbs, me=None) -> "Mesh":
 
 def xbs_bbox_to_mesh(xbs, me=None) -> "Mesh":
     """Translate XB bbox ((x0,x1,y0,y1,z0,z1,), ...) to Blender mesh."""
-    if not me: me = bpy.data.meshes.new("xbs_bbox")
+    if not me:
+        me = bpy.data.meshes.new("xbs_bbox")
     verts, edges, faces = list(), list(), list()
     for i, xb in enumerate(xbs):
         x0, x1, y0, y1, z0, z1 = xb
@@ -70,23 +77,30 @@ choose_from_xbs = {
 def xbs_to_ob(xbs, context, ob=None, bf_xb="NONE", name="xbs_to_ob", update_center=True) -> "Mesh":
     """Transform geometry in FDS notation to Blender object."""
     # Choose bf_xb
+    epsilon = 1E-5
     if bf_xb == "NONE":
         x0, x1, y0, y1, z0, z1 = xbs[0]
-        if abs(x1-x0) < epsilon or abs(y1-y0) < epsilon or abs(z1-z0) < epsilon: bf_xb = "FACES"
-        else: bf_xb = "BBOX"
+        if abs(x1-x0) < epsilon or abs(y1-y0) < epsilon or abs(z1-z0) < epsilon:
+            bf_xb = "FACES"
+        else:
+            bf_xb = "BBOX"
     # Get mesh, set it, set properties and center position
     me = choose_from_xbs[bf_xb](xbs)
-    if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
-    else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    if update_center: set_balanced_center_position(context, ob)
+    if ob:
+        utils.set_global_mesh(context, ob, me) # ob exists, set its mesh
+    else:
+        ob = utils.get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
+    if update_center:
+        utils.set_balanced_center_position(context, ob)
     ob.bf_xb = bf_xb
     return ob
 
-### from XYZ
+#++ from XYZ
 
 def xyzs_vertices_to_mesh(xyzs, me=None) -> "Mesh":
     """Translate XYZ vertices ((x0,y0,z0,), ...) to Blender mesh."""
-    if not me: me = bpy.data.meshes.new("xyzs_vertices")
+    if not me:
+        me = bpy.data.meshes.new("xyzs_vertices")
     verts, edges, faces = xyzs, list(), list()
     me.from_pydata(verts, edges, faces)
     return me
@@ -104,16 +118,20 @@ choose_from_xyzs = {
 def xyzs_to_ob(xyzs, context, ob=None, bf_xyz="NONE", name="xyzs_to_ob", update_center=True) -> "Mesh":
     """Transform geometry in FDS notation to Blender object."""
     # Choose bf_xyz
-    if bf_xyz == "NONE": bf_xyz = "VERTICES"
+    if bf_xyz == "NONE":
+        bf_xyz = "VERTICES"
     # Get mesh, set it, set properties and center position
     me = choose_from_xyzs[bf_xyz](xyzs)
-    if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
-    else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    if update_center: set_balanced_center_position(context, ob)
+    if ob:
+        utils.set_global_mesh(context, ob, me) # ob exists, set its mesh
+    else:
+        ob = utils.get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
+    if update_center:
+        utils.set_balanced_center_position(context, ob)
     ob.bf_xyz = bf_xyz
     return ob
 
-### from PB
+#++ from PB
 
 def pbs_planes_to_mesh(pbs, me=None) -> "Mesh":
     """Translate PB* planes ((0,x3,), (0,x7,), (1,y9,), ...) to Blender mesh."""
@@ -144,17 +162,21 @@ def pbs_to_ob(pbs, context, ob=None, bf_pb="NONE", name="pbs_to_ob", update_cent
     if bf_pb == "NONE": bf_pb = "PLANES"
     # Get mesh, set it, set properties and center position
     me = choose_from_pbs[bf_pb](pbs)
-    if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
-    else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    if update_center: set_balanced_center_position(context, ob)
+    if ob:
+        utils.set_global_mesh(context, ob, me) # ob exists, set its mesh
+    else:
+        ob = utils.get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
+    if update_center:
+        utils.set_balanced_center_position(context, ob)
     ob.bf_pb = bf_pb
     return ob
 
-### from GEOM
+#++ from GEOM
 
 def geom_to_mesh(fds_surfids, fds_verts, fds_faces, me=None) -> "Mesh":
     """Translate GEOM vertices ((x0,y0,z0,), ...) and faces ((1,2,3,), ...) to Blender mesh."""
-    if not me: me = bpy.data.meshes.new("geom_to_mesh")
+    if not me:
+        me = bpy.data.meshes.new("geom_to_mesh")
     # Append material slots
     for i, surfid in enumerate(fds_surfids):
         found = False
@@ -163,7 +185,8 @@ def geom_to_mesh(fds_surfids, fds_verts, fds_faces, me=None) -> "Mesh":
                 me.materials.append(ma)
                 found = True
                 break
-        if not found: raise Exception("Unknown SURF_ID '{}'".format(surfid))
+        if not found:
+            raise Exception("Unknown SURF_ID '{}'".format(surfid))
     # Treat fds_verts and fds_faces
     nverts, nfaces = len(fds_verts) // 3, len(fds_faces) // 4
     if nverts * 3 != len(fds_verts):
@@ -181,15 +204,17 @@ def geom_to_mesh(fds_surfids, fds_verts, fds_faces, me=None) -> "Mesh":
     me.from_pydata(verts, edges, faces)
     # Assign materials to faces
     for iface, face in enumerate(me.polygons):
-        face.material_index = imats[iface]    
+        face.material_index = imats[iface]
     return me
 
 def geom_to_ob(fds_surfids, fds_verts, fds_faces, context, ob=None, name="geom_to_ob", update_center=True) -> "Mesh":
-    """Transform geometry in FDS notation to Blender object."""  
+    """Transform geometry in FDS notation to Blender object."""
     # Get mesh, set it, set properties and center position
     me = geom_to_mesh(fds_surfids, fds_verts, fds_faces, me=None)
-    if ob: set_global_mesh(context, ob, me) # ob exists, set its mesh
-    else: ob = get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
-    if update_center: set_balanced_center_position(context, ob)
+    if ob:
+        utils.set_global_mesh(context, ob, me) # ob exists, set its mesh
+    else:
+        ob = utils.get_new_object(context, context.scene, name, me) # no ob, get a new one with proper mesh
+    if update_center:
+        utils.set_balanced_center_position(context, ob)
     return ob
-  
