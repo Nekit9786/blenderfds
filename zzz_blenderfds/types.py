@@ -50,8 +50,9 @@ class _BFCommon():
     label = "No Label"        # Object label
     description = "No desc"   # Object description
     enum_id = 0               # Unique integer id for EnumProperty
-    fds_label = None          # FDS label as "OBST", "ID", ...
-    fds_default = None        # FDS default value, as True
+    fds_label = None          # FDS label, eg. "OBST", "ID", ...
+    fds_default = None        # FDS default value, eg. True.
+                              # The BFProp is not exported when value is fds_default.
     fds_separator = " "       # FDS separator between parameters
     fds_cr = "\n      "       # FDS carriage return
 
@@ -65,7 +66,9 @@ class _BFCommon():
     bpy_idname = None         # idname of related bpy.types Blender property, eg. "bf_id"
     bpy_prop = None           # prop in bpy.props of Blender property, eg. StringProperty
     bpy_other = {}            # Other optional Blender property parameters,
-                              # eg. {"min": 3., "default": 0., ...}
+                              # eg. {"min": 3., ...}
+                              # the eventual "default" is the displayed default
+                              # and has no effect in exporting to FDS
 
     def __init__(self, element):
         # The instance contains the reference to the element
@@ -98,7 +101,10 @@ class _BFCommon():
         DEBUG and print("BFDS: BFProp.register:", cls.__name__)
         if not cls.bpy_type:
             raise Exception("No bpy_type in class '{}'".format(str(cls)))
-        # Register my own Blender property, if needed
+        # Insert fds_default in bpy_other if not present
+        if cls.fds_default is not None and "default" not in cls.bpy_other:
+            cls.bpy_other["default"] = cls.fds_default
+        # Register my own Blender property, if not already present
         if cls.bpy_prop and cls.bpy_idname and not hasattr(cls.bpy_type, cls.bpy_idname):
             if DEBUG:
                 print("BFDS:  ", '{}.{} = {}(name="{}")'.format(
@@ -152,22 +158,32 @@ class _BFCommon():
     def set_value(self, context, value) -> "any or None":
         """Set my Blender property to value for element."""
         # Do not raise BFException here. Check is performed by UI, do not add overhead!
-        if self.bpy_idname: setattr(self.element, self.bpy_idname, value)
-
-    def set_default_value(self, context) -> "any or None":  # FIXME used?
-        """Set my Blender property to default value for element."""
-        default = self.bpy_other.get("default")
-        if default is not None: self.set_value(context, default)
+        if self.bpy_idname:
+            setattr(self.element, self.bpy_idname, value)
 
     def get_exported(self, context) -> "bool":
         """Return True if self is exported to FDS."""
-        if self.bf_prop_export:
-            return bool(self.bf_prop_export.get_value())
-        return True
+        if self.fds_default is None:
+            if self.bf_prop_export:
+                return bool(self.bf_prop_export.get_value())
+            else:
+                return True
+        else:
+            if self.bf_prop_export:
+                return bool(self.bf_prop_export.get_value()) and self.get_value() != self.fds_default
+            else:
+                return self.get_value() != self.fds_default
 
     def set_exported(self, context, value) -> "any or None":  # FIXME used?
         """Set to value if self is exported to FDS."""
-        if self.bf_prop_export: self.bf_prop_export.set_value(context, value)
+        if self.bf_prop_export:
+            self.bf_prop_export.set_value(context, value)
+
+    def set_default_value(self, context) -> "any or None":  # FIXME used?
+        """Set my Blender property to default value for element."""
+        default = self.bpy_other.get("default", None)  # get displayed default
+        if default is not None:
+            self.set_value(context, default)
 
     def set_default(self, context) -> "any or None":  # FIXME used?
         """Set me to default for element."""
@@ -179,7 +195,7 @@ class _BFCommon():
 class BFProp(_BFCommon):
     """BlenderFDS property, interface between a Blender property and an FDS parameter."""
 
-    all = ClsList() # Re-init to obtain specific collection
+    all = ClsList()  # re-init to obtain specific collection
     all_bf_props = ClsList()
 
     def __str__(self):
@@ -426,12 +442,25 @@ class BFNamelist(_BFCommon):
 
 #++ Specialized BFProp
 
+class BFExportProp(BFProp):
+    """This specialized BFProp is used as type for exporting properties."""
+    label = "Export"
+    description = "Set if exported to FDS"
+    bpy_type = None  # Remember to setup!
+    bpy_idname = "bf_export"
+    bpy_prop = BoolProperty
+    bpy_other =  {
+        "default": False,
+    }
+
+
 class BFStringProp(BFProp):
     """This specialized BFProp is used as type for single string properties."""
     bpy_prop = StringProperty
+    fds_default = ""
+    bpy_type = None # Remember to setup!
     bpy_other =  {
         "maxlen": 32,
-        "default": "",
     }
 
     def check(self, context):
@@ -452,37 +481,6 @@ class BFStringProp(BFProp):
                 return str(value)
 
 
-class BFBoolProp(BFProp):
-    """This specialized BFProp is used as type for bool properties,
-    that should not be exported when their value is the same as FDS default.
-    """
-    bpy_prop = BoolProperty
-    bpy_other =  {
-        "default": False,
-    }
-
-    def get_exported(self, context):
-        if self.bf_prop_export:
-            return self.bf_prop_export.get_value()
-        if self.get_value() == self.bpy_other.get("default"):
-            return False
-        return True
-
-    def _transform_layout(self, context, layout) -> "layout":
-        return layout.row()
-
-class BFExportProp(BFProp):
-    """This specialized BFProp is used as type for exporting properties."""
-    label = "Export"
-    description = "Set if exported to FDS"
-    bpy_type = None  # Remember to setup!
-    bpy_idname = "bf_export"
-    bpy_prop = BoolProperty
-    bpy_other = {
-        "default": False,
-    }
-
-
 class BFFYIProp(BFStringProp):
     """This specialized BFProp is used as type for FYI properties."""
     label = "FYI"
@@ -490,10 +488,8 @@ class BFFYIProp(BFStringProp):
     fds_label = "FYI"
     bpy_type = None # Remember to setup!
     bpy_idname = "bf_fyi"
-    bpy_prop = StringProperty
     bpy_other =  {
         "maxlen": 128,
-        "default": "",
     }
 
     def _draw_body(self, context, layout):
@@ -501,7 +497,7 @@ class BFFYIProp(BFStringProp):
         row.prop(self.element, self.bpy_idname, text="", icon="INFO")
 
 
-class BFFreeProp(BFProp):
+class BFFreeProp(BFStringProp):
     """This specialized BFProp is used as type for Free parameters properties."""
     label = "Free parameters"
     description = "Free parameters, use matched single quotes as string delimiters, eg <P1='example' P2=1,2,3>"
@@ -510,7 +506,6 @@ class BFFreeProp(BFProp):
     bpy_prop = StringProperty
     bpy_other =  {
         "maxlen": 1024,
-        "default": "",
     }
 
     def check(self, context):
@@ -526,9 +521,6 @@ class BFFreeProp(BFProp):
     def _draw_body(self, context, layout):
         row = layout.row()
         row.prop(self.element, self.bpy_idname, text="", icon="TEXT")
-
-    def format(self, context, value):
-        return str(value) or None
 
 
 #++ Specialized BFProp for geometry

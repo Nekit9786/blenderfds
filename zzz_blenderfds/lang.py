@@ -42,7 +42,6 @@ class OP_namelist_cls(BFProp):
         "default": "ON_OBST",
     }
 
-
 # Material related namelist cls name
 
 def update_MP_namelist_cls(self, context):
@@ -64,7 +63,6 @@ class MP_namelist_cls(BFProp):
         "default": "MN_SURF",
     }
 
-
 # Object tmp
 
 @subscribe
@@ -78,7 +76,6 @@ class OP_is_tmp(BFProp):
         "default": False,
     }
 
-
 @subscribe
 class OP_has_tmp(BFProp):
     label = "Has Tmp"
@@ -89,7 +86,6 @@ class OP_has_tmp(BFProp):
     bpy_other = {
         "default": False,
     }
-
 
 # File version
 
@@ -107,7 +103,6 @@ class SP_file_version(BFProp):
         "size": 3,
         "default": config.supported_file_version,
     }
-
 
 # Old object properties from old BlenderFDS to allow transition
 
@@ -142,7 +137,6 @@ class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
         "default": False,
     }
 
-
 @subscribe
 class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
     label = "Resolution"
@@ -156,9 +150,9 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
         "min": .001,
         "max": 20.,
         "update": update_bf_xb_voxel_size,
-        "default": .10,
         "unit": 'LENGTH',
-    }  # FIXME unit
+        "default": .1,
+    }
 
 def update_bf_default_voxel_size(self, context):
     """Update function for bf_xb_custom_voxel"""
@@ -179,10 +173,9 @@ class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
         "min": .001,
         "max": 20.,
         "update": update_bf_default_voxel_size,
-        "default": .10,
         "unit": 'LENGTH',
+        "default": .1,
     }
-    # FIXME unit = "LENGTH", # correction for scale_length needed before exporting!
 
 
 # MESH alignment TODO develop!
@@ -215,7 +208,7 @@ class OP_XB(BFXBProp):
             ("PIXELS", "Pixels", "Export pixels from pixelized flat object", 400),
             ("EDGES", "Edges", "Segments, one for each edge of this object", 500),
         ),
-        "default": "NONE",  # Cannot be "BBOX", beware in import!
+        "default": 'NONE',  # Cannot be "BBOX", beware in import!
     }
     allowed_items = "NONE", "BBOX", "VOXELS", "FACES", "PIXELS", "EDGES"
 
@@ -343,9 +336,8 @@ class OP_XYZ(BFXYZProp):
             ("CENTER", "Center", "Point, corresponding to the center point of this object", 100),
             ("VERTICES", "Vertices", "Points, one for each vertex of this object", 200),
         ),
-        "default": "NONE",
+        "default": 'NONE',
     }
-
     allowed_items = "NONE", "CENTER", "VERTICES"
 
     def _format_xyz(self, value):
@@ -444,9 +436,8 @@ class OP_PB(BFPBProp):
             ("NONE", "None", "Not exported", 0),
             ("PLANES", "Planes", "Planes, one for each face of this object", 100),
         ),
-        "default": "NONE",
+        "default": 'NONE',
     }
-
     allowed_items = "NONE", "PLANES"
 
     def _format_pb(self, value):
@@ -684,7 +675,7 @@ class SP_TIME_export(BFExportProp):
     bpy_type = Scene
     bpy_idname = "bf_time_export"
     bpy_other = {
-        "default": True,  # No damage
+        "default": True,
     }
 
 @subscribe
@@ -699,8 +690,8 @@ class SP_TIME_T_BEGIN(BFProp):
         "unit": "TIME",
         "step": 100.,
         "precision": 1,
-        "default": 0.,
     }
+    fds_default = 0.
 
     def get_exported(self, context):
         return not self.element.bf_time_setup_only and self.element.bf_time_t_begin
@@ -717,7 +708,7 @@ class SP_TIME_T_END(BFProp):
         "unit": "TIME",
         "step": 100.,
         "precision": 1,
-        "default": 1.,
+        "default"; 1.,
     }
 
     def get_exported(self, context):
@@ -735,7 +726,7 @@ class SP_TIME_setup_only(BFProp):
     bpy_idname = "bf_time_setup_only"
     bpy_prop = BoolProperty
     bpy_other = {
-        "default": True,  # Prevent start of automatic calculation
+        "default": True,
     }
 
     def to_fds(self, context):
@@ -778,28 +769,24 @@ class SP_MISC_FYI(BFFYIProp):
         row.operator("scene.bf_load_misc", icon="LOAD_FACTORY", text="")
 
 @subscribe
-class SP_MISC_OVERWRITE(BFBoolProp):
+class SP_MISC_OVERWRITE(BFProp):
     label = "OVERWRITE"
     description = "Do not check for the existence of CHID.out and overwrite files"
     fds_label = "OVERWRITE"
     bpy_type = Scene
+    bpy_prop = BoolProperty
     bpy_idname = "bf_misc_overwrite"
-    bpy_other = {
-        "default": True,
-    }
-
+    fds_default = True
 
 @subscribe
-class SP_MISC_THICKEN_OBSTRUCTIONS(BFBoolProp):
+class SP_MISC_THICKEN_OBSTRUCTIONS(BFProp):
     label = "THICKEN_OBSTRUCTIONS"
     description = "Do not allow thin sheet obstructions"
     fds_label = "THICKEN_OBSTRUCTIONS"
     bpy_type = Scene
+    bpy_prop = BoolProperty
     bpy_idname = "bf_misc_thicken_obstructions"
-    bpy_other = {
-        "default": False,
-    }
-
+    fds_default = False
 
 @subscribe
 class SP_MISC_free(BFFreeProp):
@@ -877,8 +864,8 @@ class SP_REAC_CO_YIELD(BFProp):
         "precision": 3,
         "min": 0.,
         "max": 1.,
-        "default": 0.,
     }
+    fds_default = 0.
 
 @subscribe
 class SP_REAC_SOOT_YIELD_export(BFExportProp):
@@ -912,19 +899,18 @@ class SP_REAC_HEAT_OF_COMBUSTION(BFProp):
         "step": 100000.,
         "precision": 1,
         "min": 0.,
-        "default": 0.,
     }
+    fds_default = 0.
 
 @subscribe
-class SP_REAC_IDEAL(BFBoolProp):
+class SP_REAC_IDEAL(BFProp):
     label = "IDEAL"
     description = "Set ideal heat of combustion to .TRUE."
     fds_label = "IDEAL"
     bpy_type = Scene
+    bpy_prop = BoolProperty
     bpy_idname = "bf_reac_ideal"
-    bpy_other = {
-        "default": False,
-    }
+    fds_default = False
 
 @subscribe
 class SP_REAC_free(BFFreeProp):
@@ -951,7 +937,7 @@ class SP_DUMP_export(BFExportProp):
     bpy_type = Scene
     bpy_idname = "bf_dump_export"
     bpy_other = {
-        "default": True,  # To have a .ge1 in most cases
+        "default": True,
     }
 
 @subscribe
@@ -963,7 +949,7 @@ class SP_DUMP_render_file(BFProp):
     bpy_idname = "bf_dump_render_file"
     bpy_prop = BoolProperty
     bpy_other = {
-        "default": True,  # Always dump a render file
+        "default": True,
     }
 
     def to_fds(self, context):
@@ -976,16 +962,14 @@ class SP_DUMP_render_file(BFProp):
             super().from_fds(context, False)
 
 @subscribe
-class SP_DUMP_STATUS_FILES(BFBoolProp):
+class SP_DUMP_STATUS_FILES(BFProp):
     label = "STATUS_FILES"
     description = "Export status file (*.notready), deleted when the simulation is completed successfully"
     fds_label = "STATUS_FILES"
     bpy_type = Scene
+    bpy_prop = BoolProperty
     bpy_idname = "bf_dump_status_files"
-    bpy_other = {
-        "default": False,
-    }
-
+    fds_default = False
 
 @subscribe
 class SP_DUMP_NFRAMES(BFProp):
@@ -997,8 +981,8 @@ class SP_DUMP_NFRAMES(BFProp):
     bpy_prop = IntProperty
     bpy_other = {
         "min": 1,
-        "default": 1000,
     }
+    fds_default = 1000
 
     def check(self, context):
         if self.get_exported(context):
@@ -1042,8 +1026,8 @@ class SP_DUMP_DT_RESTART(BFProp):
     bpy_prop = IntProperty
     bpy_other = {
         "min": 1,
-        "default": 600,
     }
+    fds_default = 600
 
 @subscribe
 class SP_DUMP_free(BFFreeProp):
@@ -1160,9 +1144,9 @@ class MP_THICKNESS(BFProp):
     bpy_prop = FloatProperty
     bpy_other = {
         "step": 1.,
-        "precision": 3,
-        "min": .001,
-        "default": .01,
+        "precision": 6,
+        "min": .000001,
+        "default": .01
     }
     # FIXME "unit": "LENGTH", # correction for scale_length needed before exporting!
 
@@ -1193,8 +1177,8 @@ class MP_TAU_Q(BFProp):
         "step": 10.,
         "precision": 1,
         "unit": "TIME",
-        "default": 0.,
     }
+    fds_default = 1.
 
     def check(self, context):
         self.infos.append((
@@ -1243,8 +1227,8 @@ class MP_IGNITION_TEMPERATURE(BFProp):
         "step": 100.,
         "precision": 1,
         "min": -273.,
-        "default": 5000.,
     }
+    fds_default = 5000.
 
 @subscribe
 class MP_BACKING_export(BFExportProp):
@@ -1266,7 +1250,7 @@ class MP_BACKING(BFProp):
             ("INSULATED", "INSULATED", "The back side of the material is perfectly insulated", 200),
             ("EXPOSED",   "EXPOSED",   "The heat transfer into the space behind the wall is calculated (only if wall is one cell thick)", 300),
         ),
-        "default": "VOID",
+        "default": 'EXPOSED',
     }
 
 @subscribe
@@ -1312,7 +1296,6 @@ class OP_export(BFExportProp):
         "default": True,
     }
 
-
 @subscribe
 class OP_show_transparent(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # Useful for bpy_props_copy operator
     label = "Show Object Transparency"
@@ -1348,7 +1331,7 @@ class OP_id_suffix(BFNoAutoExportMod, BFProp):
             ("IDYZ",  "yz",    "Append y,z coordinates to multiple ID values", 700),
             ("IDXYZ", "xyz",   "Append x,y,z coordinates to multiple ID values", 800),
         ),
-        "default": "IDI",
+        "default": 'IDI',
     }
 
 @subscribe
@@ -1402,15 +1385,14 @@ class OP_SURF_ID(BFProp):
 
 
 @subscribe
-class OP_OBST_THICKEN(BFBoolProp):
+class OP_OBST_THICKEN(BFProp):
     label = "THICKEN"
     description = "Prevent FDS from allowing thin sheet obstructions"
     fds_label = "THICKEN"
     bpy_type = Object
+    bpy_prop = BoolProperty
     bpy_idname = "bf_obst_thicken"
-    bpy_other = {
-        "default": False,
-    }
+    fds_default = False
 
 @subscribe
 class ON_OBST(BFNamelist):
@@ -1572,26 +1554,24 @@ class OP_DEVC_SETPOINT(BFProp):
     }
 
 @subscribe
-class OP_DEVC_INITIAL_STATE(BFBoolProp):
+class OP_DEVC_INITIAL_STATE(BFProp):
     label = "INITIAL_STATE"
     description = "Set device initial state to .TRUE."
     fds_label = "INITIAL_STATE"
     bpy_type = Object
+    bpy_prop = BoolProperty
     bpy_idname = "bf_devc_initial_state"
-    bpy_other = {
-        "default": False,
-    }
+    fds_default = False
 
 @subscribe
-class OP_DEVC_LATCH(BFBoolProp):
+class OP_DEVC_LATCH(BFProp):
     label = "LATCH"
     description = "Device only changes state once"
     fds_label = "LATCH"
     bpy_type = Object
+    bpy_prop = BoolProperty
     bpy_idname = "bf_devc_latch"
-    bpy_other = {
-        "default": False,
-    }
+    fds_default = False
 
 @subscribe
 class OP_DEVC_PROP_ID(BFStringProp):
@@ -1623,26 +1603,24 @@ class ON_DEVC(BFNamelist):
 # SLCF
 
 @subscribe
-class OP_SLCF_VECTOR(BFBoolProp):
+class OP_SLCF_VECTOR(BFProp):
     label = "VECTOR"
     description = "Create animated vectors"
     fds_label = "VECTOR"
     bpy_type = Object
+    bpy_prop = BoolProperty
     bpy_idname = "bf_slcf_vector"
-    bpy_other = {
-        "default": False,
-    }
+    fds_default = False
 
 @subscribe
-class OP_SLCF_CELL_CENTERED(BFBoolProp):
+class OP_SLCF_CELL_CENTERED(BFProp):
     label = "CELL_CENTERED"
     description = "Output the actual cell-centered data with no averaging"
     fds_label = "CELL_CENTERED"
     bpy_type = Object
+    bpy_prop = BoolProperty
     bpy_idname = "bf_slcf_cell_centered"
-    bpy_other = {
-        "default": False,
-    }
+    fds_default = False
 
     def check(self, context):
         if self.element.bf_slcf_cell_centered and \
@@ -1736,8 +1714,8 @@ class OP_MESH_MPI_PROCESS(BFProp):
     bpy_prop = IntProperty
     bpy_other =  {
         "min": 0,
-        "default": 0,
     }
+    fds_default = 0
 
 @subscribe
 class ON_MESH(BFNamelist):
