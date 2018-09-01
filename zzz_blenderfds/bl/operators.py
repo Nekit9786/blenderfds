@@ -320,7 +320,8 @@ class _COMMON_bf_show_fds_code():
         w = context.window_manager.windows[0]
         w.cursor_modal_set("WAIT")
         # Get the FDS code
-        try: self._get_fds_code(context)
+        try:
+            self._get_fds_code(context)
         except BFException as err:
             w.cursor_modal_restore()
             self.report({"ERROR"}, str(err))
@@ -336,7 +337,7 @@ class OBJECT_OT_bf_show_fds_code(_COMMON_bf_show_fds_code, Operator):
 
     def _get_fds_code(self, context):
         ob = context.active_object
-        self.bf_fds_code = ob.to_fds(context)
+        self.bf_fds_code = ob.to_fds(context, max_lines=10)
 
 class MATERIAL_OT_bf_show_fds_code(_COMMON_bf_show_fds_code, Operator):
     bl_label = "Show FDS Code From Blender Material"
@@ -353,8 +354,8 @@ class SCENE_OT_bf_show_fds_code(_COMMON_bf_show_fds_code, Operator):
     bl_description = "Show FDS code exported from Blender SCene"
 
     def _get_fds_code(self, context):
-        scene = context.scene
-        self.bf_fds_code = scene.to_fds(context)
+        sc = context.scene
+        self.bf_fds_code = sc.to_fds(context)
 
 ### Copy properties between elements
 
