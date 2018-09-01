@@ -37,10 +37,12 @@ def get_trisurface(context, ob) -> "mas, verts, faces":
     mas = list()
     material_slots = ob.material_slots
     if len(material_slots) == 0:
+        bpy.data.objects.remove(ob_tmp, True)
         raise BFException(ob, "No referenced SURF, add at least one Material.")
     for material_slot in material_slots:
         ma = material_slot.material
         if not ma.bf_export:
+            bpy.data.objects.remove(ob_tmp, True)
             raise BFException(ob, "Referenced SURF ID='{}' is not exported.".format(ma.name))
         mas.append(ma.name)
     # Get ob verts and faces
