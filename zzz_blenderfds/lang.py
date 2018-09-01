@@ -13,6 +13,8 @@ from .types import *
 from . import geometry
 from .fds import tables, mesh
 
+from .utils import is_iterable
+
 from . import config
 
 DEBUG = True
@@ -1264,16 +1266,19 @@ class SP_CATF_files(BFProp):
                         raise BFException(self, "Not found: {}".format(value))
 
     def from_fds(self, context, value):
-        # FIXME value can be a string or a list of stings
-        try:
-            self.element.bf_catf_files.add().name = value
-        except:
-            raise BFException(self, "Error while setting '{}' CATF files".format(value))
+        self.element.bf_catf_check_files = False
+        if not is_iterable(value):
+            value = [value,]
+        for v in value:  # FIXME
+            try:
+                self.element.bf_catf_files.add().name = v
+            except:
+                raise BFException(self, "Error while setting '{}' CATF file".format(v))
 
 @subscribe
 class SP_CATF_check_files(BFProp):
     label = "Check file existence"
-    description = "Check file existence"
+    description = "Check file existence and try to export filepaths relative to the case directory"
     bpy_type = Scene
     bpy_prop = BoolProperty
     bpy_idname = "bf_catf_check_files"
@@ -1302,10 +1307,12 @@ class SN_CATF(BFNamelist):
         res = ""
         for filepath in self.element.bf_catf_files:
             if filepath.bf_export:
-                filepath = bpy.path.abspath(filepath.name)  # set absolute
-                start = self.element.bf_head_directory
-                if start:  # if bf_head_directory, set relative
-                    filepath = bpy.path.relpath(filepath, start=start)[2:]  # remove //
+                filepath = filepath.name
+                if self.element.bf_catf_check_files:  # treat or leave
+                    filepath = bpy.path.abspath(filepath)  # set absolute
+                    startpath = self.element.bf_head_directory
+                    if startpath:  # if bf_head_directory, set relative to it
+                        filepath = bpy.path.relpath(filepath, start=startpath)[2:]  # remove //
                 res += "&CATF OTHER_FILES='{}' /\n".format(filepath)
         if res:
             res = '\n! --- Concatenated files\n' + res
