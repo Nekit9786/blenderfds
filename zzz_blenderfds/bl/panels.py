@@ -2,12 +2,12 @@
 
 from bpy.types import Panel
 
-from ..lang import SN_HEAD, SN_TIME, SN_DUMP, SN_MISC, SN_REAC, SN_config, OP_SURF_ID, OP_GEOM # TODO migrate to new search [" "]
+from ..lang import SN_HEAD, SN_TIME, SN_DUMP, SN_MISC, SN_REAC, SN_RADI, SN_CATF, SN_config, OP_SURF_ID, OP_GEOM # TODO migrate to new search [" "]
 
 ### Scene panels
 
 class SCENE_PT_BF():
-    bl_label = "BlenderFDS Case"
+    bl_label = "FDS Panel loading..."
     bl_idname = "SCENE_PT_BF"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -44,6 +44,14 @@ class SCENE_PT_BF_HEAD(SCENE_PT_BF, Panel):
         row.operator("scene.bf_show_fds_code", text="Show FDS Code")
         row.operator("scene.bf_props_to_scene", text="Copy To")
 
+class SCENE_PT_BF_config(SCENE_PT_BF, Panel):
+    bl_idname = "SCENE_PT_BF_config"
+    bf_namelist = SN_config
+
+class SCENE_PT_BF_CATF(SCENE_PT_BF, Panel):
+    bl_idname = "SCENE_PT_BF_CATF"
+    bf_namelist = SN_CATF
+
 class SCENE_PT_BF_TIME(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_TIME"
     bf_namelist = SN_TIME
@@ -56,13 +64,14 @@ class SCENE_PT_BF_REAC(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_REAC"
     bf_namelist = SN_REAC
 
+class SCENE_PT_BF_RADI(SCENE_PT_BF, Panel):
+    bl_idname = "SCENE_PT_BF_RADI"
+    bf_namelist = SN_RADI
+
 class SCENE_PT_BF_DUMP(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_DUMP"
     bf_namelist = SN_DUMP
 
-class SCENE_PT_BF_config(SCENE_PT_BF, Panel):
-    bl_idname = "SCENE_PT_BF_config"
-    bf_namelist = SN_config
 
 ### Object panel
 

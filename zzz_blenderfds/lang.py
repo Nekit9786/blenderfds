@@ -4,7 +4,10 @@ import re, os.path
 
 import bpy
 from bpy.types import Scene, Object, Material
-from bpy.props import *
+from bpy.types import Operator, PropertyGroup, UIList
+from bpy.props import *  # FIXME Specify!
+
+from . import custom_list_operators
 
 from .types import *
 from . import geometry
@@ -16,7 +19,7 @@ DEBUG = True
 
 # TODO: evacuation namelists
 
-### System
+#!! System
 
 # Object related namelist cls name
 
@@ -126,9 +129,9 @@ def update_bf_xb_voxel_size(self, context):
 
 
 @subscribe
-class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
-    label = "Use custom settings"
-    description = "Use custom settings for object voxelization/pixelization"
+class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):  # FIXME change var name
+    label = "Custom Voxel Size"
+    description = "Use custom voxel/pixel resolution"
     bpy_type = Object
     bpy_idname = "bf_xb_custom_voxel"
     bpy_prop = BoolProperty
@@ -139,8 +142,8 @@ class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
 
 @subscribe
 class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
-    label = "Resolution"
-    description = "Resolution for object voxelization/pixelization"
+    label = "Voxel Size"
+    description = "Resolution for voxels/pixels"
     bpy_type = Object
     bpy_idname = "bf_xb_voxel_size"
     bpy_prop = FloatProperty
@@ -154,6 +157,18 @@ class OP_XB_voxel_size(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
         "default": .1,
     }
 
+@subscribe
+class OP_XB_center_voxels(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):
+    label = "Center Voxels"
+    description = "Center voxels/pixels to Object bounding box"
+    bpy_type = Object
+    bpy_idname = "bf_xb_center_voxels"
+    bpy_prop = BoolProperty
+    bpy_other =  {
+        "update": update_bf_xb_voxel_size,
+        "default": False,
+    }
+
 def update_bf_default_voxel_size(self, context):
     """Update function for bf_xb_custom_voxel"""
     # Del all tmp objects and all cached geometry
@@ -162,8 +177,8 @@ def update_bf_default_voxel_size(self, context):
 
 @subscribe
 class SP_default_voxel_size(BFNoAutoExportMod, BFProp):
-    label = "Default Resolution"
-    description = "Default resolution for object voxelization/pixelization"
+    label = "Default Voxel Size"
+    description = "Default resolution for voxels/pixels"
     bpy_type = Scene
     bpy_idname = "bf_default_voxel_size"
     bpy_prop = FloatProperty
@@ -197,7 +212,7 @@ def update_bf_xb(self, context):
 
 @subscribe
 class OP_XB(BFXBProp):
-    bf_props = OP_XB_custom_voxel, OP_XB_voxel_size
+    bf_props = OP_XB_custom_voxel, OP_XB_voxel_size, OP_XB_center_voxels
     bpy_other = {
         "update": update_bf_xb,
         "items": (
@@ -216,12 +231,14 @@ class OP_XB(BFXBProp):
         super()._draw_body(context, layout)
         if not self.element.bf_xb in ("VOXELS", "PIXELS"):
             return
-        # Draw VOXELS, PIXELS properties
+        # center voxels
+        row = layout.row()
+        row.prop(self.element, "bf_xb_center_voxels")
+        # voxel_size
         row = layout.row()
         layout_export, layout_custom = row.column(), row.column()
         layout_export.prop(self.element, "bf_xb_custom_voxel", text="")
-        row = layout_custom.row(align=True)
-        row.prop(self.element, "bf_xb_voxel_size")
+        layout_custom.prop(self.element, "bf_xb_voxel_size")
         layout_custom.active = self.element.bf_xb_custom_voxel
 
     def _format_xb(self, value):
@@ -630,7 +647,7 @@ class SN_HEAD(BFNamelist):
     fds_separator = "\n      "
     bf_prop_export = SP_HEAD_export
     bpy_type = Scene
-    bf_props = SP_HEAD_CHID, SP_HEAD_TITLE, SP_HEAD_directory, SP_HEAD_free_text
+    bf_props = SP_HEAD_CHID, SP_HEAD_TITLE
 
 # config panel
 
@@ -659,12 +676,11 @@ class SP_config_min_face_area(BFProp):
     }
 
 @subscribe
-class SN_config(BFNamelist):
-    label = "Config"
-    description = "Case configuration"
-    enum_id = 3090
+class SN_config(BFNoAutoExportMod, BFNamelist):
+    label = "Case configuration"
+    enum_id = 3008
     bpy_type = Scene
-    bf_props = SP_config_min_edge_length, SP_config_min_face_area, SP_default_voxel_size
+    bf_props = SP_HEAD_directory, SP_HEAD_free_text, SP_default_voxel_size, SP_config_min_edge_length, SP_config_min_face_area
 
 
 # TIME
@@ -708,7 +724,7 @@ class SP_TIME_T_END(BFProp):
         "unit": "TIME",
         "step": 100.,
         "precision": 1,
-        "default"; 1.,
+        "default": 1.,
     }
 
     def get_exported(self, context):
@@ -928,6 +944,118 @@ class SN_REAC(BFNamelist):
     bf_props = SP_REAC_FUEL, SP_REAC_FYI, SP_REAC_FORMULA, SP_REAC_CO_YIELD, SP_REAC_SOOT_YIELD, SP_REAC_HEAT_OF_COMBUSTION, SP_REAC_IDEAL, SP_REAC_free
     bpy_type = Scene
 
+# RADI
+
+@subscribe
+class SP_RADI_export(BFExportProp):
+    description = "Set if the RADI namelist is exported to FDS"
+    bpy_type = Scene
+    bpy_idname = "bf_radi_export"
+
+@subscribe
+class SP_RADI_RADIATION(BFProp):
+    label = "RADIATION"
+    description = "Turn on/off the radiation solver"
+    fds_label = "RADIATION"
+    bpy_type = Scene
+    bpy_prop = BoolProperty
+    bpy_idname = "bf_radi_radiation"
+    fds_default = True
+
+@subscribe
+class SP_RADI_RADIATIVE_FRACTION(BFProp):
+    label = "RADIATIVE_FRACTION"
+    description = "Fraction of the total combustion energy that is released " \
+                  "in the form of thermal radiation"
+    fds_label = "RADIATIVE_FRACTION"
+    fds_default = .35
+    bpy_type = Scene
+    bpy_idname = "bf_radi_radiative_fraction"
+    bpy_prop = FloatProperty
+    bpy_other = {
+        "precision": 2,
+        "min": 0.,
+        "max": 1.,
+    }
+
+    def get_exported(self, context):  # For float comparison
+        value = self.get_value()
+        fds_default = self.fds_default
+        epsilon = .000001
+        return value > fds_default + epsilon or value < fds_default - epsilon
+
+@subscribe
+class SP_RADI_NUMBER_RADIATION_ANGLES(BFProp):
+    label = "NUMBER_RADIATION_ANGLES"
+    description = "Number of angles for spatial resolution of radiation solver"
+    fds_label = "NUMBER_RADIATION_ANGLES"
+    fds_default = 100
+    bpy_type = Scene
+    bpy_idname = "bf_radi_number_radiation_angles"
+    bpy_prop = IntProperty
+    bpy_other = {
+        "min": 1,
+    }
+
+@subscribe
+class SP_RADI_TIME_STEP_INCREMENT(BFProp):
+    label = "TIME_STEP_INCREMENT"
+    description = "Frequency of calls to the radiation solver in time steps"
+    fds_label = "TIME_STEP_INCREMENT"
+    fds_default = 3
+    bpy_type = Scene
+    bpy_idname = "bf_radi_time_step_increment"
+    bpy_prop = IntProperty
+    bpy_other = {
+        "min": 1,
+    }
+
+@subscribe
+class SP_RADI_ANGLE_INCREMENT(BFProp):
+    label = "ANGLE_INCREMENT"
+    description = "Increment over which the angles are updated"
+    fds_label = "ANGLE_INCREMENT"
+    fds_default = 5
+    bpy_type = Scene
+    bpy_idname = "bf_radi_angle_increment"
+    bpy_prop = IntProperty
+    bpy_other = {
+        "min": 1,
+    }
+
+@subscribe
+class SP_RADI_RADIATION_ITERATIONS(BFProp):
+    label = "RADIATION_ITERATIONS"
+    description = "Number of times the radiative intensity is updated in a time step"
+    fds_label = "RADIATION_ITERATIONS"
+    fds_default = 1
+    bpy_type = Scene
+    bpy_idname = "bf_radi_radiation_iterations"
+    bpy_prop = IntProperty
+    bpy_other = {
+        "min": 1,
+    }
+
+
+@subscribe
+class SP_RADI_free(BFFreeProp):
+    bpy_type = Scene
+    bpy_idname = "bf_radi_free"
+
+@subscribe
+class SN_RADI(BFNamelist):
+    label = "RADI"
+    description = "Radiation parameters"
+    enum_id = 3006
+    fds_label = "RADI"
+    fds_separator = "\n      "
+    bf_prop_export = SP_RADI_export
+    bf_props = SP_RADI_RADIATION, SP_RADI_RADIATIVE_FRACTION, \
+        SP_RADI_NUMBER_RADIATION_ANGLES, SP_RADI_TIME_STEP_INCREMENT, \
+        SP_RADI_ANGLE_INCREMENT, SP_RADI_RADIATION_ITERATIONS, SP_RADI_free
+    bpy_type = Scene
+
+
 
 # DUMP
 
@@ -966,23 +1094,23 @@ class SP_DUMP_STATUS_FILES(BFProp):
     label = "STATUS_FILES"
     description = "Export status file (*.notready), deleted when the simulation is completed successfully"
     fds_label = "STATUS_FILES"
+    fds_default = False
     bpy_type = Scene
     bpy_prop = BoolProperty
     bpy_idname = "bf_dump_status_files"
-    fds_default = False
 
 @subscribe
 class SP_DUMP_NFRAMES(BFProp):
     label = "NFRAMES"
     description = "Number of output dumps per calculation"
     fds_label = "NFRAMES"
+    fds_default = 1000
     bpy_type = Scene
     bpy_idname = "bf_dump_nframes"
     bpy_prop = IntProperty
     bpy_other = {
         "min": 1,
     }
-    fds_default = 1000
 
     def check(self, context):
         if self.get_exported(context):
@@ -1045,6 +1173,143 @@ class SN_DUMP(BFNamelist):
     bf_props = SP_DUMP_render_file, SP_DUMP_STATUS_FILES, SP_DUMP_NFRAMES, SP_DUMP_set_frequency, SP_DUMP_DT_RESTART, SP_DUMP_free
     bpy_type = Scene
 
+# CATF
+
+@subscribe
+class SP_CATF_export(BFExportProp):
+    description = "Set if CATF namelists are exported to FDS"
+    bpy_type = Scene
+    bpy_idname = "bf_catf_export"
+    bpy_other = {
+        "default": False,
+    }
+
+class SP_CATF_FILES_collection(PropertyGroup):
+    bf_export = BoolProperty(default=True, description="Set if exported")
+    name = StringProperty(subtype='FILE_PATH')
+
+class SCENE_OT_bf_catf_slot_mv(custom_list_operators.slot_mv, Operator):
+    bl_idname = "bf_catf.slot_mv"
+    data_name = "scene"
+    index_name = "bf_catf_files_index"
+    collection_name = "bf_catf_files"
+
+class SCENE_OT_bf_catf_slot_add(custom_list_operators.slot_add, Operator):
+    bl_idname = "bf_catf.slot_add"
+    data_name = "scene"
+    index_name = "bf_catf_files_index"
+    collection_name = "bf_catf_files"
+
+class SCENE_OT_bf_catf_slot_rm(custom_list_operators.slot_rm, Operator):
+    bl_idname = "bf_catf.slot_rm"
+    data_name = "scene"
+    index_name = "bf_catf_files_index"
+    collection_name = "bf_catf_files"
+
+class BF_CATF_FILES_UL_items(UIList):
+    def draw_item(
+        self, context, layout, data, item, icon, active_data, active_propname,
+        index, flt_flag,
+    ):
+        self.use_filter_show = False
+        layout.prop(item, "bf_export", text='')
+        layout.prop(item, "name", text='', emboss=False)
+
+@subscribe
+class SP_CATF_FILES_index(BFProp):
+    label = "Index"
+    description = "Index of concatenated file paths"
+    bpy_type = Scene
+    bpy_idname = "bf_catf_files_index"
+    bpy_prop = IntProperty
+
+@subscribe
+class SP_CATF_files(BFProp):
+    label = "OTHER_FILES"
+    description = "Concatenated file paths"
+    fds_label = "OTHER_FILES"
+    bpy_type = Scene
+    bpy_idname = "bf_catf_files"
+    bpy_prop = CollectionProperty
+    bpy_other = {
+        "type": SP_CATF_FILES_collection,
+    }
+
+    def _draw_body(self, context, layout):
+        row = layout.row()
+        row.label(text=self.label + ":")
+        row = layout.row()
+        col1 = row.column()
+        col1.template_list(
+            "BF_CATF_FILES_UL_items", "",
+            self.element, "bf_catf_files",
+            self.element, "bf_catf_files_index",
+            rows=2
+        )
+        col1.prop(self.element, "bf_catf_check_files")
+        col2 = row.column(align=True)
+        col2.operator("bf_catf.slot_add", icon='ZOOMIN', text="")
+        col2.operator("bf_catf.slot_rm", icon='ZOOMOUT', text="")
+        col2.separator()
+        col2.operator("bf_catf.slot_mv", icon='TRIA_UP', text="").direction='UP'
+        col2.operator("bf_catf.slot_mv", icon='TRIA_DOWN', text="").direction='DOWN'
+
+    def check(self, context):
+        if self.element.bf_catf_check_files:
+            for filepath in self.element.bf_catf_files:
+                if filepath.bf_export:
+                    value = bpy.path.abspath(filepath.name)
+                    # Check existence
+                    if value and not os.path.isfile(bpy.path.abspath(value)):
+                        raise BFException(self, "Not found: {}".format(value))
+
+    def from_fds(self, context, value):
+        # FIXME value can be a string or a list of stings
+        try:
+            self.element.bf_catf_files.add().name = value
+        except:
+            raise BFException(self, "Error while setting '{}' CATF files".format(value))
+
+@subscribe
+class SP_CATF_check_files(BFProp):
+    label = "Check file existence"
+    description = "Check file existence"
+    bpy_type = Scene
+    bpy_prop = BoolProperty
+    bpy_idname = "bf_catf_check_files"
+    bpy_other = {
+        "default": True,
+    }
+
+@subscribe
+class SN_CATF(BFNamelist):
+    label = "CATF"
+    description = "Concatenating input files"
+    enum_id = 3007
+    fds_label = "CATF"
+    fds_separator = "\n      "
+    bf_prop_export = SP_CATF_export
+    bf_props = SP_CATF_files,
+    bpy_type = Scene
+
+    def to_fds(self, context):
+        # Check
+        if not self.get_exported(context):
+            return None
+        for bf_prop in self.bf_props or tuple():
+            bf_prop.check(context)
+        # Build namelist
+        res = ""
+        for filepath in self.element.bf_catf_files:
+            if filepath.bf_export:
+                filepath = bpy.path.abspath(filepath.name)  # set absolute
+                start = self.element.bf_head_directory
+                if start:  # if bf_head_directory, set relative
+                    filepath = bpy.path.relpath(filepath, start=start)[2:]  # remove //
+                res += "&CATF OTHER_FILES='{}' /\n".format(filepath)
+        if res:
+            res = '\n! --- Concatenated files\n' + res
+        return res
 
 # TAIL
 
@@ -1056,7 +1321,7 @@ class SN_TAIL(BFNoAutoUIMod, BFNoAutoExportMod, BFNamelist):
     bpy_type = Scene
 
 
-### Material namelists and their specific properties
+#++ Material namelists and their specific properties
 
 @subscribe
 class MP_export(BFExportProp):
@@ -1092,8 +1357,10 @@ class MP_COLOR(BFNoAutoUIMod, BFNoAutoExportMod, BFProp): # For COLOR trapping d
     bpy_idname = "diffuse_color"
 
     def from_fds(self, context, value):
-        try: value = tables.colors[value]
-        except KeyError: raise BFException(self, "Unknown color name '{}'".format(value))
+        try:
+            value = tables.colors[value]
+        except KeyError:
+            raise BFException(self, "Unknown color name '{}'".format(value))
         self.element.diffuse_color = value[0]/255, value[1]/255, value[2]/255
 
 @subscribe
@@ -1148,7 +1415,6 @@ class MP_THICKNESS(BFProp):
         "min": .000001,
         "default": .01
     }
-    # FIXME "unit": "LENGTH", # correction for scale_length needed before exporting!
 
 @subscribe
 class MP_HRRPUA(BFProp):
