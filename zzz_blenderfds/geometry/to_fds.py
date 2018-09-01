@@ -3,7 +3,7 @@
 import bpy
 from time import time
 from . import utils
-from .calc_voxels import get_voxels, pixelize
+from .calc_voxels import get_voxels, get_pixels
 from .calc_trisurfaces import get_trisurface
 from ..exceptions import BFException
 
@@ -22,7 +22,8 @@ def ob_to_xbs_voxels(context, ob) -> "((x0,x1,y0,y1,z0,z1,), ...), 'Message'":
     DEBUG and print("BFDS: geometry.ob_to_xbs_voxels:", ob.name)
     t0 = time()
     xbs, voxel_size, timing = get_voxels(context, ob)
-    if not xbs: return (), "No voxel created"
+    if not xbs:
+        return (), "No voxel created"
     scale_length = context.scene.unit_settings.scale_length
     msg = "{0} voxels, resolution {1:.3f} m, in {2:.3f} s".format(len(xbs), voxel_size * scale_length, time()-t0)
     if DEBUG: msg += " (s:{0[0]:.3f} 1f:{0[1]:.3f}, 2g:{0[2]:.3f}, 3g:{0[3]:.3f})".format(timing)
@@ -32,8 +33,9 @@ def ob_to_xbs_pixels(context, ob) -> "((x0,x1,y0,y1,z0,z0,), ...), 'Message'":
     """Transform ob flat geometry in XBs notation (flat voxelization). Never send None."""
     DEBUG and print("BFDS: geometry.ob_to_xbs_pixels:", ob.name)
     t0 = time()
-    xbs, voxel_size, timing = pixelize(context, ob)
-    if not xbs: return (), "No pixel created"
+    xbs, voxel_size, timing = get_pixels(context, ob)
+    if not xbs:
+        return (), "No pixel created"
     scale_length = context.scene.unit_settings.scale_length
     msg = "{0} pixels, resolution {1:.3f} m, in {2:.0f} s".format(len(xbs), voxel_size * scale_length, time()-t0)
     if DEBUG: msg += " (s:{0[0]:.0f} 1f:{0[1]:.0f}, 2g:{0[2]:.0f}, 3g:{0[3]:.0f})".format(timing)

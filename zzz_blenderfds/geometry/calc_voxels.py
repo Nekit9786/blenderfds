@@ -6,12 +6,14 @@ from math import floor, ceil
 
 from ..exceptions import BFException
 from . import utils
-from . import tmp_objects
 
 DEBUG = True
 
+# "global" coordinates are absolute coordinate referring to Blender main origin of axes,
+# that are directly transformed to FDS coordinates (that refers its coordinates to the
+# one and only origin of axes)
 
-def get_voxels(context, ob, align_voxels=True):
+def get_voxels(context, ob):
     """Get voxels from object in xbs format."""
     # Check and init
     DEBUG and print("BFDS: calc_voxels.get_voxels")
@@ -23,7 +25,7 @@ def get_voxels(context, ob, align_voxels=True):
     # Create new object, and link it
     ob_tmp = utils.object_get_global_copy(context, ob, suffix='_vox_tmp')
     # Align voxels to global origin
-    if align_voxels:
+    if not ob.bf_xb_center_voxels:
         _align_remesh_to_global_origin(context, ob_tmp, voxel_size)
     # Create remesh modifier
     octree_depth, scale = _init_remesh_mod(context, ob_tmp, voxel_size)
@@ -360,96 +362,67 @@ def _get_box_xbs(boxes, origin, voxel_size) -> "xbs":
             origin[2] + box[5] * voxel_size + epsilon,
             ) for box in boxes)
 
-# FIXME Verification case: box with 3 different sides in any orientation.
-# Should always come out an only box
+# Pixelization
 
-
-# "global" coordinates are absolute coordinate referring to Blender main origin of axes,
-# that are directly transformed to FDS coordinates (that refers its coordinates to the
-# one and only origin of axes)
-
-def pixelize(context, ob) -> "(xbs, voxel_size, timing)":
-    """Pixelize object."""
-    print("BFDS: voxelize.pixelize:", ob.name)
-    # Init
+def get_pixels(context, ob):
+    """Get pixels from flat object in xbs format."""
+    # Check and init
+    DEBUG and print("BFDS: calc_voxels.get_voxels")
     voxel_size = _get_voxel_size(context, ob)
-    ob_global = utils.get_new_object(
-        context,
-        context.scene,
-        "global_ob",
-        utils.get_global_mesh(context, ob),
-        linked=False,
+    flat_axis = _get_flat_axis(ob, voxel_size)
+    # Create new object, and link it. Then prepare it for voxelization
+    ob_tmp = utils.object_get_global_copy(context, ob, suffix='_pix_tmp')
+    ob_tmp.bf_xb_voxel_size = voxel_size
+    ob_tmp.bf_xb_custom_voxel = True
+    ob_tmp.bf_xb_center_voxels = ob.bf_xb_center_voxels
+    # Check how flat it is
+    if ob_tmp.dimensions[flat_axis] > voxel_size:
+        bpy.data.objects.remove(ob_tmp, do_unlink=True)
+        raise BFException(ob, "Object is not flat.")
+    # Get origin for flat xbs
+    bbox = utils.get_bbox(ob_tmp)
+    flat_origin = (bbox[1] + bbox[0]) / 2., (bbox[3] + bbox[2]) / 2., (bbox[5] + bbox[4]) / 2.
+    # Create solidify modifier
+    mo = ob_tmp.modifiers.new('solidify_tmp','SOLIDIFY')
+    mo.thickness = voxel_size
+    mo.offset = 0.  # centered
+    # Apply solidify modifier and remove it
+    ob_tmp.data = ob_tmp.to_mesh(
+        scene=context.scene,
+        apply_modifiers=True,
+        settings="RENDER",
+        calc_tessface=True,
+        calc_undeformed=False,
     )
-    flat_axis = _get_flat_axis(ob_global)
-    bbox = utils.get_global_bbox(context,ob_global)
-    flat_origin = bbox[0],bbox[2],bbox[4]
-    choose_flatten = (_x_flatten_xbs, _y_flatten_xbs, _z_flatten_xbs)[flat_axis]
-    # Solidify
-    ob_solid = _get_solidify_ob(context, ob_global, voxel_size * 1.5)
+    ob_tmp.modifiers.remove(mo)
     # Voxelize
-    ob_solid.bf_xb_voxel_size = voxel_size # prepare new object, you are not passing the voxel size
-    ob_solid.bf_xb_custom_voxel = True
-    xbs, voxel_size, ts = voxelize(context, ob_solid)
-    # Flatten
-    xbs = choose_flatten(xbs, flat_origin)
-    ## Clean up
-    if DEBUG:
-        ob_global.set_tmp(context, ob)
-        ob_solid.set_tmp(context, ob)
-    else:
-        bpy.data.objects.remove(ob_global, do_unlink=True)
-        bpy.data.objects.remove(ob_solid, do_unlink=True)
-    # Return
+    xbs, voxel_size, ts = get_voxels(context, ob_tmp)
+    # Flatten the solidified object
+    choice = (_x_flatten_xbs, _y_flatten_xbs, _z_flatten_xbs)[flat_axis]
+    xbs = choice(xbs, flat_origin)
+    # Clean and return
+    bpy.data.objects.remove(ob_tmp, do_unlink=True)
     return xbs, voxel_size, ts
 
-def _get_solidify_ob(context, ob, thickness) -> "ob":
-    """Get a new unlinked obj with solidify modifier for voxelization applied."""
-    ob_new = utils.get_new_object(
-        context,
-        context.scene,
-        "solidified_tmp",
-        me=ob.data,
-        linked=False,
-    )
-    # Create modifier
-    mo = ob_new.modifiers.new('solidify_tmp','SOLIDIFY')
-    mo.thickness = thickness
-    mo.offset = 0. # centered
-    ob_new.data.update(calc_edges=True, calc_tessface=True) # Or it will not update the mesh
-    # Apply modifier
-    me = ob_new.to_mesh(scene=context.scene, apply_modifiers=True, settings="RENDER")
-    ob_new.data = me
-    # Return
-    return ob_new
-
-
-
-
-# Flatten xbs to obtain pixels
-
-def _get_flat_axis(ob):
+def _get_flat_axis(ob, voxel_size):
     """Get object flat axis."""
     dimensions = ob.dimensions
-    choose = [
-        (dimensions[0],0), # object faces are normal to x axis
-        (dimensions[1],1), # ... to y axis
-        (dimensions[2],2), # ... to z axis
+    choices = [
+        (dimensions[0], 0), # object faces are normal to x axis
+        (dimensions[1], 1), # ... to y axis
+        (dimensions[2], 2), # ... to z axis
     ]
-    choose.sort(key=lambda k:k[0]) # sort by dimension
-    return choose[0][1]
+    choices.sort(key=lambda k:k[0]) # sort by dimension
+    return choices[0][1]
 
 def _x_flatten_xbs(xbs, flat_origin) -> "[(l0, l0, y0, y1, z0, z1), ...]":
     """Flatten voxels to obtain pixels (normal to x axis) at flat_origin height."""
-    print("BFDS: _x_flatten_xbs:", len(xbs))
     return [[flat_origin[0], flat_origin[0], xb[2], xb[3], xb[4], xb[5]] for xb in xbs]
 
 def _y_flatten_xbs(xbs, flat_origin) -> "[(x0, x1, l0, l0, z0, z1), ...]":
     """Flatten voxels to obtain pixels (normal to y axis) at flat_origin height."""
-    print("BFDS: _y_flatten_xbs:", len(xbs))
     return [[xb[0], xb[1], flat_origin[1], flat_origin[1], xb[4], xb[5]] for xb in xbs]
 
 def _z_flatten_xbs(xbs, flat_origin) -> "[(x0, x1, y0, y1, l0, l0), ...]":
     """Flatten voxels to obtain pixels (normal to z axis) at flat_origin height."""
-    print("BFDS: _z_flatten_xbs:", len(xbs))
     return [[xb[0], xb[1], xb[2], xb[3], flat_origin[2], flat_origin[2]] for xb in xbs]
-
