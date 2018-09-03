@@ -10,31 +10,26 @@ OK Manage align pixels, rewrite pixelization
 OK Link external file, but maintain freetext for now
 OK Utilizzare CollectionProperty e string property come lista di files esterni
 OK CATF namelist
+OK Import list of OTHER_FILES into CATF
+NI Button set default to namelist: no, shown in desc
+OK Simplified UI no longer default
 
-Le ricerche di MATL devono essere fatti sui file esterni
-Import list of OTHER_FILES into CATF
-refernece to objects through PointerProperty
+Search MATLs on CATF files also
+Cache GEOMs
 
-Add SPEC MATL to scene
+Refernece to objects through PointerProperty
+Add SPEC MATL PRES WIND namelists to scene
 Wiki wiki wiki
-MULT da array
+MULT from array modifier
 MESH alignment done properly w MULT
 curve to mesh
 Verification cases
 
-cache GEOMs
-
-Show a limited amount of rows in show FDS code
-to_fds: Utilizzare un formato intermedio py e mandare a stringa solo alla fine
-Così si possono introdurre a capo e separatori solo alla fine
-Inoltre si può ridurre il numero di righe
-
-NI Button set default to namelist: no, shown in desc
+Show a limited amount of rows in show FDS code, set separators, set precision and format
+this need a new intermediate format for file export
 
 HVAC with nodes
 free paramter with list
-PRES solver
-WIND
 
 Blender 2.8
 
