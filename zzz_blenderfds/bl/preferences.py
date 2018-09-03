@@ -12,7 +12,7 @@ class BFPreferences(AddonPreferences):
     bf_pref_simplify_ui = BoolProperty(
             name="Simplify User Interface, restart needed",
             description="Simplify BlenderFDS user interface, Blender restart needed",
-            default=True,
+            default=False,
             )
 
     bf_pref_use_custom_snippet_path = BoolProperty(

@@ -43,6 +43,12 @@ def register():
             except ValueError: pass
         # Treat (rewire or unregister) unused Blender bpy.types
         _treat_unused_bl_classes()
+    else:
+        # Simplify info editor (upper menu)
+        from .simplified_ui import space_info_normal
+        for cls in space_info_normal.classes:
+            try: register_class(cls)
+            except ValueError: pass
 
     # Append import/export menus
     bpy.types.INFO_MT_file_export.prepend(operators.export_OT_fds_case_menu)
