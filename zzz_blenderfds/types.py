@@ -178,22 +178,22 @@ class _BFCommon():
             else:
                 return self.get_value() != self.fds_default
 
-    def set_exported(self, context, value) -> "any or None":  # FIXME used?
+    def set_exported(self, context, value) -> "any or None":  # TODO used?
         """Set to value if self is exported to FDS."""
         if self.bf_prop_export:
             self.bf_prop_export.set_value(context, value)
 
-    def set_default_value(self, context) -> "any or None":  # FIXME used?
+    def set_default_value(self, context) -> "any or None":  # TODO used?
         """Set my Blender property to default value for element."""
         default = self.bpy_other.get("default", None)  # get displayed default
         if default is not None:
             self.set_value(context, default)
 
-    def set_default(self, context) -> "any or None":  # FIXME used?
+    def set_default(self, context) -> "any or None":  # TODO used?
         """Set me to default for element."""
         self.set_default_value(context)
         for bf_prop in self.all_bf_props:
-            bf_prop(self.element).set_default_value(context) # Instantiate!
+            bf_prop(self.element).set_default_value(context)  # Instantiate!
 
 
 class BFProp(_BFCommon):
@@ -621,7 +621,7 @@ class BFScene():
     def unregister(cls):
         """Unregister all related Blender properties."""
         DEBUG and print("BFDS: BFScene.unregister:", str(cls))
-        # FIXME todo
+        # TODO
 
     @property
     def bf_namelists(self) -> "List of BFNamelist instances":

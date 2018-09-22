@@ -5,7 +5,7 @@ import re, os.path
 import bpy
 from bpy.types import Scene, Object, Material
 from bpy.types import Operator, PropertyGroup, UIList
-from bpy.props import *  # FIXME Specify!
+from bpy.props import *  # TODO Specify!
 
 from . import custom_list_operators
 
@@ -17,7 +17,7 @@ from .utils import is_iterable
 
 from . import config
 
-DEBUG = True
+DEBUG = False
 
 # TODO: evacuation namelists
 
@@ -131,7 +131,7 @@ def update_bf_xb_voxel_size(self, context):
 
 
 @subscribe
-class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):  # FIXME change var name
+class OP_XB_custom_voxel(BFNoAutoUIMod, BFNoAutoExportMod, BFProp):  # TODO change var name
     label = "Custom Voxel Size"
     description = "Use custom voxel/pixel resolution"
     bpy_type = Object
@@ -1115,7 +1115,7 @@ class SP_DUMP_NFRAMES(BFProp):
     }
 
     def check(self, context):
-        if self.get_exported(context):
+        if not self.element.bf_dump_set_frequency:
             interval = (self.element.bf_time_t_end - self.element.bf_time_t_begin) / self.element.bf_dump_nframes # NFRAMES always > 0
             if interval <= 0.:
                 self.infos.append("Due to simulation time, output is not dumped")
@@ -1123,7 +1123,7 @@ class SP_DUMP_NFRAMES(BFProp):
                 self.infos.append("Output is dumped every {:.2f} s".format(interval))
 
     def get_exported(self, context):
-        return not self.element.bf_dump_set_frequency
+        return not self.element.bf_dump_set_frequency and self.fds_default != self.element.bf_dump_nframes
 
 @subscribe
 class SP_DUMP_set_frequency(BFProp):
@@ -1269,7 +1269,7 @@ class SP_CATF_files(BFProp):
         self.element.bf_catf_check_files = False
         if not is_iterable(value):
             value = [value,]
-        for v in value:  # FIXME
+        for v in value:
             try:
                 self.element.bf_catf_files.add().name = v
             except:
@@ -1683,12 +1683,12 @@ class ON_OBST(BFNamelist):
 # GEOM
 
 @subscribe
-class OP_GEOM(BFProp):  # FIXME FIXME FIXME this is an hack!
+class OP_GEOM(BFProp):
     label = "Triangulated geometry"
     description = "Triangulated geometry vertices and faces"
     bpy_type = Object
 
-    def to_fds(self, context):  # FIXME
+    def to_fds(self, context):  # TODO improve
         # Check is performed while exporting
         # Get surf_idv, verts and faces
         fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
@@ -1711,6 +1711,12 @@ class OP_GEOM(BFProp):  # FIXME FIXME FIXME this is an hack!
         for f in faces:
             faces_str += "\n            {0[0]},{0[1]},{0[2]}, {0[3]},".format(f)
         return "SURF_ID={}\n      VERTS={}\n      FACES={}".format(surfids_str, verts_str, faces_str)
+
+    def _draw_body(self, context, layout) -> "None":
+        """Draw bpy_prop."""
+        row = layout.row()
+        row.label()
+        row.operator("object.bf_check_intersections")
 
 @subscribe
 class ON_GEOM(BFNamelist):
