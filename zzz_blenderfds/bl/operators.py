@@ -11,13 +11,19 @@ from ..exceptions import BFException
 from .. import fds
 from .. import geometry
 from ..utils import is_writable, write_to_file
+from ..geometry.calc_trisurfaces import check_intersections
+
 
 DEBUG = False
 
-# TODO search operators fro MATL_ID, PROP_ID...
+# TODO
+# Insert poll clsmethods:
+    # @classmethod
+    # def poll(cls, context):
+        # return context.active_object and context.active_object.active_material
 
 
-# Dialog box operator
+#-- Dialog box operator
 
 class WM_OT_bf_dialog(Operator):
     bl_label = "BlenderFDS"
@@ -61,7 +67,7 @@ class WM_OT_bf_dialog(Operator):
                 row.label(description)
 
 
-### Load BlenderFDS Settings
+#-- Load BlenderFDS Settings
 
 class WM_OT_bf_load_blenderfds_settings(Operator):
     """Load BlenderFDS Settings"""
@@ -86,7 +92,7 @@ class WM_OT_bf_load_blenderfds_settings(Operator):
         return {'FINISHED'}
 
 
-### Set predefined materials, used by handler
+#-- Set predefined materials, used by handler
 
 class MATERIAL_OT_bf_set_predefined(Operator):
     bl_label = "Set Predefined"
@@ -99,7 +105,7 @@ class MATERIAL_OT_bf_set_predefined(Operator):
         return {'FINISHED'}
 
 
-### SURF MATL_ID
+#-- SURF MATL_ID
 
 def _get_namelist_items(self, context, nl): # TODO move away from here
     """Get namelist IDs available in Free Text File"""
@@ -155,7 +161,30 @@ class MATERIAL_OT_bf_set_matl_id(Operator):
     def draw(self, context):
         self.layout.prop(self,"bf_matl_id",text="")
 
-### DEVC PROP_ID
+#-- GEOM, check geometry  # FIXME better to check all geometries
+
+class SCENE_OT_bf_check_intersections(Operator):
+    bl_label = "Get intersections with"
+    bl_idname = "object.bf_check_intersections"
+    bl_description = "Get intersections with other selected objects"
+
+    def execute(self, context):
+        ob = context.active_object
+        obs = context.selected_objects
+        obs.remove(ob)
+        if obs:
+            try:
+                check_intersections(context, ob, obs)
+            except BFException as err:
+    #            w.cursor_modal_restore() # TODO
+                self.report({"ERROR"}, str(err))
+                return{'CANCELLED'}
+            self.report({"INFO"}, "No intersection")
+        else:
+            self.report({"ERROR"}, "Select other objects to get intersections")
+        return {'FINISHED'}
+
+#-- DEVC PROP_ID
 
 def _get_prop_items(self, context):
     """Get PROP IDs available in Free Text File"""
@@ -189,7 +218,7 @@ class OBJECT_OT_bf_set_devc_prop_id(Operator):
     def draw(self, context):
         self.layout.prop(self,"bf_devc_prop_id",text="")
 
-### DEVC QUANTITY
+#-- DEVC QUANTITY
 
 class OBJECT_OT_bf_set_devc_quantity(Operator):
     bl_label = "Choose QUANTITY for DEVC"
@@ -219,7 +248,7 @@ class OBJECT_OT_bf_set_devc_quantity(Operator):
         self.layout.prop(self,"bf_quantity",text="")
 
 
-### MESH and IJK
+#-- MESH and IJK
 
 class OBJECT_OT_bf_set_cell_size(Operator):
     bl_label = "Set Cell Sizes"
@@ -240,6 +269,10 @@ class OBJECT_OT_bf_set_cell_size(Operator):
         description="Respect FDS Poisson solver restriction on IJK values while setting desired cell sizes (Object may be scaled and moved)",
         default=True,
     )
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object  # TODO MESH namelist
 
     def draw(self, context):
         layout = self.layout
@@ -272,13 +305,17 @@ class OBJECT_OT_bf_correct_ijk(Operator):
     bl_idname = "object.bf_correct_ijk"
     bl_description = "Correct IJK for FDS Poisson solver"
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object  # TODO MESH namelist
+
     def execute(self, context):
         ob = context.active_object
         ob.bf_mesh_ijk = fds.mesh.get_good_ijk(ob.bf_mesh_ijk)
         self.report({"INFO"}, "IJK corrected")
         return {'FINISHED'}
 
-### Create related SURF
+#-- Create related SURF
 
 class OBJECT_OT_bf_new_related_surf(Operator):
     bl_label = "New Related SURF"
@@ -297,7 +334,7 @@ class OBJECT_OT_bf_new_related_surf(Operator):
         self.report({"INFO"}, "New related SURF created")
         return {'FINISHED'}
 
-### Show FDS export string
+#-- Show FDS export string
 
 class _COMMON_bf_show_fds_code():
 
@@ -357,7 +394,7 @@ class SCENE_OT_bf_show_fds_code(_COMMON_bf_show_fds_code, Operator):
         sc = context.scene
         self.bf_fds_code = sc.to_fds(context)
 
-### Copy properties between elements
+#-- Copy properties between elements
 
 def _bf_props_copy(context, source_element, destination_elements):
     """Copy all BFProp from source_element to destination_elements"""
@@ -460,7 +497,7 @@ class MATERIAL_OT_bf_assign_BC_to_sel_obs(Operator):
         self.report({"INFO"}, "Assigned to selected objects")
         return {'FINISHED'}
 
-### Show exported geometry
+#-- Show exported geometry
 
 class OBJECT_OT_bf_show_fds_geometry(Operator):
     bl_label = "Show FDS Geometry"
@@ -565,7 +602,7 @@ class OBJECT_OT_bf_hide_fds_geometry_from_tmp(Operator): # TODO check what if mu
             return{'CANCELLED'}
 
 
-### Restore all tmp objects
+#-- Restore all tmp objects
 
 class SCENE_OT_bf_restore_all_tmp_objects(Operator):
     bl_label = "Reset FDS Geometry"
@@ -577,7 +614,7 @@ class SCENE_OT_bf_restore_all_tmp_objects(Operator):
         self.report({"INFO"}, "All FDS cached geometry and temporary objects reset")
         return {'FINISHED'}
 
-### Open text editor with right text displayed
+#-- Open text editor with right text displayed
 
 class SCENE_OT_bf_edit_head_free_text(Operator):
     bl_label = "Edit"
@@ -589,7 +626,7 @@ class SCENE_OT_bf_edit_head_free_text(Operator):
         self.report({"INFO"}, "See '{}' in the text editor".format(bf_head_free_text))
         return {'FINISHED'}
 
-### Set TAU_Q ramp according to norms
+#-- Set TAU_Q ramp according to norms
 
 class MATERIAL_OT_bf_set_tau_q(Operator):
     bl_label = "Set t² Ramp"
@@ -661,7 +698,7 @@ class MATERIAL_OT_bf_set_tau_q(Operator):
         return wm.invoke_props_dialog(self)
 
 
-### Import FDS case to new scene
+#-- Import FDS case to new scene
 
 def import_OT_fds_case_menu(self, context):
     """Import an FDS case file into new scene, menu funtion"""
@@ -684,7 +721,7 @@ class import_OT_fds_case(Operator, ImportHelper):
         )
 
 
-### Import FDS code into current scene
+#-- Import FDS code into current scene
 
 class ImportHelperSnippet(ImportHelper):
     """Load an FDS snippet into current scene, operator"""
@@ -741,7 +778,7 @@ class SCENE_OT_bf_load_misc(Operator, ImportHelperSnippet):
     bl_description = "Load a MISC namelist"
     filepath_predefined = "/predefined/MISCs/"
 
-### Import function
+#-- Import function
 
 def _view3d_view_all(context):
     """View all elements on the 3dview. Override context."""
@@ -799,7 +836,7 @@ def bl_scene_from_fds_case(operator, context, to_current_scene=False, filepath="
     return {'FINISHED'}
 
 
-### Export scene to FDS
+#-- Export scene to FDS
 
 def export_OT_fds_case_menu(self, context):
     """Export current scene to FDS case, menu function"""
