@@ -7,7 +7,7 @@ from math import floor, ceil
 from ..exceptions import BFException
 from . import utils
 
-DEBUG = True
+DEBUG = False
 
 # "global" coordinates are absolute coordinate referring to Blender main origin of axes,
 # that are directly transformed to FDS coordinates (that refers its coordinates to the

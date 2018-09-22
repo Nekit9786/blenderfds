@@ -63,7 +63,7 @@ def get_tessfaces(context, me) -> "Mesh tessfaces":
     me.update(calc_tessface=True)
     return me.tessfaces
 
-def insert_vertices_into_mesh(me, verts) -> "None":  # FIXME not used
+def insert_vertices_into_mesh(me, verts) -> "None":  # TODO not used
     """Insert vertices into mesh."""
     bm = bmesh.new()
     bm.from_mesh(me) # Inject me into bm
@@ -89,7 +89,7 @@ def get_bbox(ob) -> "x0, x1, y0, y1, z0, z1":
     bb = ob.bound_box
     return bb[0][0], bb[6][0], bb[0][1], bb[6][1], bb[0][2], bb[6][2]
 
-def calc_movement_from_bbox1_to_bbox0(bbox0, bbox1) -> "mx, my, mz":  # FIXME not used
+def calc_movement_from_bbox1_to_bbox0(bbox0, bbox1) -> "mx, my, mz":  # TODO not used
     """Calc movement from bbox1 to bbox0 (bounding boxes in xb format)."""
     return (
         (bbox0[0] + bbox0[1] - bbox1[0] - bbox1[1]) / 2., # (bb0minx + bb0maxx) / 2. - (bb1minx + bb1maxx) / 2.
@@ -123,6 +123,6 @@ def set_balanced_center_position(context, ob) -> "None":
     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
     if active_ob: active_ob.select = True
 
-def move_xbs(xbs, movement) -> "None":  # FIXME not used
+def move_xbs(xbs, movement) -> "None":  # TODO not used
     """Move xbs of movement vector."""
     for xb in xbs: xb[:] = xb[0]+movement[0], xb[1]+movement[0], xb[2]+movement[1], xb[3]+movement[1], xb[4]+movement[2], xb[5]+movement[2]

@@ -7,7 +7,7 @@ from .calc_voxels import get_voxels, get_pixels
 from .calc_trisurfaces import get_trisurface
 from ..exceptions import BFException
 
-DEBUG = True
+DEBUG = False
 
 #++ to None
 
