@@ -7,8 +7,10 @@ from math import floor, ceil
 from ..exceptions import BFException
 from . import utils
 
-DEBUG = True
+DEBUG = False
 
+
+# Get triangulated surface
 
 def get_trisurface(context, ob) -> "mas, verts, faces":
     """Get triangulated surface from object ready for FDS GEOM format."""
@@ -59,6 +61,9 @@ def get_trisurface(context, ob) -> "mas, verts, faces":
     bm.free()
     bpy.data.objects.remove(ob_tmp, True)
     return mas, verts, faces
+
+
+# Check mesh quality
 
 def check_mesh_quality(context, ob):
     """Check that Object is a closed orientable manifold,
@@ -119,6 +124,14 @@ def check_mesh_quality(context, ob):
     if original_normal.dot(bm.faces[0].normal) < 0.:  # opposed normals?
         raise BFException(ob, "Face normals are pointing towards the inside, "
             "update needed.")
+    # Check self intersection
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon_len)
+    overlap = tree.overlap(tree)
+    if overlap:
+        ifaces = {i_pair[0] for i_pair in overlap}  # only from first tree
+        bad_faces = [bm.faces[iface] for iface in ifaces]
+        msg = "Self-intersection detected, bad faces selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)
     # Close
     bm.free()
 
@@ -140,41 +153,51 @@ def _check_duplicate_vertices(context, ob, bm, epsilon_len):
     msg = "Duplicate vertices detected, bad vertices selected."
     _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
 
-def check_intersections(obs, context):  # FIXME test and make operator
-    """Check self and mutual intersection of objects."""
-    DEBUG and print("BFDS: check_quality: intersection:", obs)
-    for i, ob in enumerate(obs):
-        # Check self intersection
-        epsilon_len = context.scene.bf_config_min_edge_length
-        tree = mathutils.bvhtree.BVHTree.FromObject(context, ob.scene, epsilon=epsilon_len)
-        _check_intersection(context, ob, tree, epsilon_len, other_ob=ob, other_tree=tree)
-        # Check intersection with others
-        for other_ob in obs[i+1:]:
-            _check_intersection(context, ob, tree, epsilon_len, other_ob, other_tree=None)
 
-def _check_intersection(context, ob, tree, epsilon_len, other_ob, other_tree=None):
+# Check intersections
+
+def check_intersections(context, ob, other_obs):  # TODO test and use
+    """Check intersection of ob with other_obs."""
+    DEBUG and print("BFDS: check_quality: intersection:", ob, other_obs)
+    # Init once
+    bpy.ops.object.mode_set(mode='OBJECT')
+    epsilon_len = context.scene.bf_config_min_edge_length
+    bm = bmesh.new()  # remains in ob local coordinates
+    bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
+    bm.faces.ensure_lookup_table()  # update bmesh index
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon_len)
+    # Repeat check, without reiniting
+    for other_ob in other_obs:
+        _check_intersection(context, ob, bm, tree, epsilon_len, other_ob)
+
+def _check_intersection(context, ob, bm, tree, epsilon_len, other_ob):
     """Check intersection between ob and other_ob."""
     DEBUG and print("BFDS: check_quality: intersection:", ob.name, other_ob.name)
     bad_faces = list()
-    # First check bboxes for intersection (fast)
-    bb0 = [ob.matrix_world * mathutils.Vector(b) for b in ob.bound_box]
-    bb1 = [other_ob.matrix_world * mathutils.Vector(b) for b in other_ob.bound_box]
-    if bb0[6][0] < bb1[0][0] or bb1[6][0] < bb0[0][0] or \
-       bb0[6][1] < bb1[0][1] or bb1[6][1] < bb0[0][1] or \
-       bb0[6][2] < bb1[0][2] or bb1[6][2] < bb0[0][2]:
-        DEBUG and print("BFDS: check_quality: intersection: none (fast): ", ob.name, other_ob.name)
-        return
-    # Then check tree (slow)
-    if not other_tree:
-        other_tree = mathutils.bvhtree.BVHTree.FromObject(
-            other_ob, deform=True, render=True, cage=True, epsilon=epsilon_len)
-    overlap = tree.overlap(other_tree)
+    # TODO does not work, transformations!
+    # First check bboxes for intersection in global coordinates (fast)
+    # ~ bb0 = [ob.matrix_world * mathutils.Vector(b) for b in ob.bound_box]
+    # ~ bb1 = [other_ob.matrix_world * mathutils.Vector(b) for b in other_ob.bound_box]
+    # ~ if bb0[6][0] < bb1[0][0] or bb1[6][0] < bb0[0][0] or \
+       # ~ bb0[6][1] < bb1[0][1] or bb1[6][1] < bb0[0][1] or \
+       # ~ bb0[6][2] < bb1[0][2] or bb1[6][2] < bb0[0][2]:
+        # ~ DEBUG and print("BFDS: check_quality: intersection: none (fast): ", ob.name, other_ob.name)
+        # ~ return
+    # Second compare trees (slow)
+    other_bm = bmesh.new()
+    other_bm.from_object(other_ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
+    other_bm.transform(other_ob.matrix_world)  # to global coordinates
+    other_bm.transform(ob.matrix_world.inverted())  # to ob local coordinates
+    other_tree = mathutils.bvhtree.BVHTree.FromBMesh(other_bm, epsilon=epsilon_len)
+    overlap = tree.overlap(other_tree)  # compare in ob local coordinates
     if overlap:
         ifaces = {i_pair[0] for i_pair in overlap}  # only from first tree
         bad_faces = [bm.faces[iface] for iface in ifaces]
         msg = "Intersection detected, bad faces selected."
         _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)
     DEBUG and print("BFDS: check_quality: intersection: none (slow): ", ob.name, other_ob.name)
+
+# Raise bad geometry
 
 def _raise_bad_geometry(context, ob, bm, msg,
         bad_verts=None, bad_edges=None, bad_faces=None):
