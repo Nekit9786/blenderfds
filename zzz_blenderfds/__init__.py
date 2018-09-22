@@ -30,7 +30,7 @@ print("""
 bl_info = {
     "name": "BlenderFDS",
     "author": "Emanuele Gissi",
-    "version": (4, 2, 3),
+    "version": (4, 3, 0),
     "blender": (2, 7, 9),
     "api": 35622,
     "location": "File > Export > FDS Case (.fds)",
@@ -73,7 +73,7 @@ def unregister():
     for bf_namelist in BFProp.all:
         bf_namelist.unregister()
     # Unregister extensions
-    # FIXME
+    # TODO
 
 if __name__ == "__main__":
     register()
