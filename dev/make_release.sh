@@ -4,7 +4,7 @@
 
 # Setup
 
-tag="v4.3.0"
+tag="v4.3.1"
 short_tag=${tag:1}
 release_name="BlenderFDS-$tag"
 
