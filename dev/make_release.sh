@@ -47,7 +47,7 @@ echo_title "Making <$release_name> release..."
 # Write release notes
 
 echo_msg "Writing release notes..."
-google-chrome "https://github.com/firetools/blenderfds/wiki/Release-notes/_edit"
+firefox "https://github.com/firetools/blenderfds/wiki/Release-notes/_edit"
 echo_ok "Done."
 
 # Tag pre-release
@@ -97,7 +97,7 @@ fi
 # Setup release
 
 echo_msg "Edit release page..."
-google-chrome "https://github.com/firetools/blenderfds/releases"
+firefox "https://github.com/firetools/blenderfds/releases"
 echo_ok "Done."
 
 # Bump version
