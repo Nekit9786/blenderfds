@@ -68,15 +68,20 @@ def scene_to_ge1(context, scene):  # TODO use BMesh
         # Get ob material_slots
         material_slots = ob.material_slots
         # Get default_material_name
-        if   ob.bf_namelist_cls == "ON_HOLE": default_material_name = "BF_HOLE"
-        elif ob.bf_namelist_cls == "ON_GEOM": default_material_name = None
-        elif ob.active_material: default_material_name = ob.active_material.name
-        else: default_material_name = "INERT"
+        if   ob.bf_namelist_cls == "ON_HOLE":
+            default_material_name = "BF_HOLE"
+        elif ob.bf_namelist_cls == "ON_GEOM":
+            default_material_name = None
+        elif ob.active_material:
+            default_material_name = ob.active_material.name
+        else:
+            default_material_name = "INERT"
+        scale_length = context.scene.unit_settings.scale_length
         for f in bm.faces:
             # Grab ordered vertices coordinates
             coos = [co for v in f.verts for co in v.co]
             coos.extend((coos[-3], coos[-2], coos[-1]))  # tri to quad
-            items = ["{:.3f}".format(co) for co in coos]
+            items = ["{:.6f}".format(coo * scale_length) for coo in coos]
             # Get appearance_index
             if default_material_name:
                 material_name = default_material_name
