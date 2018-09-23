@@ -161,7 +161,7 @@ class MATERIAL_OT_bf_set_matl_id(Operator):
     def draw(self, context):
         self.layout.prop(self,"bf_matl_id",text="")
 
-#-- GEOM, check geometry  # FIXME better to check all geometries
+#-- GEOM, check geometry
 
 class SCENE_OT_bf_check_intersections(Operator):
     bl_label = "Get intersections with"
@@ -409,7 +409,7 @@ def _bf_props_copy(context, source_element, destination_elements):
 class SCENE_OT_bf_copy_props_to_scene(Operator):
     bl_label = "Copy Properties To Scene"
     bl_idname = "scene.bf_props_to_scene"
-    bl_description = "Copy these properties to another scene"
+    bl_description = "Copy all current scene FDS properties to another scene"
 
     bf_destination_element = StringProperty(name="To scene")
 
@@ -441,7 +441,7 @@ class SCENE_OT_bf_copy_props_to_scene(Operator):
 class OBJECT_OT_bf_copy_FDS_properties_to_sel_obs(Operator):
     bl_label = "Copy these properties to other selected objects"
     bl_idname = "object.bf_props_to_sel_obs"
-    bl_description = "Copy these properties to other selected objects"
+    bl_description = "Copy current object FDS properties to other selected objects"
 
     def invoke(self, context, event): # Ask for confirmation
         wm = context.window_manager
@@ -519,7 +519,8 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
             # Manage GEOM: get coordinates, show them in a tmp object, prepare msg
             msg = None
             try:
-                fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, ob)
+                check = ob.bf_geom_check_quality
+                fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, ob, check)
             except BFException as err:
                 w.cursor_modal_restore()
                 self.report({"ERROR"}, str(err))
