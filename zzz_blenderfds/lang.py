@@ -1683,6 +1683,17 @@ class ON_OBST(BFNamelist):
 # GEOM
 
 @subscribe
+class OP_GEOM_check_quality(BFProp):
+    label = "Check Geometry Quality"
+    description = "Check geometry quality (eg. manifold, closed, non self-intersecting) before exporting"
+    bpy_type = Object
+    bpy_prop = BoolProperty
+    bpy_idname = "bf_geom_check_quality"
+    bf_other = {
+        "default": True,
+    }
+
+@subscribe
 class OP_GEOM(BFProp):
     label = "Triangulated geometry"
     description = "Triangulated geometry vertices and faces"
@@ -1691,7 +1702,8 @@ class OP_GEOM(BFProp):
     def to_fds(self, context):  # TODO improve
         # Check is performed while exporting
         # Get surf_idv, verts and faces
-        fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, self.element)
+        check = self.element.bf_geom_check_quality
+        fds_surfids, fds_verts, fds_faces, msg = geometry.to_fds.ob_to_geom(context, self.element, check)
         if msg:
             self.infos.append(msg)
         if not fds_faces:
@@ -1715,7 +1727,7 @@ class OP_GEOM(BFProp):
     def _draw_body(self, context, layout) -> "None":
         """Draw bpy_prop."""
         row = layout.row()
-        row.label()
+        row.prop(self.element, "bf_geom_check_quality")
         row.operator("object.bf_check_intersections")
 
 @subscribe

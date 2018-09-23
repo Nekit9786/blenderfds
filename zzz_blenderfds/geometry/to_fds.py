@@ -199,10 +199,10 @@ def ob_to_pbs(context, ob):
 
 #++ to GEOM
 
-def ob_to_geom(context, ob) -> "mas, fds_verts, fds_faces, msg":
+def ob_to_geom(context, ob, check=True) -> "mas, fds_verts, fds_faces, msg":
     """Transform Blender object geometry to GEOM FDS notation. Never send a None."""
-    mas, verts, faces = get_trisurface(context, ob)
+    mas, verts, faces = get_trisurface(context, ob, check)
     msg = "{} vertices, {} faces".format(len(verts), len(faces))
     fds_verts = [coo for vert in verts for coo in vert]
     fds_faces = [i for face in faces for i in face]
-    return mas, fds_verts, fds_faces, msg  # FIXME add caching of results
+    return mas, fds_verts, fds_faces, msg  # TODO add caching of results

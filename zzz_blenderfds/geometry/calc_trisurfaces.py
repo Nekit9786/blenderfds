@@ -12,7 +12,7 @@ DEBUG = False
 
 # Get triangulated surface
 
-def get_trisurface(context, ob) -> "mas, verts, faces":
+def get_trisurface(context, ob, check=True) -> "mas, verts, faces":
     """Get triangulated surface from object ready for FDS GEOM format."""
     # Check and init
     DEBUG and print("BFDS: get_triangles")
@@ -20,7 +20,8 @@ def get_trisurface(context, ob) -> "mas, verts, faces":
     if not ob.data.vertices:
         raise BFException(ob, "Empty object!")
     # Check original mesh quality
-    check_mesh_quality(context, ob)
+    if check:
+        check_mesh_quality(context, ob)
     # Create new object global copy
     ob_tmp = utils.object_get_global_copy(context, ob, suffix='_tri_tmp')
     # Create triangulate modifier
