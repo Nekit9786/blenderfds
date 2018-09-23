@@ -70,7 +70,7 @@ def _INFO_MT_editor_menus_draw_menus_tmp(layout, context):
     row.operator("wm.quit_blender", text="Restart neeeded", icon='QUIT')
 
 
-def _VIEW3D_PT_tools_add_object_draw(self, context):  # FIXME insert into recoded UI
+def _VIEW3D_PT_tools_add_object_draw(self, context):  # TODO insert into recoded UI
     layout = self.layout
     col = layout.column(align=True)
     self.draw_add_mesh(col, label=True)
@@ -98,7 +98,7 @@ def _sp_items_update(self, context):
     space = context.space_data
     # When not called by the Properties Panel
     if space and space.type != 'PROPERTIES':
-        print("_sp_items_update Not called by Properties Panel")  # FIXME
+        print("_sp_items_update Not called by Properties Panel")  # TODO check?
         space = None
         for window in context.window_manager.windows:
             for area in window.screen.areas:
@@ -129,7 +129,7 @@ _used_headers = (
 
 _used_panels = (
     'Panel',
-    'SCENE_PT_BF_HEAD', 'SCENE_PT_BF_TIME', 'SCENE_PT_BF_DUMP', 'SCENE_PT_BF_MISC', 'SCENE_PT_BF_REAC',
+    'SCENE_PT_BF_HEAD', 'SCENE_PT_BF_config', 'SCENE_PT_BF_TIME', 'SCENE_PT_BF_DUMP', 'SCENE_PT_BF_MISC', 'SCENE_PT_BF_REAC',
     'OBJECT_PT_context_object',
     'OBJECT_PT_BF_MESH', 'OBJECT_PT_BF_EMPTY', 'OBJECT_PT_BF_TMP',
     'MATERIAL_PT_BF',

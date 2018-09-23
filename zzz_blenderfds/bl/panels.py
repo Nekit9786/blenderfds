@@ -26,9 +26,14 @@ class SCENE_PT_BF():
         # Panel
         self.bf_namelist(element).draw(context, layout)
 
+
 class SCENE_PT_BF_HEAD(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_HEAD"
     bf_namelist = SN_HEAD
+
+class SCENE_PT_BF_config(SCENE_PT_BF, Panel):
+    bl_idname = "SCENE_PT_BF_config"
+    bf_namelist = SN_config
 
     def draw(self, context):
         layout = self.layout
@@ -43,10 +48,6 @@ class SCENE_PT_BF_HEAD(SCENE_PT_BF, Panel):
         row.operator("scene.bf_restore_all_tmp_objects")
         row.operator("scene.bf_show_fds_code", text="Show FDS Code")
         row.operator("scene.bf_props_to_scene", text="Copy To")
-
-class SCENE_PT_BF_config(SCENE_PT_BF, Panel):
-    bl_idname = "SCENE_PT_BF_config"
-    bf_namelist = SN_config
 
 class SCENE_PT_BF_CATF(SCENE_PT_BF, Panel):
     bl_idname = "SCENE_PT_BF_CATF"
