@@ -914,7 +914,6 @@ class SP_REAC_HEAT_OF_COMBUSTION(BFProp):
     bpy_idname = "bf_reac_heat_of_combustion"
     bpy_prop = FloatProperty
     bpy_other = {
-        "step": 100000.,
         "precision": 1,
         "min": 0.,
     }
@@ -1432,7 +1431,6 @@ class MP_HRRPUA(BFProp):
     bpy_idname = "bf_hrrpua"
     bpy_prop = FloatProperty
     bpy_other = {
-        "step": 1000.,
         "precision": 3,
         "min": 0.,
         "default": 0.,
