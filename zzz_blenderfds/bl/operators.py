@@ -163,25 +163,22 @@ class MATERIAL_OT_bf_set_matl_id(Operator):
 
 #-- GEOM, check geometry
 
-class SCENE_OT_bf_check_intersections(Operator):
-    bl_label = "Get intersections with"
+class SCENE_OT_bf_check_intersections(Operator):  # TODO test
+    bl_label = "Get intersections"
     bl_idname = "object.bf_check_intersections"
-    bl_description = "Get intersections with other selected objects"
+    bl_description = "Get self-intersections or intersections with other selected objects"
 
     def execute(self, context):
         ob = context.active_object
         obs = context.selected_objects
         obs.remove(ob)
-        if obs:
-            try:
-                check_intersections(context, ob, obs)
-            except BFException as err:
-    #            w.cursor_modal_restore() # TODO
-                self.report({"ERROR"}, str(err))
-                return{'CANCELLED'}
-            self.report({"INFO"}, "No intersection")
-        else:
-            self.report({"ERROR"}, "Select other objects to get intersections")
+        try:
+            check_intersections(context, ob, obs)
+        except BFException as err:
+#            w.cursor_modal_restore() # TODO
+            self.report({"ERROR"}, str(err))
+            return{'CANCELLED'}
+        self.report({"INFO"}, "No intersection")
         return {'FINISHED'}
 
 #-- DEVC PROP_ID
@@ -257,7 +254,7 @@ class OBJECT_OT_bf_set_cell_size(Operator):
 
     bf_cell_sizes = FloatVectorProperty(
         name="Desired Cell Sizes [m]", description="Desired MESH cell sizes",
-        default=(.3, .3, .3), min=.001, step=1000, precision=3, size=3
+        default=(.3, .3, .3), min=.001, precision=3, size=3
     )
     bf_snap_to_origin = BoolProperty(
         name="Snap To Global Origin",
@@ -567,7 +564,7 @@ class OBJECT_OT_bf_show_fds_geometry(Operator):
         if msgs:
             report = {"INFO"}, "; ".join(msgs)
             ob.show_tmp_obs(context)
-        elif xbs or xyzs or pbs or faces:
+        elif xbs or xyzs or pbs or fds_faces:
             report = {"INFO"}, "FDS geometry shown"
             ob.show_tmp_obs(context)
         else:
@@ -636,17 +633,17 @@ class MATERIAL_OT_bf_set_tau_q(Operator):
 
     bf_burner_area = FloatProperty(
         name="Est.d Burner Area [m²]",
-        description="Estimated burner area used for HRRPUA. Correct it for eventual hidden burner surfaces.",
+        description="Estimated burner area used for HRRPUA, correct it for eventual hidden burner surfaces",
         min=0., precision=2, step=100
     ) # unit="AREA" this would need correction
     bf_hrr_max = FloatProperty(
         name="HRR Max [kW]",
-        description="Maximum HRR achieved at the end of the αt² ramp.",
-        min=0., precision = 1, step=1000
+        description="Maximum HRR achieved at the end of the αt² ramp",
+        min=0., precision = 1,
     )
     bf_growth_rate = EnumProperty(
         name = "Growth Rate",
-        description="Standardized growth rate for the HRR αt² ramp.",
+        description="Standardized growth rate for the HRR αt² ramp",
         items = (
             ("SLOW", "Slow (600 s)", "Slow growth rate (600 s)"),
             ("MEDIUM", "Medium (300 s)", "Medium growth rate (300 s)"),
@@ -657,7 +654,7 @@ class MATERIAL_OT_bf_set_tau_q(Operator):
     )
     bf_reference_hrr = EnumProperty(
         name = "Reference HRR",
-        description="Reference HRR αt² ramp standard.",
+        description="Reference HRR αt² ramp standard",
         items = (
             ("US", "US, 1000 BTU/s (1055 kW)", "US, 1000 BTU/s (1055 kw)"),
             ("EN", "Eurocode, 1000 kW", "Eurocode, 1000 kW"),
@@ -782,7 +779,7 @@ class SCENE_OT_bf_load_misc(Operator, ImportHelperSnippet):
 #-- Import function
 
 def _view3d_view_all(context):
-    """View all elements on the 3dview. Override context."""
+    """View all elements on the 3dviewm, override context"""
     for area in context.screen.areas:
         if area.type == 'VIEW_3D':
             for region in area.regions:

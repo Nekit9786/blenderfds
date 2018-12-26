@@ -41,12 +41,18 @@ def get_trisurface(context, ob, check=True) -> "mas, verts, faces":
     material_slots = ob.material_slots
     if len(material_slots) == 0:
         bpy.data.objects.remove(ob_tmp, True)
-        raise BFException(ob, "No referenced SURF, add at least one Material.")
+        raise BFException(ob,
+            "No referenced SURF, add at least one Material")
     for material_slot in material_slots:
         ma = material_slot.material
+        if not ma:
+            bpy.data.objects.remove(ob_tmp, True)
+            raise BFException(ob,
+                "No referenced SURF, fill empty slot with Material")
         if not ma.bf_export:
             bpy.data.objects.remove(ob_tmp, True)
-            raise BFException(ob, "Referenced SURF ID='{}' is not exported.".format(ma.name))
+            raise BFException(ob,
+                "Referenced SURF ID='{}' is not exported".format(ma.name))
         mas.append(ma.name)
     # Get ob verts and faces
     bm = bmesh.new()
@@ -84,55 +90,50 @@ def check_mesh_quality(context, ob):
     for edge in bm.edges:
         if not edge.is_manifold:
             bad_edges.append(edge)
-    msg = "Non manifold or open geometry detected, bad edges selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
+    if bad_edges:
+        msg = "Non manifold or open geometry detected, bad edges selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
     # Check manifold vertices
     for vert in bm.verts:
         if not vert.is_manifold:
             bad_verts.append(vert)
-    msg = "Non manifold vertices detected, bad vertices selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
+    if bad_verts:
+        msg = "Non manifold vertices detected, bad vertices selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
     # Check contiguous normals, adjoining faces should have normals
     # in the same directions
     for edge in bm.edges:
         if not edge.is_contiguous:
             bad_edges.append(edge)
-    msg = "Inconsistent face normals detected, bad edges selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
+    if bad_edges:
+        msg = "Inconsistent face normals detected, bad edges selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
     # Check no degenerate edges, zero lenght edges
     for edge in bm.edges:
         if edge.calc_length() <= epsilon_len:
             bad_edges.append(edge)
-    msg = "Too short edges detected, bad edges selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
+    if bad_edges:
+        msg = "Too short edges detected, bad edges selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_edges=bad_edges)
     # Check degenerate faces, zero area faces
     for face in bm.faces:
         if face.calc_area() <= epsilon_area:
             bad_faces.append(face)
-    msg = "Too small area faces detected, bad faces selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)
+    if bad_faces:
+        msg = "Too small area faces detected, bad faces selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)
     # Check loose vertices, vertices that have no connectivity
     for vert in bm.verts:
         if not bool(vert.link_edges):
             bad_verts.append(vert)
-    msg = "Loose vertices detected, bad vertices selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
+    if bad_verts:
+        msg = "Loose vertices detected, bad vertices selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
     # Check duplicate vertices
     _check_duplicate_vertices(context, ob, bm, epsilon_len)
-    # Check inverted normals
-    original_normal = bm.faces[0].normal.copy()
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)  # recalc outside
-    if original_normal.dot(bm.faces[0].normal) < 0.:  # opposed normals?
-        raise BFException(ob, "Face normals are pointing towards the inside, "
-            "update needed.")
-    # Check self intersection
-    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon_len)
-    overlap = tree.overlap(tree)
-    if overlap:
-        ifaces = {i_pair[0] for i_pair in overlap}  # only from first tree
-        bad_faces = [bm.faces[iface] for iface in ifaces]
-        msg = "Self-intersection detected, bad faces selected."
-        _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)
+    # Set overall normals
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(ob.data)
     # Close
     bm.free()
 
@@ -151,75 +152,75 @@ def _check_duplicate_vertices(context, ob, bm, epsilon_len):
         if len(vert_group) > 1:
             for i in vert_group:
                 bad_verts.append(bm.verts[i])
-    msg = "Duplicate vertices detected, bad vertices selected."
-    _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
+    if bad_verts:
+        msg = "Duplicate vertices detected, bad vertices selected."
+        _raise_bad_geometry(context, ob, bm, msg, bad_verts=bad_verts)
 
 
 # Check intersections
 
-def check_intersections(context, ob, other_obs):  # TODO test and use
-    """Check intersection of ob with other_obs."""
-    DEBUG and print("BFDS: check_quality: intersection:", ob, other_obs)
-    # Init once
+def _get_bm_and_tree(context, ob, epsilon_len=0., matrix=None):
+    """Get BMesh and BVHTree from Object."""
+    bm = bmesh.new()  # remains in ob local coordinates
+    bm.from_object(ob, context.scene,
+        deform=True, render=False, cage=False, face_normals=True)
+    bm.faces.ensure_lookup_table()  # update bmesh index
+    if matrix:
+        bm.transform(matrix)
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon_len)
+    return bm, tree
+
+def _get_intersected_faces(bm, tree, other_tree):
+    """Get intersected faces between trees."""
+    overlap = tree.overlap(other_tree)
+    if overlap:
+        ifaces = {i_pair[0] for i_pair in overlap}
+        return [bm.faces[iface] for iface in ifaces]
+    return list()
+
+def check_intersections(context, ob, other_obs=None):
+    """Check ob self-intersection and intersection with other_obs."""
+    DEBUG and print("BFDS: check_quality: intersections:", ob, other_obs)
     bpy.ops.object.mode_set(mode='OBJECT')
     epsilon_len = context.scene.bf_config_min_edge_length
-    bm = bmesh.new()  # remains in ob local coordinates
-    bm.from_object(ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
-    bm.faces.ensure_lookup_table()  # update bmesh index
-    tree = mathutils.bvhtree.BVHTree.FromBMesh(bm, epsilon=epsilon_len)
-    # Repeat check, without reiniting
-    for other_ob in other_obs:
-        _check_intersection(context, ob, bm, tree, epsilon_len, other_ob)
-
-def _check_intersection(context, ob, bm, tree, epsilon_len, other_ob):
-    """Check intersection between ob and other_ob."""
-    DEBUG and print("BFDS: check_quality: intersection:", ob.name, other_ob.name)
     bad_faces = list()
-    # TODO does not work, transformations!
-    # First check bboxes for intersection in global coordinates (fast)
-    # ~ bb0 = [ob.matrix_world * mathutils.Vector(b) for b in ob.bound_box]
-    # ~ bb1 = [other_ob.matrix_world * mathutils.Vector(b) for b in other_ob.bound_box]
-    # ~ if bb0[6][0] < bb1[0][0] or bb1[6][0] < bb0[0][0] or \
-       # ~ bb0[6][1] < bb1[0][1] or bb1[6][1] < bb0[0][1] or \
-       # ~ bb0[6][2] < bb1[0][2] or bb1[6][2] < bb0[0][2]:
-        # ~ DEBUG and print("BFDS: check_quality: intersection: none (fast): ", ob.name, other_ob.name)
-        # ~ return
-    # Second compare trees (slow)
-    other_bm = bmesh.new()
-    other_bm.from_object(other_ob, context.scene, deform=True, render=False, cage=False, face_normals=True)
-    other_bm.transform(other_ob.matrix_world)  # to global coordinates
-    other_bm.transform(ob.matrix_world.inverted())  # to ob local coordinates
-    other_tree = mathutils.bvhtree.BVHTree.FromBMesh(other_bm, epsilon=epsilon_len)
-    overlap = tree.overlap(other_tree)  # compare in ob local coordinates
-    if overlap:
-        ifaces = {i_pair[0] for i_pair in overlap}  # only from first tree
-        bad_faces = [bm.faces[iface] for iface in ifaces]
+    bm, tree = _get_bm_and_tree(context, ob, epsilon_len=epsilon_len)
+    # Get self-intersections
+    bad_faces.extend(_get_intersected_faces(bm, tree, tree))
+    # Get intersections
+    for other_ob in other_obs or tuple():
+        matrix = ob.matrix_world.inverted() * other_ob.matrix_world
+        other_bm, other_tree = _get_bm_and_tree(
+            context, other_ob, epsilon_len=epsilon_len, matrix=matrix,
+            )
+        bad_faces.extend(_get_intersected_faces(bm, tree, other_tree))
+    # Raise
+    if bad_faces:
         msg = "Intersection detected, bad faces selected."
-        _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)
-    DEBUG and print("BFDS: check_quality: intersection: none (slow): ", ob.name, other_ob.name)
+        _raise_bad_geometry(context, ob, bm, msg, bad_faces=bad_faces)          
+
 
 # Raise bad geometry
 
 def _raise_bad_geometry(context, ob, bm, msg,
         bad_verts=None, bad_edges=None, bad_faces=None):
     """Select bad elements, show them, raise BFException."""
-    if not bad_verts and not bad_edges and not bad_faces:
-        return
-    # Deselect faces, edges, verts in bmesh
-    for face in bm.faces:
-        face.select = False
-    for edge in bm.edges:
-        edge.select = False
+    # Deselect all in bmesh
     for vert in bm.verts:
         vert.select = False
+    bm.select_flush(False)
     # Select bad elements
+    select_type = None
     if bad_faces:
+        select_type = 'FACE'
         for b in bad_faces:
             b.select = True
     if bad_edges:
+        select_type = 'EDGE'
         for b in bad_edges:
             b.select = True
     if bad_verts:
+        select_type = 'VERT'
         for b in bad_verts:
             b.select = True
     bm.to_mesh(ob.data)
@@ -230,5 +231,5 @@ def _raise_bad_geometry(context, ob, bm, msg,
     ob.select = True
     context.scene.objects.active = ob
     bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='VERT')
+    bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type=select_type)
     raise BFException(ob, msg)
